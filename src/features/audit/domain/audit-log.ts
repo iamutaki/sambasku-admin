@@ -6,6 +6,8 @@
 export interface AuditLogListItem {
   id: string; // ULID
   user_id: string | null;
+  /** username pelaku (JOIN users); null kalau user_id null / user terhapus */
+  user_name: string | null;
   action: string;
   entity_type: string;
   entity_id: string | null;

@@ -1,13 +1,14 @@
 import { useMemo } from 'react';
 import { createColumnHelper, getCoreRowModel, useReactTable } from '@tanstack/react-table';
 import { ReloadOutlined } from '@ant-design/icons';
-import { Alert, Button, Flex, Result, Tag, Tooltip, Typography } from 'antd';
+import { Alert, Button, Flex, Result, Tag, Typography } from 'antd';
 import dayjs from 'dayjs';
 import { DataTable } from '@/shared/components/data-table';
 import { PageHeader } from '@/shared/components/page-header';
 import { useAuth } from '@/shared/auth/use-auth';
 import { useAuditLogList } from '../application/use-audit-log-list';
 import { AUDIT_ACTION_TAG_COLOR, type AuditLogListItem } from '../domain/audit-log';
+import { AuditChangesCell } from './audit-changes-cell';
 
 const columnHelper = createColumnHelper<AuditLogListItem>();
 
@@ -17,15 +18,10 @@ function shortUlid(id: string | null): string {
   return id.slice(0, 8) + '…';
 }
 
-function renderDataSummary(data: Record<string, unknown> | null): string {
-  if (!data) return '—';
-  return JSON.stringify(data);
-}
-
 /**
  * Halaman Audit Log (role: admin & root) — jejak mutasi data secara
- * kronologis terbaru dulu (id DESC). Data mentah `new_data`/`old_data`
- * ditampilkan ringkas (JSON + Tooltip penuh).
+ * kronologis terbaru dulu (id DESC). `new_data`/`old_data` diringkas jadi
+ * daftar field yang berubah (`AuditChangesCell`); klik baris untuk JSON rapi.
  */
 export function AuditLogsPage() {
   const { user } = useAuth();
@@ -57,27 +53,23 @@ export function AuditLogsPage() {
         meta: { responsive: ['lg'] },
         cell: (info) => <Typography.Text type="secondary">{shortUlid(info.getValue())}</Typography.Text>,
       }),
-      columnHelper.accessor('user_id', {
+      columnHelper.accessor('user_name', {
         header: 'Pelaku',
-        size: 120,
+        size: 140,
         meta: { responsive: ['lg'] },
-        cell: (info) => <Typography.Text type="secondary">{shortUlid(info.getValue())}</Typography.Text>,
+        cell: (info) => {
+          const name = info.getValue();
+          return name ? (
+            <Typography.Text strong>{name}</Typography.Text>
+          ) : (
+            <Typography.Text type="secondary">{shortUlid(info.row.original.user_id)}</Typography.Text>
+          );
+        },
       }),
       columnHelper.display({
         id: 'changes',
         header: 'Perubahan',
-        size: 300,
-        cell: (info) => {
-          const row = info.row.original;
-          const text = renderDataSummary(row.new_data ?? row.old_data);
-          return (
-            <Tooltip title={text} placement="topLeft">
-              <Typography.Text type="secondary" ellipsis={{ tooltip: text }} style={{ maxWidth: '100%', display: 'block' }}>
-                {text}
-              </Typography.Text>
-            </Tooltip>
-          );
-        },
+        cell: (info) => <AuditChangesCell oldData={info.row.original.old_data} newData={info.row.original.new_data} />,
       }),
     ],
     [],
