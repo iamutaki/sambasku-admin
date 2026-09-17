@@ -1,0 +1,84 @@
+name: Deploy Admin (Staging)
+
+# Deploy murni lewat CI/CD (GitHub Actions → wrangler pages deploy), BUKAN
+# Git integration bawaan Cloudflare Pages.
+#
+# Setup sekali di Cloudflare (manual):
+#   1. Pastikan zone iamutaki.com ada di akun Cloudflare yang sama.
+#   2. Project Pages `sambasku-admin-staging` dibuat otomatis oleh job ini.
+#   3. Attach custom domain: Workers & Pages → sambasku-admin-staging →
+#      Custom domains → add `console-sambasku-staging.iamutaki.com`.
+#      (DNS + sertifikat dibuat otomatis karena satu akun/zone.)
+#   4. JANGAN lupa tambahkan origin ini ke CORS_ALLOWED_ORIGINS API staging
+#      (api/wrangler.toml → env.staging.vars), kalau tidak login akan diblokir.
+#
+# Secrets repo (Settings → Secrets and variables → Actions):
+#   CLOUDFLARE_API_TOKEN   — izin "Cloudflare Pages: Edit"
+#   CLOUDFLARE_ACCOUNT_ID  — Account ID Cloudflare
+#
+# Kenapa custom domain WAJIB: cookie refresh_token ber-SameSite=Strict, jadi
+# admin dan API harus satu registrable domain (iamutaki.com) agar auto-refresh
+# sesi berfungsi. `*.pages.dev` adalah situs berbeda → login "amnesia".
+
+on:
+  push:
+    branches: [staging]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-admin-staging
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    name: Build & Deploy
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Test
+        run: pnpm test
+
+      # tsc -b (typecheck) sudah termasuk di dalam build:staging.
+      - name: Build (staging)
+        run: pnpm build:staging
+
+      # Idempotent: bikin project kalau belum ada, diamkan kalau sudah.
+      - name: Pastikan project Cloudflare Pages ada
+        run: >
+          pnpm dlx wrangler pages project create sambasku-admin-staging
+          --production-branch=staging
+          || echo "Project sudah ada — lanjut deploy."
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      # --branch=staging cocok dengan production-branch project → deploy ini
+      # menjadi production deployment, yang dilayani custom domain.
+      - name: Deploy ke Cloudflare Pages
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy dist --project-name=sambasku-admin-staging --branch=staging
