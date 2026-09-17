@@ -1,12 +1,19 @@
 import type {
   CreateWordFormValues,
+  CreateWordMeaningFormValue,
   CreateWordRequest,
   CreateWordRequestExample,
   CreateWordRequestMeaning,
   CreateWordRequestRelated,
+  CreateWordRequestTranslation,
   CreateWordRequestVariant,
   CreateWordExampleFormValue,
+  CreateWordVariantFormValue,
+  InlineWordFormValue,
+  InlineWordRequest,
   LanguageOption,
+  MeaningOverrideFormValue,
+  MeaningOverrideRequest,
 } from '../domain/create-word';
 
 /**
@@ -61,59 +68,25 @@ export function buildCreateWordBody(
   values: CreateWordFormValues,
   status: 'draft' | 'published',
 ): CreateWordRequest {
-  const meanings: CreateWordRequestMeaning[] = (values.meanings ?? [])
-    .map((meaning) => {
-      if (!meaning.word_class_id || !meaning.definition?.trim()) return null;
-
-      const translations = (meaning.translations ?? [])
-        .filter((t) => t.language_id && t.translation_text?.trim())
-        .map((t) => ({
-          language_id: t.language_id as string,
-          translation_text: (t.translation_text as string).trim(),
-          translation_type: t.translation_type ?? 'direct',
-        }));
-      if (translations.length === 0) return null;
-
-      const examples: CreateWordRequestExample[] = (meaning.examples ?? [])
-        .filter((e) => e.source_language_id && e.source_sentence?.trim())
-        .map(buildExample);
-
-      return {
-        word_class_id: meaning.word_class_id as string,
-        definition: meaning.definition.trim(),
-        translations,
-        ...(examples.length ? { examples } : {}),
-      };
-    })
-    // order_index default dihitung dari posisi diantara makna yang DIKEEP
-    .filter((meaning): meaning is CreateWordRequestMeaning => meaning !== null)
-    .map((meaning, index): CreateWordRequestMeaning => {
-      const source = (values.meanings ?? [])[index];
-      return {
-        ...meaning,
-        order_index: source?.order_index ?? index + 1,
-      };
-    });
+  const meanings = buildMeanings(values.meanings ?? []);
 
   const relatedWords: CreateWordRequestRelated[] = (values.related_words ?? [])
-    .filter((rel) => rel.word_id && rel.relation_type)
-    .map((rel) => ({ word_id: rel.word_id as string, relation_type: rel.relation_type! }));
-
-  const variants: CreateWordRequestVariant[] = (values.variants ?? [])
-    .filter((variant) => variant.form?.trim())
-    .map((variant) => ({
-      form: (variant.form as string).trim(),
-      variant_type: variant.variant_type ?? 'alternative',
-      ...(variant.affix_type ? { affix_type: variant.affix_type } : {}),
-      ...(variant.affix_value?.trim() ? { affix_value: variant.affix_value.trim() } : {}),
-    }));
-
-  const pronunciation = values.pronunciation?.value?.trim()
-    ? {
-        notation: values.pronunciation.notation?.trim() || 'ipa',
-        value: values.pronunciation.value.trim(),
+    .filter((rel) => rel.relation_type)
+    .map((rel) => {
+      const relationType = rel.relation_type!;
+      // 04: Form B — buat kata baru INLINE (indeks makna override dipetakan
+      // dari posisi di form ke posisi di array meanings body yang terkirim).
+      if (rel.mode === 'inline' && rel.word) {
+        const word = buildInlineWord(rel.word, keptIndicesOf(values.meanings ?? []));
+        return word ? { relation_type: relationType, word } : null;
       }
-    : undefined;
+      return rel.word_id ? { relation_type: relationType, word_id: rel.word_id } : null;
+    })
+    .filter((rel): rel is CreateWordRequestRelated => rel !== null);
+
+  const variants: CreateWordRequestVariant[] = buildVariants(values.variants ?? []);
+
+  const pronunciation = buildPronunciation(values.pronunciation);
 
   return {
     language_id: values.language_id as string,
@@ -128,6 +101,165 @@ export function buildCreateWordBody(
     ...(pronunciation ? { pronunciation } : {}),
     status,
   };
+}
+
+/**
+ * Indeks posisi form (di values.meanings) yang LULUS normalisasi — dipakai
+ * memetakan meaning_index override (posisi form) ke index array meanings
+ * body. Kalau sebuah makna induk dibuang (kosong), override yang menunjuknya
+ * ikut dibuang sehingga indeks selalu konsisten dengan yang dikirim.
+ */
+function keptIndicesOf(meanings: NonNullable<CreateWordFormValues['meanings']>): number[] {
+  const kept: number[] = [];
+  for (const [i, meaning] of meanings.entries()) {
+    const hasTranslation = (meaning.translations ?? []).some(
+      (t) => t.language_id && t.translation_text?.trim(),
+    );
+    if (meaning.word_class_id && meaning.definition?.trim() && hasTranslation) {
+      kept.push(i);
+    }
+  }
+  return kept;
+}
+
+function buildMeanings(raw: CreateWordFormValues['meanings']): CreateWordRequestMeaning[] {
+  const meanings = raw ?? [];
+  const kept: number[] = [];
+  const normalized = meanings
+    .map((meaning, formIndex) => {
+      const out = normalizeMeaning(meaning);
+      if (out) kept.push(formIndex);
+      return out;
+    })
+    .filter((m): m is CreateWordRequestMeaning => m !== null)
+    .map((meaning, index): CreateWordRequestMeaning => {
+      // order_index default = urutan tampil di antara makna yang DIKEEP
+      return {
+        ...meaning,
+        order_index: meanings[kept[index]]?.order_index ?? index + 1,
+      };
+    });
+  return normalized;
+}
+
+/** Normalisasi SATU makna (induk ATAU inline inherit=false): makna tanpa isi
+ * (kelas kata/definisi/terjemahan kosong) dibuang, sisanya dibersihkan. */
+function normalizeMeaning(
+  meaning: CreateWordMeaningFormValue,
+): Omit<CreateWordRequestMeaning, 'order_index'> | null {
+  if (!meaning.word_class_id || !meaning.definition?.trim()) return null;
+
+  const translations = (meaning.translations ?? [])
+    .filter((t) => t.language_id && t.translation_text?.trim())
+    .map((t): CreateWordRequestTranslation => ({
+      language_id: t.language_id as string,
+      translation_text: (t.translation_text as string).trim(),
+      translation_type: t.translation_type ?? 'direct',
+    }));
+  if (translations.length === 0) return null;
+
+  const examples: CreateWordRequestExample[] = (meaning.examples ?? [])
+    .filter((e) => e.source_language_id && e.source_sentence?.trim())
+    .map(buildExample);
+
+  return {
+    word_class_id: meaning.word_class_id as string,
+    definition: meaning.definition.trim(),
+    translations,
+    ...(examples.length ? { examples } : {}),
+  };
+}
+
+/**
+ * 04: bangun entri kata baru inline (Form B) dari nilai form.
+ * - lemma kosong → null (baris belum terisi, dibuang seperti baris lain).
+ * - inherit=true (default) → meaning_overrides (translate-and-replace);
+ *   indeks override dipetakan lewat keptIndicesOf agar selaras dgn body.
+ * - inherit=false → meanings diisi penuh (normalisasi sama seperti induk).
+ */
+function buildInlineWord(
+  word: InlineWordFormValue,
+  keptIndices: number[],
+): InlineWordRequest | null {
+  const lemma = word.lemma?.trim();
+  if (!lemma) return null;
+
+  const inherit = word.inherit_meanings !== false;
+
+  const overrides: MeaningOverrideRequest[] = inherit
+    ? (word.meaning_overrides ?? [])
+        .filter((o) => o.meaning_index !== undefined)
+        .map((o): MeaningOverrideRequest | null => {
+          const bodyIndex = keptIndices.indexOf(o.meaning_index!);
+          if (bodyIndex < 0) return null;
+          return buildMeaningOverride(o, bodyIndex);
+        })
+        .filter((o): o is MeaningOverrideRequest => o !== null)
+    : [];
+
+  const meanings = inherit ? undefined : buildMeanings(word.meanings ?? []);
+
+  const variants = buildVariants(word.variants ?? []);
+  const pronunciation = buildPronunciation(word.pronunciation);
+
+  return {
+    lemma,
+    ...(word.notes?.trim() ? { notes: word.notes.trim() } : {}),
+    ...(word.word_type ? { word_type: word.word_type } : {}),
+    inherit_meanings: inherit,
+    ...(overrides.length ? { meaning_overrides: overrides } : {}),
+    ...(meanings?.length ? { meanings } : {}),
+    ...(variants.length ? { variants } : {}),
+    ...(pronunciation ? { pronunciation } : {}),
+  };
+}
+
+/** Satu override: field yang tidak disebut (mis. word_class_id) tetap memakai
+ * hasil salinan induk di server — di sini cukup kirim yang diisi saja. */
+function buildMeaningOverride(
+  override: MeaningOverrideFormValue,
+  meaningIndex: number,
+): MeaningOverrideRequest {
+  const translations = (override.translations ?? [])
+    .filter((t) => t.language_id && t.translation_text?.trim())
+    .map((t): CreateWordRequestTranslation => ({
+      language_id: t.language_id as string,
+      translation_text: (t.translation_text as string).trim(),
+      translation_type: t.translation_type ?? 'direct',
+    }));
+  const examples: CreateWordRequestExample[] = (override.examples ?? [])
+    .filter((e) => e.source_language_id && e.source_sentence?.trim())
+    .map(buildExample);
+
+  return {
+    meaning_index: meaningIndex,
+    ...(override.definition?.trim() ? { definition: override.definition.trim() } : {}),
+    ...(override.word_class_id ? { word_class_id: override.word_class_id } : {}),
+    ...(translations.length ? { translations } : {}),
+    ...(examples.length ? { examples } : {}),
+  };
+}
+
+function buildVariants(raw: CreateWordVariantFormValue[] | undefined): CreateWordRequestVariant[] {
+  return (raw ?? [])
+    .filter((variant) => variant.form?.trim())
+    .map((variant) => ({
+      form: (variant.form as string).trim(),
+      variant_type: variant.variant_type ?? 'alternative',
+      ...(variant.affix_type ? { affix_type: variant.affix_type } : {}),
+      ...(variant.affix_value?.trim() ? { affix_value: variant.affix_value.trim() } : {}),
+    }));
+}
+
+function buildPronunciation(
+  pronunciation: CreateWordFormValues['pronunciation'],
+): { notation: string; value: string } | undefined {
+  return pronunciation?.value?.trim()
+    ? {
+        notation: pronunciation.notation?.trim() || 'ipa',
+        value: pronunciation.value.trim(),
+      }
+    : undefined;
 }
 
 function buildExample(e: CreateWordExampleFormValue): CreateWordRequestExample {

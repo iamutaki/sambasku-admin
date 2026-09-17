@@ -111,10 +111,49 @@ export interface CreateWordRequestMeaning {
   examples?: CreateWordRequestExample[];
 }
 
-export interface CreateWordRequestRelated {
-  word_id: string;
-  relation_type: RelationType;
+/**
+ * 04-api-sinonim-inline.md — override SATU PER SATU atas makna hasil
+ * salinan (inherit makna induk). translate-and-replace: field yang TIDAK
+ * disebut tetap memakai hasil salinan; translations/examples = replace total.
+ */
+export interface MeaningOverrideRequest {
+  /** indeks 0-based makna INDUK yang dimodifikasi (di dalam body meanings) */
+  meaning_index: number;
+  definition?: string;
+  word_class_id?: string;
+  translations?: CreateWordRequestTranslation[];
+  examples?: CreateWordRequestExample[];
 }
+
+/**
+ * 04-api-sinonim-inline.md — kata baru yang dibuat INLINE (Form B).
+ * subset CreateWordRequest + inherit_meanings.
+ */
+export interface InlineWordRequest {
+  lemma: string;
+  notes?: string;
+  word_type?: WordType;
+  category_ids?: string[];
+  /** DEFAULT true — ikut definisi induk (disalin materialized oleh server) */
+  inherit_meanings?: boolean;
+  /** hanya sah saat inherit_meanings=true; indeks mengacu makna induk */
+  meaning_overrides?: MeaningOverrideRequest[];
+  /** wajib DAN hanya saat inherit_meanings=false */
+  meanings?: CreateWordRequestMeaning[];
+  variants?: CreateWordRequestVariant[];
+  pronunciation?: { notation: string; value: string };
+  /** default: ikut status yang dikirim di body induk */
+  status?: 'draft' | 'published';
+}
+
+/**
+ * 04-api-sinonim-inline.md — DUA bentuk per item related_words (union):
+ * Form A = tautkan ke kata SUDAH ada (01); Form B = buat kata baru INLINE.
+ * Tepat satu bentuk per item — validator backend yang memastikan.
+ */
+export type CreateWordRequestRelated =
+  | { relation_type: RelationType; word_id: string }
+  | { relation_type: RelationType; word: InlineWordRequest };
 
 export interface CreateWordRequestVariant {
   form: string;
@@ -137,6 +176,20 @@ export interface CreateWordRequest {
   status: 'draft' | 'published';
 }
 
+/** Hasil kata inline (Form B) dari backend — untuk summary di toast sukses. */
+export interface InlineCreatedWordResult {
+  word_id: string;
+  lemma: string;
+  relation_type: RelationType;
+  word_type: WordType;
+  status: WordStatus;
+  is_verified: boolean;
+  meanings_count: number;
+  inherited_meanings_count: number;
+  overridden_meanings_count: number;
+  warnings?: { field: string; message: string }[];
+}
+
 /** Response sukses create — `status` dari backend = sumber kebenaran akhir
  * (approval gate: contributor "published" → "pending_review"). */
 export interface CreateWordResult {
@@ -147,6 +200,7 @@ export interface CreateWordResult {
   is_verified: boolean;
   created_at: string;
   warnings?: { field: string; message: string }[];
+  inline_created_words?: InlineCreatedWordResult[];
 }
 
 // ---- Model nilai form antd (snake_case untuk mapping langsung ke body) ----
@@ -172,9 +226,39 @@ export interface CreateWordMeaningFormValue {
   examples?: CreateWordExampleFormValue[];
 }
 
+/** Bentuk entri item relasi di UI — dipakai tombol pemilah Form A/B. */
+export type RelatedWordMode = 'link' | 'inline';
+
+export interface MeaningOverrideFormValue {
+  /** indeks makna induk (posisi di daftar "Makan / Arti" form, 0-based) */
+  meaning_index?: number;
+  definition?: string;
+  word_class_id?: string;
+  translations?: CreateWordTranslationFormValue[];
+  examples?: CreateWordExampleFormValue[];
+}
+
+export interface InlineWordFormValue {
+  lemma?: string;
+  notes?: string;
+  word_type?: WordType;
+  /** default true (true = ikut definisi induk) */
+  inherit_meanings?: boolean;
+  /** hanya saat inherit_meanings=true */
+  meaning_overrides?: MeaningOverrideFormValue[];
+  /** hanya saat inherit_meanings=false */
+  meanings?: CreateWordMeaningFormValue[];
+  variants?: CreateWordVariantFormValue[];
+  pronunciation?: { notation?: string; value?: string };
+}
+
+/** Model nilai form item related_words — `mode` internal UI (tidak dikirim
+ * ke body); Form A punya word_id, Form B punya word. */
 export interface CreateWordRelatedFormValue {
-  word_id?: string;
   relation_type?: RelationType;
+  mode?: RelatedWordMode;
+  word_id?: string;
+  word?: InlineWordFormValue;
 }
 
 export interface CreateWordVariantFormValue {

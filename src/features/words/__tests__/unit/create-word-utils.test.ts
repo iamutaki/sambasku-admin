@@ -4,7 +4,11 @@ import {
   fieldToNamePath,
   pickDefaultLanguageIds,
 } from '@/features/words/application/create-word-utils';
-import type { CreateWordFormValues, LanguageOption } from '@/features/words/domain/create-word';
+import type {
+  CreateWordFormValues,
+  InlineWordRequest,
+  LanguageOption,
+} from '@/features/words/domain/create-word';
 
 const SAMBAS_ID = '01HXYZAAAAAAAAAAAAAAAAAAAA';
 const INDONESIA_ID = '01HXYBBBBBBBBBBBBBBBBBBBB';
@@ -189,5 +193,213 @@ describe('buildCreateWordBody', () => {
 
     const withValue = buildCreateWordBody(formValues({ pronunciation: { value: ' /x/ ' } }), 'draft');
     expect(withValue.pronunciation).toEqual({ notation: 'ipa', value: '/x/' });
+  });
+});
+
+// ---- 04-api-sinonim-inline.md — Form B (kata baru inline) ----
+
+describe('buildCreateWordBody - Form B (sinonim inline)', () => {
+  const formB = (body: CreateWordFormValues, status: 'draft' | 'published' = 'draft') =>
+    buildCreateWordBody(body, status).related_words[0] as {
+      relation_type: string;
+      word: InlineWordRequest;
+    };
+
+  it('membangun kata inline inherit=true dengan override satu-per-satu', () => {
+    const body = buildCreateWordBody(
+      formValues({
+        related_words: [
+          {
+            relation_type: 'synonym',
+            mode: 'inline',
+            word: {
+              lemma: '  ngamakn  ',
+              inherit_meanings: true,
+              meaning_overrides: [
+                {
+                  meaning_index: 0,
+                  definition: '  Mengunyah makanan  ',
+                  word_class_id: WORD_CLASS_ID,
+                  translations: [{ language_id: INDONESIA_ID, translation_text: ' kunyah ', translation_type: 'direct' }],
+                },
+              ],
+            },
+          },
+        ],
+      }),
+      'draft',
+    );
+    expect(body.related_words).toEqual([
+      {
+        relation_type: 'synonym',
+        word: {
+          lemma: 'ngamakn',
+          inherit_meanings: true,
+          meaning_overrides: [
+            {
+              meaning_index: 0,
+              definition: 'Mengunyah makanan',
+              word_class_id: WORD_CLASS_ID,
+              translations: [{ language_id: INDONESIA_ID, translation_text: 'kunyah', translation_type: 'direct' }],
+            },
+          ],
+        },
+      },
+    ]);
+  });
+
+  it('inherit_meanings default true saat tidak diisi; notes & word_type hanya saat terisi', () => {
+    const rel = formB(
+      formValues({
+        related_words: [
+          {
+            relation_type: 'derived_from',
+            mode: 'inline',
+            word: { lemma: '  ngamakn  ', notes: '  varian lisan  ', word_type: 'word' },
+          },
+        ],
+      }),
+    );
+    expect(rel.word).toEqual({
+      lemma: 'ngamakn',
+      notes: 'varian lisan',
+      word_type: 'word',
+      inherit_meanings: true,
+    });
+  });
+
+  it('memetakan meaning_index override lewat posisi makna yang DIKIRIM (induk kosong dilewati)', () => {
+    const rel = formB(
+      formValues({
+        meanings: [
+          formValues({}).meanings![0],
+          { word_class_id: undefined, definition: undefined, translations: [] },
+          {
+            word_class_id: WORD_CLASS_ID,
+            definition: 'Kedua',
+            translations: [{ language_id: INDONESIA_ID, translation_text: 'kedua', translation_type: 'direct' }],
+          },
+        ],
+        related_words: [
+          {
+            relation_type: 'synonym',
+            mode: 'inline',
+            word: { lemma: 'ngamakn', meaning_overrides: [{ meaning_index: 2, definition: 'Ubah makna kedua' }] },
+          },
+        ],
+      }),
+    );
+    // makna form index 2 = makna body index 1 (yang pertama kosong dibuang)
+    expect(rel.word.meaning_overrides).toEqual([{ meaning_index: 1, definition: 'Ubah makna kedua' }]);
+  });
+
+  it('membuang override yang menunjuk makna induk kosong', () => {
+    const rel = formB(
+      formValues({
+        meanings: [{ word_class_id: undefined, definition: undefined, translations: [] }],
+        related_words: [
+          {
+            relation_type: 'synonym',
+            mode: 'inline',
+            word: { lemma: 'ngamakn', meaning_overrides: [{ meaning_index: 0, definition: 'x' }] },
+          },
+        ],
+      }),
+    );
+    expect(rel.word.meaning_overrides).toBeUndefined();
+    expect(rel.word).toEqual({ lemma: 'ngamakn', inherit_meanings: true });
+  });
+
+  it('inherit=false → meanings diisi penuh dan meaning_overrides diabaikan', () => {
+    const rel = formB(
+      formValues({
+        related_words: [
+          {
+            relation_type: 'antonym',
+            mode: 'inline',
+            word: {
+              lemma: 'belummakn',
+              inherit_meanings: false,
+              meaning_overrides: [{ meaning_index: 0, definition: 'harus diabaikan' }],
+              meanings: [
+                {
+                  word_class_id: WORD_CLASS_ID,
+                  definition: '  Belum makan  ',
+                  translations: [{ language_id: INDONESIA_ID, translation_text: '  belum makan  ', translation_type: 'direct' }],
+                },
+              ],
+            },
+          },
+        ],
+      }),
+      'published',
+    );
+    expect(rel).toEqual({
+      relation_type: 'antonym',
+      word: {
+        lemma: 'belummakn',
+        inherit_meanings: false,
+        meanings: [
+          {
+            word_class_id: WORD_CLASS_ID,
+            definition: 'Belum makan',
+            order_index: 1,
+            translations: [{ language_id: INDONESIA_ID, translation_text: 'belum makan', translation_type: 'direct' }],
+          },
+        ],
+      },
+    });
+  });
+
+  it('membuang item inline yang lemma-nya kosong', () => {
+    const body = buildCreateWordBody(
+      formValues({
+        related_words: [{ relation_type: 'synonym', mode: 'inline', word: { lemma: '   ' } }],
+      }),
+      'draft',
+    );
+    expect(body.related_words).toEqual([]);
+  });
+
+  it('override tanpa field yang diisi hanya membawa meaning_index (sisanya ikut induk)', () => {
+    const rel = formB(
+      formValues({
+        related_words: [
+          {
+            relation_type: 'synonym',
+            mode: 'inline',
+            word: { lemma: 'ngamakn', meaning_overrides: [{ meaning_index: 0 }] },
+          },
+        ],
+      }),
+    );
+    expect(rel.word.meaning_overrides).toEqual([{ meaning_index: 0 }]);
+  });
+
+  it('mode link (Form A) tetap berjalan seperti sebelumnya', () => {
+    const rel = formB(
+      formValues({
+        related_words: [
+          { relation_type: 'synonym', mode: 'link', word_id: '01HXYZFFFFFFFFFFFFFFFFFFFF' },
+          { relation_type: 'antonym', word_id: '01HXYZEEEEEEEEEEEEEEEEEEEE' },
+        ],
+      }),
+    );
+    const all = buildCreateWordBody(
+      formValues({
+        related_words: [
+          { relation_type: 'synonym', mode: 'link', word_id: '01HXYZFFFFFFFFFFFFFFFFFFFF' },
+          { relation_type: 'antonym', word_id: '01HXYZEEEEEEEEEEEEEEEEEEEE' },
+        ],
+      }),
+      'draft',
+    ).related_words;
+    expect(all).toHaveLength(2);
+    // mode tidak ikut terkirim (hanya word_id + relation_type)
+    for (const item of all) {
+      expect(item).not.toHaveProperty('mode');
+      expect(item).not.toHaveProperty('word');
+    }
+    expect(rel).toMatchObject({ relation_type: 'synonym', word_id: '01HXYZFFFFFFFFFFFFFFFFFFFF' });
   });
 });
