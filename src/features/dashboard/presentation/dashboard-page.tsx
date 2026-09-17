@@ -14,7 +14,7 @@ const ROLE_HINT: Partial<Record<UserRole, string>> = {
 };
 
 /**
- * Dashboard — halaman pertama setelah login. Menampilkan identitas sesi dan
+ * Dashboard - halaman pertama setelah login. Menampilkan identitas sesi dan
  * pintu cepat ke fitur konsol yang relevan dengan role. Statistik agregat
  * (jumlah kata, antrean, dst) menyusul sebagai fitur terpisah (belum ada
  * endpoint agregasi di API).
@@ -37,7 +37,7 @@ export function DashboardPage() {
           <Typography.Text type="secondary">
             Anda masuk sebagai{' '}
             <Tag color="blue">{role ? (ROLE_LABELS[role] ?? role) : 'Pengguna'}</Tag>
-            {role ? <span> — {ROLE_HINT[role] ?? 'Jelajahi menu di samping.'}</span> : null}
+            {role ? <span> - {ROLE_HINT[role] ?? 'Jelajahi menu di samping.'}</span> : null}
           </Typography.Text>
         </Flex>
       </Card>

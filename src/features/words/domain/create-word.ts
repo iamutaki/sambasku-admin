@@ -1,7 +1,7 @@
 import type { WordStatus, WordType } from './word';
 
 /**
- * Model fitur "Tambah Kata Baru" — kontrak POST /api/v1/admin/words
+ * Model fitur "Tambah Kata Baru" - kontrak POST /api/v1/admin/words
  * (docs/api/01-api-tambah-kata.md + create-word.validator.ts) dan data
  * referensi dropdown (languages/dialects/word-classes/categories).
  * Nilai enum mengikuti konvensi snake_case JSON API, BUKAN label UI.
@@ -112,7 +112,7 @@ export interface CreateWordRequestMeaning {
 }
 
 /**
- * 04-api-sinonim-inline.md — override SATU PER SATU atas makna hasil
+ * 04-api-sinonim-inline.md - override SATU PER SATU atas makna hasil
  * salinan (inherit makna induk). translate-and-replace: field yang TIDAK
  * disebut tetap memakai hasil salinan; translations/examples = replace total.
  */
@@ -126,7 +126,7 @@ export interface MeaningOverrideRequest {
 }
 
 /**
- * 04-api-sinonim-inline.md — kata baru yang dibuat INLINE (Form B).
+ * 04-api-sinonim-inline.md - kata baru yang dibuat INLINE (Form B).
  * subset CreateWordRequest + inherit_meanings.
  */
 export interface InlineWordRequest {
@@ -134,7 +134,7 @@ export interface InlineWordRequest {
   notes?: string;
   word_type?: WordType;
   category_ids?: string[];
-  /** DEFAULT true — ikut definisi induk (disalin materialized oleh server) */
+  /** DEFAULT true - ikut definisi induk (disalin materialized oleh server) */
   inherit_meanings?: boolean;
   /** hanya sah saat inherit_meanings=true; indeks mengacu makna induk */
   meaning_overrides?: MeaningOverrideRequest[];
@@ -147,9 +147,9 @@ export interface InlineWordRequest {
 }
 
 /**
- * 04-api-sinonim-inline.md — DUA bentuk per item related_words (union):
+ * 04-api-sinonim-inline.md - DUA bentuk per item related_words (union):
  * Form A = tautkan ke kata SUDAH ada (01); Form B = buat kata baru INLINE.
- * Tepat satu bentuk per item — validator backend yang memastikan.
+ * Tepat satu bentuk per item - validator backend yang memastikan.
  */
 export type CreateWordRequestRelated =
   | { relation_type: RelationType; word_id: string }
@@ -176,7 +176,7 @@ export interface CreateWordRequest {
   status: 'draft' | 'published';
 }
 
-/** Hasil kata inline (Form B) dari backend — untuk summary di toast sukses. */
+/** Hasil kata inline (Form B) dari backend - untuk summary di toast sukses. */
 export interface InlineCreatedWordResult {
   word_id: string;
   lemma: string;
@@ -190,7 +190,7 @@ export interface InlineCreatedWordResult {
   warnings?: { field: string; message: string }[];
 }
 
-/** Response sukses create — `status` dari backend = sumber kebenaran akhir
+/** Response sukses create - `status` dari backend = sumber kebenaran akhir
  * (approval gate: contributor "published" → "pending_review"). */
 export interface CreateWordResult {
   word_id: string;
@@ -226,7 +226,7 @@ export interface CreateWordMeaningFormValue {
   examples?: CreateWordExampleFormValue[];
 }
 
-/** Bentuk entri item relasi di UI — dipakai tombol pemilah Form A/B. */
+/** Bentuk entri item relasi di UI - dipakai tombol pemilah Form A/B. */
 export type RelatedWordMode = 'link' | 'inline';
 
 export interface MeaningOverrideFormValue {
@@ -252,7 +252,7 @@ export interface InlineWordFormValue {
   pronunciation?: { notation?: string; value?: string };
 }
 
-/** Model nilai form item related_words — `mode` internal UI (tidak dikirim
+/** Model nilai form item related_words - `mode` internal UI (tidak dikirim
  * ke body); Form A punya word_id, Form B punya word. */
 export interface CreateWordRelatedFormValue {
   relation_type?: RelationType;

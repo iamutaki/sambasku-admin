@@ -5,14 +5,14 @@ import type { Row, RowData, Table as TanstackTable } from '@tanstack/react-table
 
 /**
  * Metadata tambahan per kolom TanStack. Dipakai `DataTable` untuk menerjemahkan
- * ke prop antd (mis. `responsive` — kolom disembunyikan di bawah breakpoint).
+ * ke prop antd (mis. `responsive` - kolom disembunyikan di bawah breakpoint).
  */
 declare module '@tanstack/react-table' {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars -- generic nama wajib identik dengan deklarasi asli TanStack
   interface ColumnMeta<TData extends RowData, TValue> {
     /** Sembunyikan kolom saat viewport < breakpoint (prop antd Table `responsive`). */
     responsive?: Breakpoint[];
-    /** Pin kolom saat tabel melebar (prop antd Table `fixed`) — kolom aksi
+    /** Pin kolom saat tabel melebar (prop antd Table `fixed`) - kolom aksi
      *  pakai `'right'` supaya tombol selalu terlihat tanpa scroll horizontal. */
     fixed?: 'left' | 'right';
   }
@@ -28,7 +28,7 @@ export interface DataTableProps<TData> {
 }
 
 function renderDefaultCell(value: unknown): React.ReactNode {
-  if (value === null || value === undefined) return '—';
+  if (value === null || value === undefined) return '-';
   if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
     return String(value);
   }
@@ -50,7 +50,7 @@ function renderDefaultCell(value: unknown): React.ReactNode {
  *   → di-pin antd saat scroll horizontal, mis. kolom aksi `'right'` agar
  *   tombol selalu terjangkau tanpa menggulir ke ujung kanan.
  *
- * Konvensi: `rowKey` (dan `getRowId` di tabel) = `String(record.id)` — ULID
+ * Konvensi: `rowKey` (dan `getRowId` di tabel) = `String(record.id)` - ULID
  * item (docs/api Section 19).
  */
 export function DataTable<TData>({ table, rowKey, loading, size = 'middle', footer }: DataTableProps<TData>) {
@@ -77,7 +77,7 @@ export function DataTable<TData>({ table, rowKey, loading, size = 'middle', foot
             if (!row) return null;
             const cell = row.getVisibleCells().find((c) => c.column.id === column.id);
             if (typeof def.cell === 'function') {
-              // cell.getContext() sudah berisi { table, row, column, getValue, renderValue } — tepat
+              // cell.getContext() sudah berisi { table, row, column, getValue, renderValue } - tepat
               // sesuai ekspektasi ColumnDef.cell; bridge ini menyerahkan render ke definisi kolom.
               return (def.cell as (context: unknown) => React.ReactNode)(cell?.getContext() as unknown);
             }

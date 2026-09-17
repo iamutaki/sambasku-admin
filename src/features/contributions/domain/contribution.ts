@@ -19,7 +19,7 @@ export const ENTITY_TYPE_LABELS: Record<EntityType, string> = {
 };
 
 /**
- * Item antrean review — contract GET /api/v1/admin/contributions
+ * Item antrean review - contract GET /api/v1/admin/contributions
  * (docs/api/03-api-kontribusi-verifikasi.md).
  */
 export interface ContributionListItem {

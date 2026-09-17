@@ -11,10 +11,10 @@ const AUTH_ENDPOINT_PREFIX = '/auth/';
 /**
  * Instances HTTP.
  *
- * - `authClient` — TANPA interceptor auth/token. Hanya dipakai alur auth
+ * - `authClient` - TANPA interceptor auth/token. Hanya dipakai alur auth
  *   (login/refresh/logout) supaya request refresh TIDAK memicu interceptor
  *   401 → refresh → ... tak terbatas.
- * - `client` — interceptor Authorization + auto-refresh (dipakai SEMUA
+ * - `client` - interceptor Authorization + auto-refresh (dipakai SEMUA
  *   request data aplikasi).
  *
  * `withCredentials: true` agar cookie httpOnly refresh_token ikut terkirim
@@ -54,7 +54,7 @@ export interface RefreshTokenResult {
   expiresIn: number;
 }
 
-/** POST /auth/refresh — klien web: refresh_token diambil browser dari httpOnly cookie. */
+/** POST /auth/refresh - klien web: refresh_token diambil browser dari httpOnly cookie. */
 async function refreshTokenRequest(): Promise<RefreshTokenResult> {
   const res = await authClient.post<ApiOkEnvelope<{ access_token: string; expires_in: number }>>('/auth/refresh', {});
   return { accessToken: res.data.data.access_token, expiresIn: res.data.data.expires_in };
@@ -87,7 +87,7 @@ function isRetryableUnauthorized(error: AxiosError<ApiErrorEnvelope>): boolean {
   const config = error.config as RetryableRequestConfig | undefined;
   if (error.response?.status !== 401) return false;
   if (!config || config._retried) return false;
-  // Request auth (login/refresh) jangan di-retry — refresh yang gagal tidak
+  // Request auth (login/refresh) jangan di-retry - refresh yang gagal tidak
   // boleh memicu refresh lagi.
   if (config.url?.startsWith(AUTH_ENDPOINT_PREFIX)) return false;
   // Tidak ada token = jelas belum login; biarkan halaman login menangani.
@@ -116,7 +116,7 @@ client.interceptors.response.use(
         return Promise.reject(new AuthExpiredError());
       }
       // Gagal bukan karena token (mis. jaringan): sesi dipertahankan, request
-      // asli gagal normal — halaman menampilkan error.
+      // asli gagal normal - halaman menampilkan error.
       return normalizeError(refreshError, 'Sesi tidak dapat diperbarui, coba lagi');
     }
   },

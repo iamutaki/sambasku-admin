@@ -11,7 +11,7 @@ export default defineConfig({
   },
   server: {
     port: 5174,
-    // Dev lokal HARUS same-origin lewat proxy ini — kalau tidak, frontend
+    // Dev lokal HARUS same-origin lewat proxy ini - kalau tidak, frontend
     // (http://localhost:5174) cross-site ke API, cookie refresh_token
     // (sameSite=Strict, auth.controller.ts) tidak dikirim browser saat
     // reload → refresh gagal → sesi "amnesia" ke halaman login.

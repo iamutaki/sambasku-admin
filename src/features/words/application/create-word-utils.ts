@@ -27,7 +27,7 @@ export interface DefaultLanguageIds {
 }
 
 // Set huruf kecil yang dikenali sebagai bahasa Sambas / Indonesia.
-// Kode resmi seed: SBS & IDN — tapi dikenali juga varian lain kalau
+// Kode resmi seed: SBS & IDN - tapi dikenali juga varian lain kalau
 // dataset berubah, AGAR default TIDAK pernah tersilap memilih Indonesia
 // sebagai lemma (bug lama: `code === 'sambas'` tak pernah cocok dengan
 // 'SBS', fallback ke urutan list yang tidak stabil).
@@ -74,7 +74,7 @@ export function buildCreateWordBody(
     .filter((rel) => rel.relation_type)
     .map((rel) => {
       const relationType = rel.relation_type!;
-      // 04: Form B — buat kata baru INLINE (indeks makna override dipetakan
+      // 04: Form B - buat kata baru INLINE (indeks makna override dipetakan
       // dari posisi di form ke posisi di array meanings body yang terkirim).
       if (rel.mode === 'inline' && rel.word) {
         const word = buildInlineWord(rel.word, keptIndicesOf(values.meanings ?? []));
@@ -104,7 +104,7 @@ export function buildCreateWordBody(
 }
 
 /**
- * Indeks posisi form (di values.meanings) yang LULUS normalisasi — dipakai
+ * Indeks posisi form (di values.meanings) yang LULUS normalisasi - dipakai
  * memetakan meaning_index override (posisi form) ke index array meanings
  * body. Kalau sebuah makna induk dibuang (kosong), override yang menunjuknya
  * ikut dibuang sehingga indeks selalu konsisten dengan yang dikirim.
@@ -215,7 +215,7 @@ function buildInlineWord(
 }
 
 /** Satu override: field yang tidak disebut (mis. word_class_id) tetap memakai
- * hasil salinan induk di server — di sini cukup kirim yang diisi saja. */
+ * hasil salinan induk di server - di sini cukup kirim yang diisi saja. */
 function buildMeaningOverride(
   override: MeaningOverrideFormValue,
   meaningIndex: number,

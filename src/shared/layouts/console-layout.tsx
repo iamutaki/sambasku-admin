@@ -34,7 +34,7 @@ const BREADCRUMB_LABELS: Record<string, string> = {
 };
 
 /**
- * Console layout — dipakai SEMUA halaman yang sudah ter-autentikasi.
+ * Console layout - dipakai SEMUA halaman yang sudah ter-autentikasi.
  * Berisi: sider menu navigasi, header (breadcrumb + profil user), content
  * (Outlet). Guard utama (redirect saat belum login) dilakukan di router
  * `beforeLoad`; di sini cuma guard reaktif untuk momen logout/sesi mati.

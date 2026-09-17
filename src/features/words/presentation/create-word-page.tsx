@@ -180,7 +180,7 @@ export function CreateWordPage() {
             message.success(messages[result.status] ?? `Kata "${result.lemma}" disimpan`);
             result.warnings?.forEach((w) => message.warning(w.message));
 
-            // 04-api-sinonim-inline.md — kata inline ikut dibuat dalam satu
+            // 04-api-sinonim-inline.md - kata inline ikut dibuat dalam satu
             // request. Tampilkan ringkasan per entitas (status = kebenaran
             // akhir dari backend, approval gate per entitas).
             const inlines = result.inline_created_words ?? [];
@@ -201,13 +201,13 @@ export function CreateWordPage() {
         },
       );
     } catch {
-      // Validasi form gagal — error inline antd sudah tampil, tidak ada aksi.
+      // Validasi form gagal - error inline antd sudah tampil, tidak ada aksi.
     }
   };
 
   return (
     <>
-      <PageHeader title="Tambah Kata Baru" subtitle="Form kosakata lengkap — kata, makna, terjemahan, contoh, dan relasi." />
+      <PageHeader title="Tambah Kata Baru" subtitle="Form kosakata lengkap - kata, makna, terjemahan, contoh, dan relasi." />
       <Form form={form} layout="vertical" requiredMark disabled={createMutation.isPending}>
         <Space direction="vertical" size={16} style={{ width: '100%' }}>
           {submitError ? (
@@ -484,7 +484,7 @@ interface MeaningFieldsProps {
   showOrderIndex?: boolean;
   /** initialValue input order_index sesuai posisi di daftar */
   orderIndexInitial?: number;
-  /** terjemahan minimal 1 (makna penuh) vs opsional (override — ikut induk) */
+  /** terjemahan minimal 1 (makna penuh) vs opsional (override - ikut induk) */
   translationsRequired?: boolean;
 }
 
@@ -691,7 +691,7 @@ function MeaningFields({
 }
 
 // ---------------------------------------------------------------------------
-// Satu item daftar "Relasi Kata" — memilih bentuk: ketuk ke kata yang SUDAH
+// Satu item daftar "Relasi Kata" - memilih bentuk: ketuk ke kata yang SUDAH
 // ada (Form A) atau BUAT kata baru sekaligus (Form B, kontrak 04).
 // ---------------------------------------------------------------------------
 
@@ -716,7 +716,7 @@ function RelatedWordItem({
   const mode = Form.useWatch(['related_words', field.name, 'mode'], form) ?? 'link';
 
   // Makna induk untuk memilih meaning_index override (index = posisi di
-  // daftar "Makan / Arti", 0-based — selaras dengan build + validator).
+  // daftar "Makan / Arti", 0-based - selaras dengan build + validator).
   const parentMeanings = Form.useWatch('meanings', form) as CreateWordMeaningFormValue[] | undefined;
   const meaningOptions = useMemo(
     () =>
@@ -777,7 +777,7 @@ function RelatedWordItem({
 }
 
 // ---------------------------------------------------------------------------
-// Editor kata baru INLINE (Form B) — lemma + ikutan definisi induk dengan
+// Editor kata baru INLINE (Form B) - lemma + ikutan definisi induk dengan
 // override satu-per-satu, atau makna diisi mandiri (inherit=false).
 // ---------------------------------------------------------------------------
 
@@ -837,7 +837,7 @@ function InlineWordEditor({
         <>
           <Text type="secondary">
             Kata baru ini mengikuti definisi/makna induk. Override di bawah mengubah makna hasil salinan
-            SATU PER SATU — field yang dikosongkan tetap memakai definisi induk.
+            SATU PER SATU - field yang dikosongkan tetap memakai definisi induk.
           </Text>
           <Form.List name={[name, 'word', 'meaning_overrides']}>
             {(overrideFields, { add, remove }) => (

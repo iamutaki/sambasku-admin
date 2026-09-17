@@ -12,17 +12,17 @@ import { AuditLogsPage } from '@/features/audit/presentation/audit-logs-page';
 import { NotFoundPage } from '@/shared/layouts/not-found-page';
 
 /**
- * Route tree (didefinisikan manual, bukan file-based) — satu-satunya tempat
+ * Route tree (didefinisikan manual, bukan file-based) - satu-satunya tempat
  * pemetaan path → halaman. Prinsip:
  *
  * - Root route: `beforeLoad` menjalankan session restore (hard reload) &
  *   seluruh navigasi lewat sini duluan.
  * - Dua layout (docs/admin/admin-base-stack.md Section 7):
- *   - `base-layout`   — publik / pra-auth (login). Guard: kalau sudah login,
+ *   - `base-layout`   - publik / pra-auth (login). Guard: kalau sudah login,
  *     tidak boleh mampir ke sini (redirect /dashboard).
- *   - `console-layout` — area terproteksi. Guard: kalau belum login,
+ *   - `console-layout` - area terproteksi. Guard: kalau belum login,
  *     dilempar ke /login.
- * - `/` (index) tidak menampilkan halaman apa pun — hanya redirect cerdas
+ * - `/` (index) tidak menampilkan halaman apa pun - hanya redirect cerdas
  *   berdasarkan status sesi.
  */
 const rootRoute = createRootRoute({

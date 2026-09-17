@@ -28,7 +28,7 @@ export class ApiError extends Error {
   }
 }
 
-/** Sesi berakhir (refresh token invalid/expired) — wajib ke halaman login. */
+/** Sesi berakhir (refresh token invalid/expired) - wajib ke halaman login. */
 export class AuthExpiredError extends Error {
   constructor() {
     super('Sesi berakhir, silakan masuk kembali');

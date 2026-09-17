@@ -4,9 +4,9 @@ import type { ListWordsParams, WordListItem } from '../domain/word';
 import type { CreateWordRequest, CreateWordResult } from '../domain/create-word';
 
 /**
- * GET /api/v1/words/search — list/penelusuran kata (cursor pagination,
+ * GET /api/v1/words/search - list/penelusuran kata (cursor pagination,
  * docs/api Section 13). Backend membungkus `meta` SEBLAHAN `data` di level
- * envelope (`{ success, data: [...], meta }`) — di-normalisasi jadi
+ * envelope (`{ success, data: [...], meta }`) - di-normalisasi jadi
  * `CursorPage` agar `useCursorList` membaca `page.data` / `page.meta`.
  * Query param yang tidak diisi otomatis dihilangkan (undefined tidak
  * diserialisasi axios).
@@ -29,7 +29,7 @@ export async function listWordsRequest(
 }
 
 /**
- * POST /api/v1/admin/words — tambah kata baru lengkap (transaksional).
+ * POST /api/v1/admin/words - tambah kata baru lengkap (transaksional).
  * Auth+role (admin/editor/contributor/root/reviewer) + rate limit 30/menit
  * ditangani backend; status akhir per-role ditentukan server (approval gate).
  */

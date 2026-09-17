@@ -65,7 +65,7 @@ export function WordsPage() {
         header: 'Terjemahan',
         size: 220,
         meta: { responsive: ['lg'] },
-        cell: (info) => info.getValue() ?? '—',
+        cell: (info) => info.getValue() ?? '-',
       }),
       columnHelper.display({
         id: 'actions',
@@ -99,7 +99,7 @@ export function WordsPage() {
     <>
       <PageHeader
         title="Kata"
-        subtitle="Kamus kosakata — list, cari, dan kelola entri."
+        subtitle="Kamus kosakata - list, cari, dan kelola entri."
         extra={
           <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate({ to: '/words/new' })}>
             Tambah Kata

@@ -4,7 +4,7 @@ import type { SessionUser } from '@/shared/auth/session';
 import type { AuthSessionResult, LoginCredentials } from '../domain/user';
 
 /**
- * POST /auth/login — klien web (client_type: 'web'). refresh_token dikembalikan
+ * POST /auth/login - klien web (client_type: 'web'). refresh_token dikembalikan
  * backend lewat httpOnly cookie (path /api/v1/auth), bukan di body.
  */
 export async function loginRequest(credentials: LoginCredentials): Promise<AuthSessionResult> {
@@ -22,7 +22,7 @@ export async function loginRequest(credentials: LoginCredentials): Promise<AuthS
   };
 }
 
-/** POST /auth/logout — revoke refresh token perangkat ini (dibaca dari cookie). */
+/** POST /auth/logout - revoke refresh token perangkat ini (dibaca dari cookie). */
 export async function logoutRequest(): Promise<void> {
   await authClient.post<ApiOkEnvelope<null>>('/auth/logout', {});
 }

@@ -2,7 +2,7 @@
  * Setup Vitest (environment: node).
  *
  * Tes unit `shared/auth/session.ts` memakai `sessionStorage` untuk cache
- * identitas non-sensitif. Di environment node objek itu tidak ada — beri
+ * identitas non-sensitif. Di environment node objek itu tidak ada - beri
  * polyfill in-memory minimal supaya perilaku caching bisa diuji.
  */
 class MemoryStorage implements Storage {

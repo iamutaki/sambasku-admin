@@ -10,7 +10,7 @@ interface AuditChangesCellProps {
   newData: Record<string, unknown> | null;
 }
 
-/** Nilai satu field — `null`/boolean/objek diberi gaya agar cepat terbaca. */
+/** Nilai satu field - `null`/boolean/objek diberi gaya agar cepat terbaca. */
 function ValueText({ value, tone }: { value: unknown; tone: 'old' | 'new' | 'plain' }) {
   if (value === null || value === undefined) {
     return (
@@ -81,7 +81,7 @@ function JsonBlock({ label, data }: { label: string; data: Record<string, unknow
  * `new_data` sebagai JSON rapi. Menggantikan stringify satu baris.
  */
 export function AuditChangesCell({ oldData, newData }: AuditChangesCellProps) {
-  if (!oldData && !newData) return <Typography.Text type="secondary">—</Typography.Text>;
+  if (!oldData && !newData) return <Typography.Text type="secondary">-</Typography.Text>;
 
   const changes = diffChanges(oldData, newData);
   if (changes.length === 0) return <Typography.Text type="secondary">Tidak ada perubahan</Typography.Text>;

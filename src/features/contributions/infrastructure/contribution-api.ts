@@ -3,9 +3,9 @@ import type { ApiCursorPageEnvelope, CursorPage } from '@/shared/api/types';
 import type { ContributionListItem, ListContributionsParams } from '../domain/contribution';
 
 /**
- * GET /api/v1/admin/contributions — antrean review kontribusi
+ * GET /api/v1/admin/contributions - antrean review kontribusi
  * (role: admin/root/reviewer; filter status/entity_type, cursor pagination).
- * Bentuk backend: `{ success, data: [...], meta }` — dinormalisasi jadi
+ * Bentuk backend: `{ success, data: [...], meta }` - dinormalisasi jadi
  * `CursorPage`.
  */
 export async function listContributionsRequest(

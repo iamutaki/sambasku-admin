@@ -9,7 +9,7 @@ export interface AuditChange {
   key: string;
   before: unknown;
   after: unknown;
-  /** Field ada di sisi before/after — membedakan create / delete / update. */
+  /** Field ada di sisi before/after - membedakan create / delete / update. */
   hasBefore: boolean;
   hasAfter: boolean;
 }

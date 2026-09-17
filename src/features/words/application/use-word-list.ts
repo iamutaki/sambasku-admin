@@ -14,7 +14,7 @@ export interface UseWordListArgs {
 /**
  * List kata admin: `q` untuk penelusuran lemma (debounce dilakukan di UI),
  * `wordType`/`isVerified` sebagai filter. Kunci query menyertakan SEMUA
- * filter — filter berubah ⇒ list dimulai ulang dari halaman pertama.
+ * filter - filter berubah ⇒ list dimulai ulang dari halaman pertama.
  */
 export function useWordList(args: UseWordListArgs = {}) {
   const { q, wordType, isVerified, enabled } = args;

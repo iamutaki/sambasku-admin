@@ -14,12 +14,12 @@ const columnHelper = createColumnHelper<AuditLogListItem>();
 
 /** ULID dipersingkat untuk tampilan (tetap unik sampai prefix 8 char). */
 function shortUlid(id: string | null): string {
-  if (!id) return '—';
+  if (!id) return '-';
   return id.slice(0, 8) + '…';
 }
 
 /**
- * Halaman Audit Log (role: admin & root) — jejak mutasi data secara
+ * Halaman Audit Log (role: admin & root) - jejak mutasi data secara
  * kronologis terbaru dulu (id DESC). `new_data`/`old_data` diringkas jadi
  * daftar field yang berubah (`AuditChangesCell`); klik baris untuk JSON rapi.
  */
@@ -102,7 +102,7 @@ export function AuditLogsPage() {
     <>
       <PageHeader
         title="Audit Log"
-        subtitle="Jejak mutasi data (create / update / delete / approve / reject / …) — hanya admin & root."
+        subtitle="Jejak mutasi data (create / update / delete / approve / reject / …) - hanya admin & root."
         extra={
           <Button icon={<ReloadOutlined />} onClick={() => refetch()}>
             Muat ulang

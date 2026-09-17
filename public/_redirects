@@ -1,4 +1,4 @@
 # SPA fallback untuk Cloudflare Pages.
-# TanStack Router pakai history mode — deep-link / refresh (mis. /dashboard,
+# TanStack Router pakai history mode - deep-link / refresh (mis. /dashboard,
 # /words, /audit-logs) harus tetap dilayani index.html, bukan 404.
 /* /index.html 200

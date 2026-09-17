@@ -1,9 +1,9 @@
 /**
- * Session store (in-memory) — access token + user sesi login.
+ * Session store (in-memory) - access token + user sesi login.
  *
  * Prinsip (docs/api/00-api-auth.md): access_token HANYA disimpan di memory,
  * TIDAK di localStorage/sessionStorage (XSS = kehilangan token). refresh_token
- * hidup di httpOnly cookie yang dikelola browser — otomatis dikirim ke
+ * hidup di httpOnly cookie yang dikelola browser - otomatis dikirim ke
  * POST /api/v1/auth/refresh saat access token kadaluarsa.
  *
  * Konsekuensi: hard reload = access token hilang. User di-restore via
@@ -33,7 +33,7 @@ function emit(): void {
   for (const listener of Array.from(listeners)) listener();
 }
 
-// Cache identitas non-sensitif (id/username/role) di sessionStorage —
+// Cache identitas non-sensitif (id/username/role) di sessionStorage -
 // dibutuhkan untuk menampilkan nama user dengan benar saat hard reload
 // sambil menunggu refresh token. Access token TIDAK PERNAH disentuh.
 const USER_CACHE_KEY = 'sambasku_admin_user_v1';
@@ -56,7 +56,7 @@ function cacheUser(user: SessionUser): void {
   try {
     sessionStorage.setItem(USER_CACHE_KEY, JSON.stringify(user));
   } catch {
-    // storage penuh/private mode — abaikan, sesi tetap jalan in-memory
+    // storage penuh/private mode - abaikan, sesi tetap jalan in-memory
   }
 }
 

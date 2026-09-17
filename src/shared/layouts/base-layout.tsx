@@ -4,7 +4,7 @@ import { BookOutlined } from '@ant-design/icons';
 import { env } from '@/shared/config/env';
 
 /**
- * Base layout — dipakai untuk MENU publik / pre-auth (login, dst).
+ * Base layout - dipakai untuk MENU publik / pre-auth (login, dst).
  * Brand + Outlet. Tidak ada header/sidebar admin.
  */
 export function BaseLayout() {

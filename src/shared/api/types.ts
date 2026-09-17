@@ -21,7 +21,7 @@ export interface ApiErrorEnvelope {
 }
 
 /**
- * Pagination cursor (Section 13 pagination) — dipakai semua endpoint list.
+ * Pagination cursor (Section 13 pagination) - dipakai semua endpoint list.
  * `cursor` = ULID `id` item terakhir halaman sebelumnya; `has_more: false`
  * berarti halaman terakhir.
  */
@@ -33,7 +33,7 @@ export interface CursorMeta {
 
 /**
  * Envelope list ber-pagination (docs/api/api-base-stack.md Section 13):
- * `meta` SEBLAHAN `data` di level envelope, bukan bersarang di dalamnya —
+ * `meta` SEBLAHAN `data` di level envelope, bukan bersarang di dalamnya -
  * i.e. `{ success, data: [...], meta: {...} }`.
  */
 export interface ApiCursorPageEnvelope<T> extends ApiOkEnvelope<T[]> {

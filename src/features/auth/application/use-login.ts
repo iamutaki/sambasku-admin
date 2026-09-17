@@ -5,7 +5,7 @@ import { loginRequest } from '../infrastructure/auth-api';
 import type { LoginCredentials, AuthSessionResult } from '../domain/user';
 
 /**
- * Use case Login — satu-satunya pemilik logika "apa yang terjadi setelah
+ * Use case Login - satu-satunya pemilik logika "apa yang terjadi setelah
  * backend mengembalikan token" (simpan ke session store + kosongkan cache
  * data user sebelumnya). Halaman/form cukup consume hook ini.
  */

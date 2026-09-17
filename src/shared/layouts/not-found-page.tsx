@@ -1,7 +1,7 @@
 import { useNavigate } from '@tanstack/react-router';
 import { Button, Result } from 'antd';
 
-/** Halaman 404 — route `$splat` (semua path yang tidak terdaftar). */
+/** Halaman 404 - route `$splat` (semua path yang tidak terdaftar). */
 export function NotFoundPage() {
   const navigate = useNavigate();
   return (

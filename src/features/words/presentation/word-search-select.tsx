@@ -11,7 +11,7 @@ export interface WordSearchSelectProps {
 }
 
 /**
- * Select kata yang BISA DICARI (sinonim/antonim/kata pembentuk) — konsumsi
+ * Select kata yang BISA DICARI (sinonim/antonim/kata pembentuk) - konsumsi
  * GET /words/search (cursor pagination). Di-dropdown ada tombol "Muat lagi"
  * saat `has_more`. Simpan label terpilih secara lokal agar tidak hilang saat
  * hasil pencarian berubah (antd Select butuh option yang ada untuk menampilkan).

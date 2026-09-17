@@ -17,7 +17,7 @@ describe('refreshAccessTokenSingleFlight', () => {
     const p2 = refreshAccessTokenSingleFlight(refresh);
     const p3 = refreshAccessTokenSingleFlight(refresh);
 
-    // Semua panggilan berbagi promise yang sama — refresh baru dieksekusi sekali.
+    // Semua panggilan berbagi promise yang sama - refresh baru dieksekusi sekali.
     expect(calls).toBe(1);
 
     resolve('new-access-token');

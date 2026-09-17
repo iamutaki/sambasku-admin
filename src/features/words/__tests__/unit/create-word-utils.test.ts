@@ -196,7 +196,7 @@ describe('buildCreateWordBody', () => {
   });
 });
 
-// ---- 04-api-sinonim-inline.md — Form B (kata baru inline) ----
+// ---- 04-api-sinonim-inline.md - Form B (kata baru inline) ----
 
 describe('buildCreateWordBody - Form B (sinonim inline)', () => {
   const formB = (body: CreateWordFormValues, status: 'draft' | 'published' = 'draft') =>

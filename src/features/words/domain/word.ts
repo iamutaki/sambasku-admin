@@ -18,7 +18,7 @@ export const WORD_STATUS_LABELS: Record<WordStatus, string> = {
   rejected: 'Ditolak',
 };
 
-/** Item list kata — contract GET /api/v1/words/search (docs/api/01-api-tambah-kata.md). */
+/** Item list kata - contract GET /api/v1/words/search (docs/api/01-api-tambah-kata.md). */
 export interface WordListItem {
   id: string; // ULID
   lemma: string;

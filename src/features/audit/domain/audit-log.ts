@@ -1,7 +1,7 @@
 /**
- * Item jejak audit — contract GET /api/v1/admin/audit-logs
+ * Item jejak audit - contract GET /api/v1/admin/audit-logs
  * (docs/api/02-api-audit-logs.md). `old_data`/`new_data` sudah dijamin bersih
- * di sisi tulis (tanpa password/token — Section 21 api-base-stack).
+ * di sisi tulis (tanpa password/token - Section 21 api-base-stack).
  */
 export interface AuditLogListItem {
   id: string; // ULID
@@ -25,7 +25,7 @@ export interface ListAuditLogsParams {
   cursor?: string;
 }
 
-/** Aksi yang diketahui (Section 21 + modul audit) — tampil sebagai Tag warna. */
+/** Aksi yang diketahui (Section 21 + modul audit) - tampil sebagai Tag warna. */
 export const AUDIT_ACTION_TAG_COLOR: Record<string, string> = {
   create: 'green',
   update: 'blue',
