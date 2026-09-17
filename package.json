@@ -1,0 +1,51 @@
+{
+  "name": "sambasku-admin",
+  "version": "0.1.0",
+  "description": "Admin console Kamus Digital Sambas-Indonesia - base stack (React + Ant Design + TanStack)",
+  "type": "module",
+  "private": true,
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build --mode production",
+    "build:staging": "tsc -b && vite build --mode staging",
+    "preview": "vite preview",
+    "typecheck": "tsc -b",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write \"src/**/*.{ts,tsx}\"",
+    "test": "vitest run",
+    "test:unit": "vitest run --dir '**/__tests__'",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@ant-design/icons": "^6.3.4",
+    "@tanstack/react-query": "^5.103.1",
+    "@tanstack/react-router": "^1.170.38",
+    "@tanstack/react-table": "^8.3.0",
+    "antd": "^6.6.4",
+    "axios": "^1.20.0",
+    "dayjs": "^1.11.23",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.0",
+    "@types/node": "^22.20.3",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.1.1",
+    "eslint": "^10.10.0",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "eslint-plugin-react-refresh": "^0.5.7",
+    "globals": "^16.0.0",
+    "prettier": "^3.9.7",
+    "typescript": "~5.9.3",
+    "typescript-eslint": "^8.70.0",
+    "vite": "^8.3.0",
+    "vitest": "^5.0.1"
+  }
+}

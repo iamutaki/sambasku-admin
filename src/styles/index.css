@@ -1,0 +1,118 @@
+/* ========================================================================
+   Global styles — admin console
+   (Layout classes dipakai shared/layouts/base-layout.tsx &
+   console-layout.tsx; token sebenarnya dari antd ConfigProvider di main.tsx)
+   ======================================================================== */
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  font-family:
+    -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial,
+    'Noto Sans', 'Apple Color Emoji', 'Segoe UI Emoji', sans-serif;
+  background: #f5f5f5;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ---- Base layout (pra-auth: login) ---- */
+
+.base-layout {
+  min-height: 100vh;
+}
+
+.base-layout__content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+  padding: 32px 16px;
+}
+
+.base-layout__brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.base-layout__logo {
+  font-size: 34px;
+  color: #1677ff;
+}
+
+.base-layout__footer {
+  margin-top: 8px;
+}
+
+/* ---- Console layout (area terproteksi) ---- */
+
+.console-layout {
+  min-height: 100vh;
+}
+
+.console-layout__sider-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 64px;
+  padding: 0 20px;
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 18px;
+}
+
+.console-layout__sider-brand .anticon {
+  color: #1677ff;
+}
+
+.console-layout__sider-title {
+  font-weight: 600;
+  font-size: 15px;
+  white-space: nowrap;
+}
+
+.console-layout .ant-layout-sider-collapsed .console-layout__sider-title {
+  display: none;
+}
+
+.console-layout__sider-brand .anticon {
+  font-size: 20px;
+}
+
+/* Sider collapsed: brand hanya logo */
+.console-layout .ant-layout-sider-collapsed .console-layout__sider-brand {
+  justify-content: center;
+  padding: 0;
+}
+
+.console-layout__content {
+  padding: 24px;
+}
+
+/* Layar kecil: kurangi padding kanan-kiri agar tabel punya ruang maksimal */
+@media (max-width: 768px) {
+  .console-layout__content {
+    padding: 16px 12px;
+  }
+}
+
+@media (max-width: 480px) {
+  .console-layout__content {
+    padding: 12px 8px;
+  }
+}
+
+/* ---- Shared ---- */
+
+.page-header {
+  margin-bottom: 16px;
+  min-height: 40px;
+}
