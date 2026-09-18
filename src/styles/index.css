@@ -59,6 +59,16 @@ body {
   min-height: 100vh;
 }
 
+/* Sider selalu menempel di viewport: menu navigasi tidak ikut scroll
+   bersama konten (perilaku konsol admin standar). Lebar collapse tetap
+   otomatis karena posisi sticky masih in-flow (tanpa margin manual). */
+.console-layout .ant-layout-sider {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow: auto;
+}
+
 .console-layout__sider-brand {
   display: flex;
   align-items: center;

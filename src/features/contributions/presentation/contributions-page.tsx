@@ -1,8 +1,9 @@
 import { useMemo, useState } from 'react';
 import { createColumnHelper, getCoreRowModel, useReactTable } from '@tanstack/react-table';
-import { ReloadOutlined } from '@ant-design/icons';
-import { Alert, Button, Flex, Select, Tag, Typography } from 'antd';
+import { ReloadOutlined, ToolOutlined } from '@ant-design/icons';
+import { Alert, Button, Flex, Select, Tag, Tooltip, Typography } from 'antd';
 import dayjs from 'dayjs';
+import { useNavigate } from '@tanstack/react-router';
 import { DataTable } from '@/shared/components/data-table';
 import { PageHeader } from '@/shared/components/page-header';
 import { useContributionList } from '../application/use-contribution-list';
@@ -28,6 +29,7 @@ const STATUS_TAG_COLOR: Record<ContributionStatus, string> = {
 
 export function ContributionsPage() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [status, setStatus] = useState<ContributionStatus | undefined>('pending');
   const [entityType, setEntityType] = useState<EntityType | undefined>();
 
@@ -65,12 +67,22 @@ export function ContributionsPage() {
       columnHelper.display({
         id: 'actions',
         header: 'Aksi',
-        size: 140,
+        size: 80,
         meta: { fixed: 'right' },
-        cell: () => <Button type="link" disabled>Review</Button>,
+        cell: (info) => (
+          <Tooltip title="Detail">
+            <Button
+              type="link"
+              icon={<ToolOutlined />}
+              onClick={() =>
+                navigate({ to: '/contributions/$id', params: { id: info.row.original.id } })
+              }
+            />
+          </Tooltip>
+        ),
       }),
     ],
-    [],
+    [navigate],
   );
 
   const table = useReactTable({

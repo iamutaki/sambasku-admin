@@ -14,6 +14,8 @@ import type {
   LanguageOption,
   MeaningOverrideFormValue,
   MeaningOverrideRequest,
+  WordImageFormValue,
+  WordImageInput,
 } from '../domain/create-word';
 
 /**
@@ -88,6 +90,8 @@ export function buildCreateWordBody(
 
   const pronunciation = buildPronunciation(values.pronunciation);
 
+  const images = buildImages(values.images);
+
   return {
     language_id: values.language_id as string,
     ...(values.dialect_id ? { dialect_id: values.dialect_id } : {}),
@@ -99,6 +103,7 @@ export function buildCreateWordBody(
     related_words: relatedWords,
     ...(variants.length ? { variants } : {}),
     ...(pronunciation ? { pronunciation } : {}),
+    ...(images.length ? { images } : {}),
     status,
   };
 }
@@ -270,4 +275,26 @@ function buildExample(e: CreateWordExampleFormValue): CreateWordRequestExample {
     ...(e.target_sentence?.trim() ? { target_sentence: e.target_sentence.trim() } : {}),
     ...(e.source_type ? { source_type: e.source_type } : {}),
   };
+}
+
+/**
+ * HANYA gambar yang selesai upload (status done + url + provider_file_id)
+ * yang masuk body - item uploading/error tidak pernah terkirim (field
+ * uid/fileName/status adalah state UI, di-strip). Eksklusivitas
+ * is_primary dijaga UI; di sini diteruskan apa adanya.
+ */
+export function buildImages(raw: WordImageFormValue[] | undefined): WordImageInput[] {
+  return (raw ?? [])
+    .filter((img) => img.status === 'done' && img.url && img.provider_file_id)
+    .map((img) => ({
+      url: img.url as string,
+      provider_file_id: img.provider_file_id as string,
+      ...(img.alt_text?.trim() ? { alt_text: img.alt_text.trim() } : {}),
+      is_primary: img.is_primary ?? false,
+    }));
+}
+
+/** Ada item gambar yang masih uploading - submit harus ditahan (halaman). */
+export function hasUploadingImages(raw: WordImageFormValue[] | undefined): boolean {
+  return (raw ?? []).some((img) => img.status === 'uploading');
 }

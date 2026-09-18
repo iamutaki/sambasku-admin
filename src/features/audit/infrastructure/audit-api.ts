@@ -4,9 +4,9 @@ import type { AuditLogListItem, ListAuditLogsParams } from '../domain/audit-log'
 
 /**
  * GET /api/v1/admin/audit-logs - jejak mutasi data (role: admin & root).
- * Filter AND opsional (user_id / entity_type / entity_id) + cursor pagination.
- * Bentuk backend: `{ success, data: [...], meta }` - dinormalisasi jadi
- * `CursorPage`.
+ * Filter AND opsional (user / action / entity / rentang tanggal / user_name)
+ * + cursor pagination. Bentuk backend: `{ success, data: [...], meta }` -
+ * dinormalisasi jadi `CursorPage`.
  */
 export async function listAuditLogsRequest(
   params: ListAuditLogsParams,
@@ -15,8 +15,12 @@ export async function listAuditLogsRequest(
   const res = await client.get<ApiCursorPageEnvelope<AuditLogListItem>>('/admin/audit-logs', {
     params: {
       user_id: params.userId || undefined,
+      user_name: params.userName || undefined,
+      action: params.action || undefined,
       entity_type: params.entityType || undefined,
       entity_id: params.entityId || undefined,
+      from: params.from || undefined,
+      to: params.to || undefined,
       limit: params.limit ?? 20,
       cursor: params.cursor,
     },

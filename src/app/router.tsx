@@ -7,7 +7,10 @@ import { LoginPage } from '@/features/auth/presentation/login-page';
 import { DashboardPage } from '@/features/dashboard/presentation/dashboard-page';
 import { WordsPage } from '@/features/words/presentation/words-page';
 import { CreateWordPage } from '@/features/words/presentation/create-word-page';
+import { EditWordPage } from '@/features/words/presentation/edit-word-page';
+import { WordDetailPage } from '@/features/words/presentation/word-detail-page';
 import { ContributionsPage } from '@/features/contributions/presentation/contributions-page';
+import { ContributionDetailPage } from '@/features/contributions/presentation/contribution-detail-page';
 import { AuditLogsPage } from '@/features/audit/presentation/audit-logs-page';
 import { NotFoundPage } from '@/shared/layouts/not-found-page';
 
@@ -85,10 +88,28 @@ const createWordRoute = createRoute({
   component: CreateWordPage,
 });
 
+const editWordRoute = createRoute({
+  getParentRoute: () => consoleLayoutRoute,
+  path: '/words/$id/edit',
+  component: EditWordPage,
+});
+
+const wordDetailRoute = createRoute({
+  getParentRoute: () => consoleLayoutRoute,
+  path: '/words/$id',
+  component: WordDetailPage,
+});
+
 const contributionsRoute = createRoute({
   getParentRoute: () => consoleLayoutRoute,
   path: '/contributions',
   component: ContributionsPage,
+});
+
+const contributionDetailRoute = createRoute({
+  getParentRoute: () => consoleLayoutRoute,
+  path: '/contributions/$id',
+  component: ContributionDetailPage,
 });
 
 const auditLogsRoute = createRoute({
@@ -100,7 +121,7 @@ const auditLogsRoute = createRoute({
 const routeTree = rootRoute.addChildren([
   indexRoute,
   baseLayoutRoute.addChildren([loginRoute]),
-  consoleLayoutRoute.addChildren([dashboardRoute, wordsRoute, createWordRoute, contributionsRoute, auditLogsRoute]),
+  consoleLayoutRoute.addChildren([dashboardRoute, wordsRoute, createWordRoute, wordDetailRoute, editWordRoute, contributionsRoute, contributionDetailRoute, auditLogsRoute]),
 ]);
 
 export const router = createRouter({

@@ -162,6 +162,14 @@ export interface CreateWordRequestVariant {
   affix_value?: string;
 }
 
+/** Satu gambar di images[] create/update (hasil direct-upload ke CDN). */
+export interface WordImageInput {
+  url: string;
+  provider_file_id: string;
+  alt_text?: string;
+  is_primary?: boolean;
+}
+
 export interface CreateWordRequest {
   language_id: string;
   dialect_id?: string;
@@ -173,6 +181,7 @@ export interface CreateWordRequest {
   related_words: CreateWordRequestRelated[];
   variants?: CreateWordRequestVariant[];
   pronunciation?: { notation: string; value: string };
+  images?: WordImageInput[];
   status: 'draft' | 'published';
 }
 
@@ -268,6 +277,24 @@ export interface CreateWordVariantFormValue {
   affix_value?: string;
 }
 
+/**
+ * Item gambar di form - field status/uid/fileName adalah state UI (tidak
+ * dikirim ke body; lihat buildImages). url + provider_file_id baru terisi
+ * setelah direct-upload selesai, atau langsung terisi saat prefill edit
+ * (gambar existing dari detail).
+ */
+export type WordImageUploadStatus = 'uploading' | 'done' | 'error';
+
+export interface WordImageFormValue {
+  uid: string;
+  fileName?: string;
+  status?: WordImageUploadStatus;
+  url?: string;
+  provider_file_id?: string;
+  alt_text?: string;
+  is_primary?: boolean;
+}
+
 export interface CreateWordFormValues {
   language_id?: string;
   dialect_id?: string;
@@ -279,4 +306,5 @@ export interface CreateWordFormValues {
   related_words?: CreateWordRelatedFormValue[];
   variants?: CreateWordVariantFormValue[];
   pronunciation?: { notation?: string; value?: string };
+  images?: WordImageFormValue[];
 }

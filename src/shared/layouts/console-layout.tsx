@@ -19,7 +19,7 @@ const { Sider, Header, Content } = Layout;
 const MENU_ROUTES = {
   '/dashboard': { icon: <DashboardOutlined />, label: 'Dashboard' },
   '/words': { icon: <TranslationOutlined />, label: 'Kata' },
-  '/contributions': { icon: <InboxOutlined />, label: 'Antrean Review' },
+  '/contributions': { icon: <InboxOutlined />, label: 'Review' },
   '/audit-logs': { icon: <AuditOutlined />, label: 'Audit Log' },
 } as const;
 type MenuRoute = keyof typeof MENU_ROUTES;
@@ -29,7 +29,7 @@ const MENU_ITEMS = Object.entries(MENU_ROUTES).map(([key, { icon, label }]) => (
 const BREADCRUMB_LABELS: Record<string, string> = {
   dashboard: 'Dashboard',
   words: 'Kata',
-  contributions: 'Antrean Review',
+  contributions: 'Review',
   'audit-logs': 'Audit Log',
 };
 
@@ -54,7 +54,21 @@ export function ConsoleLayout() {
   const breadcrumbItems = useMemo(() => {
     const segments = pathname.split('/').filter(Boolean);
     const label = BREADCRUMB_LABELS[segments[0]] ?? 'Halaman';
-    return [{ title: 'Konsol' }, ...(segments.length ? [{ title: label }] : [])];
+    const items = [{ title: 'Konsol' }, ...(segments.length ? [{ title: label }] : [])];
+    // Sub-halaman: tidak semua segmen punya label; beri label segmen detail
+    // per fitur (mis. /words/:id/edit → "Kata / Edit Kata").
+    const subLabel =
+      segments[0] === 'words'
+        ? segments[1] === 'edit'
+          ? 'Edit Kata'
+          : 'Detail Kata'
+        : segments[0] === 'contributions' && segments[1]
+          ? 'Detail Kontribusi'
+          : undefined;
+    if (subLabel) {
+      items.push({ title: subLabel });
+    }
+    return items;
   }, [pathname]);
 
   useEffect(() => {

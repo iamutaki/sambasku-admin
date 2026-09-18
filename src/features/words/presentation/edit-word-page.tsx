@@ -11,21 +11,27 @@ import {
   Form,
   Grid,
   Input,
+  Popconfirm,
   Row,
+  Skeleton,
   Select,
   Space,
+  Tag,
   Typography,
   theme,
 } from 'antd';
-import { useNavigate } from '@tanstack/react-router';
+import { useNavigate, useParams } from '@tanstack/react-router';
 import { PageHeader } from '@/shared/components/page-header';
 import { ApiError } from '@/shared/api/error';
 import { useAuth } from '@/shared/auth/use-auth';
-import { buildCreateWordBody, fieldToNamePath, hasUploadingImages, pickDefaultLanguageIds } from '../application/create-word-utils';
-import { useCreateWord } from '../application/use-create-word';
+import { fieldToNamePath, pickDefaultLanguageIds } from '../application/create-word-utils';
+import { buildUpdateWordBody, wordDetailToFormValues } from '../application/word-detail-mappers';
+import { hasUploadingImages } from '../application/create-word-utils';
+import { useUpdateWord } from '../application/use-update-word';
+import { useWordDetail } from '../application/use-word-detail';
 import { useCategoryOptions, useDialectOptions, useLanguageOptions, useWordClassOptions } from '../application/use-reference-data';
 import type { CreateWordFormValues } from '../domain/create-word';
-import { type WordStatus } from '../domain/word';
+import { WORD_STATUS_LABELS } from '../domain/word';
 import {
   MeaningFields,
   RelatedWordItem,
@@ -39,60 +45,71 @@ import { WordImagesField } from './word-images-field';
 
 const { Text } = Typography;
 
-const inlineStatusLabels: Record<WordStatus, string> = {
-  draft: 'Draft',
-  pending_review: 'Menunggu Review',
-  published: 'Tayang',
-  rejected: 'Ditolak',
-};
-
-export function CreateWordPage() {
+/**
+ * Halaman Edit Kata - FULL REPLACE PUT /api/v1/admin/words/:id
+ * (docs/admin/02-edit-kata.md + docs/api/05-api-edit-kata.md).
+ * Memakai ulang seluruh blok form create-word (word-form-blocks.tsx) dan
+ * prefill dari GET /admin/words/:id (semua status bisa dibuka).
+ *
+ * Perbedaan dari create:
+ * - relasi HANYA bentuk link (allowInline=false) - Form B dilarang di edit
+ * - published → draft = sengaja di-unpublish (konfirmasi)
+ * - rejected → published = aktivasi ulang (konfirmasi)
+ * - contributor dilarang (guard di router + tombol disembunyikan)
+ */
+export function EditWordPage() {
   const navigate = useNavigate();
   const { message } = AntdApp.useApp();
   const { user } = useAuth();
   const { token: { colorFillAlter } } = theme.useToken();
   const { md } = Grid.useBreakpoint();
 
+  const { id } = useParams({ from: '/console-layout/words/$id/edit' });
+
   const [form] = Form.useForm<CreateWordFormValues>();
-  const createMutation = useCreateWord();
+  const updateMutation = useUpdateWord();
   const [submitError, setSubmitError] = useState<string | null>(null);
 
-  const wordType = Form.useWatch('word_type', form) ?? 'word';
   const isContributor = user?.role === 'contributor';
+
+  // Contributor dilarang (05-api-edit-kata.md): jangan bakar request prefill,
+  // tampilkan 403 alih-alih halaman kosong.
+  const detailQuery = useWordDetail(id, { enabled: !isContributor });
+  const detail = detailQuery.data;
+
+  const wordType = Form.useWatch('word_type', form) ?? 'word';
 
   const languageQuery = useLanguageOptions();
   const wordClassQuery = useWordClassOptions();
   const categoryQuery = useCategoryOptions();
 
   const languages = useMemo(() => languageQuery.data ?? [], [languageQuery.data]);
-
-  // Arah entri DIKUNCI: lemma selalu bahasa sumber (Sambas), terjemahan
-  // selalu bahasa target (Indonesia). Kamus ini memang Sambas → Indonesia,
-  // jadi form tidak perlu (malah tidak boleh) menanyakan bahasa. Backend
-  // tetap generik; yang opinionated hanya UI ini.
   const defaultLanguageIds = useMemo(() => pickDefaultLanguageIds(languages), [languages]);
-  const sourceLanguage = useMemo(
-    () => languages.find((l) => l.id === defaultLanguageIds.sourceId) ?? null,
-    [languages, defaultLanguageIds.sourceId],
+
+  // Dialek di-preload pakai bahasa SUMBER default (Sambas). Kata yang sedang
+  // diedit biasanya memang bahasa Sambas; bila detail membawa bahasa lain,
+  // opsi dialek dihitung dari bahasa lead itu - cukup pendekatan best-effort,
+  // Select tetap menampilkan nilai terpilih bahkan sebelum opsi tersedia.
+  const leadLanguageId = useMemo(
+    () => detail?.language_id ?? defaultLanguageIds.sourceId,
+    [detail, defaultLanguageIds.sourceId],
   );
-  const targetLanguage = useMemo(
-    () => languages.find((l) => l.id === defaultLanguageIds.targetId) ?? null,
-    [languages, defaultLanguageIds.targetId],
-  );
+  const dialectQuery = useDialectOptions(leadLanguageId);
 
-  // Data referensi bahasa belum lengkap (Sambas/Indonesia belum ada) →
-  // kunci submit, jangan biarkan entri terkirim dengan bahasa yang salah.
-  const directionReady = Boolean(sourceLanguage && targetLanguage);
-
-  const dialectQuery = useDialectOptions(defaultLanguageIds.sourceId);
-
-  // Isi nilai awal bahasa sumber (tersimpan tersembunyi di form store) sekali.
+  // Prefill form SATU KALI dari detail yang sudah SETTLE. Jangan prefill saat
+  // masih isPending (belum ada data) ATAU isFetching (refetch di latar belakang
+  // sedang berjalan, mis. cache lama ada): kalau prefill dari cache yang sudah
+  // usang, seeded=true mengunci form ke nilai pra-edit sebelum data baru tiba.
   const seeded = useRef(false);
   useEffect(() => {
-    if (seeded.current || !directionReady) return;
+    if (seeded.current || detailQuery.isPending || detailQuery.isFetching) return;
     seeded.current = true;
-    form.setFieldsValue({ language_id: defaultLanguageIds.sourceId, word_type: 'word' });
-  }, [directionReady, defaultLanguageIds.sourceId, form]);
+    if (detail) {
+      form.setFieldsValue(wordDetailToFormValues(detail));
+    }
+  }, [detail, detailQuery.isPending, detailQuery.isFetching, form]);
+
+  const currentStatus = detail?.status;
 
   const wordClassOptions = useMemo(
     () => buildWordClassOptions(wordClassQuery.data ?? []),
@@ -107,7 +124,6 @@ export function CreateWordPage() {
     [categoryQuery.data],
   );
 
-  // has_component hanya sah untuk entri frasa (idiom/peribahasa/ungkapan).
   const relationOptions = useMemo(() => buildRelationOptions(wordType), [wordType]);
 
   const handleSubmitError = (err: unknown) => {
@@ -139,40 +155,28 @@ export function CreateWordPage() {
     setSubmitError(null);
     try {
       const values = await form.validateFields();
-      // Gambar yang masih terunggah tidak akan terkirim (buildImages hanya
-      // ambil yang selesai) - tahan submit supaya tidak ada yang hilang diam-diam.
       if (hasUploadingImages(values.images)) {
         message.warning('Masih ada gambar yang terunggah - tunggu selesai lalu simpan lagi.');
         return;
       }
-      await createMutation.mutateAsync(
-        buildCreateWordBody(values, status),
+      await updateMutation.mutateAsync(
+        { id, body: buildUpdateWordBody(values, status) },
         {
           onSuccess: (result) => {
+            // Toast JUJUR soal perubahan status (approval gate + UI semantics):
+            // rejected → published = hidup lagi; published → draft = di-unpublish.
+            const reactivated = currentStatus === 'rejected' && result.status === 'published';
+            const unPublished = currentStatus === 'published' && result.status === 'draft';
             const messages: Record<string, string> = {
-              draft: `Draft "${result.lemma}" disimpan`,
-              pending_review: `Kata "${result.lemma}" disimpan dan menunggu review`,
-              published: `Kata "${result.lemma}" berhasil dipublikasikan`,
-              rejected: `Kata "${result.lemma}" disimpan (ditolak)`,
+              draft: unPublished
+                ? `Kata "${result.lemma}" di-unpublish (tidak lagi di kamus publik)`
+                : `Perubahan "${result.lemma}" disimpan (${WORD_STATUS_LABELS[result.status] ?? result.status})`,
+              published: reactivated
+                ? `Kata yang ditolak "${result.lemma}" diaktifkan kembali dan ditayangkan`
+                : `Kata "${result.lemma}" berhasil dipublikasikan`,
             };
             message.success(messages[result.status] ?? `Kata "${result.lemma}" disimpan`);
             result.warnings?.forEach((w) => message.warning(w.message));
-
-            // 04-api-sinonim-inline.md - kata inline ikut dibuat dalam satu
-            // request. Tampilkan ringkasan per entitas (status = kebenaran
-            // akhir dari backend, approval gate per entitas).
-            const inlines = result.inline_created_words ?? [];
-            if (inlines.length > 0) {
-              message.info(
-                `${inlines.length} kata terkait ikut dibuat: ${inlines
-                  .map((i) => `${i.lemma} (${inlineStatusLabels[i.status] ?? i.status})`)
-                  .join(', ')}`,
-                6,
-              );
-              for (const inline of inlines) {
-                inline.warnings?.forEach((w) => message.warning(`${inline.lemma}: ${w.message}`));
-              }
-            }
             navigate({ to: '/words' });
           },
           onError: handleSubmitError,
@@ -183,10 +187,74 @@ export function CreateWordPage() {
     }
   };
 
+  // 403 alih-alih halaman kosong saat contributor menebak URL route edit.
+  if (isContributor) {
+    return (
+      <>
+        <PageHeader title="Edit Kata" subtitle="Akses terbatas untuk verifikator." />
+        <Alert
+          type="error"
+          showIcon
+          message="403 - Akses ditolak"
+          description="Kontributor tidak dapat mengubah entri existing. Perubahan atas entri yang sudah ada lewat jalur kontribusi (antrean review)."
+          action={
+            <Button onClick={() => navigate({ to: '/words' })} style={{ whiteSpace: 'nowrap' }}>
+              Kembali ke Daftar
+            </Button>
+          }
+        />
+      </>
+    );
+  }
+
+  if (detailQuery.isPending) {
+    return (
+      <Card>
+        <PageHeader title="Edit Kata" subtitle="Memuat detail kata…" />
+        <Skeleton active paragraph={{ rows: 6 }} />
+      </Card>
+    );
+  }
+
+  if (detailQuery.isError || !detail) {
+    return (
+      <>
+        <PageHeader title="Edit Kata" subtitle="Gagal memuat detail kata." />
+        <Alert
+          type="error"
+          showIcon
+          message="Tidak dapat membuka kata ini"
+          description={detailQuery.error?.message ?? 'Kata tidak ditemukan atau akses ditolak.'}
+          action={
+            <Button onClick={() => navigate({ to: '/words' })} style={{ whiteSpace: 'nowrap' }}>
+              Kembali ke Daftar
+            </Button>
+          }
+        />
+      </>
+    );
+  }
+
   return (
     <>
-      <PageHeader title="Tambah Kata Baru" subtitle="Form kosakata lengkap - kata, makna, terjemahan, contoh, dan relasi." />
-      <Form form={form} layout="vertical" requiredMark disabled={createMutation.isPending}>
+      <PageHeader
+        title="Edit Kata"
+        subtitle={
+          <Space wrap>
+            <Text>Form kosakata lengkap - kata, makna, terjemahan, contoh, dan relasi.</Text>
+            <Tag color={currentStatus === 'published' ? 'green' : currentStatus === 'rejected' ? 'red' : currentStatus === 'pending_review' ? 'orange' : 'default'}>
+              {WORD_STATUS_LABELS[currentStatus ?? 'draft']}
+            </Tag>
+            {currentStatus === 'published' ? (
+              <Text type="secondary">Simpan sebagai Draft akan menghapus kata dari tayang.</Text>
+            ) : null}
+            {currentStatus === 'rejected' ? (
+              <Text type="secondary">Kata ditolak - "Simpan & Publikasikan" akan menayangkan ulang.</Text>
+            ) : null}
+          </Space>
+        }
+      />
+      <Form form={form} layout="vertical" requiredMark disabled={updateMutation.isPending}>
         <Space direction="vertical" size={16} style={{ width: '100%' }}>
           {submitError ? (
             <Alert type="error" showIcon message="Gagal menyimpan kata" description={submitError} closable onClose={() => setSubmitError(null)} />
@@ -317,9 +385,8 @@ export function CreateWordPage() {
                 children: (
                   <>
                     <Text type="secondary" style={{ display: 'block', marginBottom: 12 }}>
-                      Relasi bisa menautkan ke kata yang sudah ada, ATAU langsung membuat kata
-                      sinonim/antonim baru sekaligus dalam satu request (kontrak
-                      04-api-sinonim-inline.md).
+                      Edit hanya menautkan ke kata yang sudah ada - buat kata sinonim/antonim baru lewat
+                      "Tambah Kata", lalu tautkan di sini.
                     </Text>
                     <Form.List name="related_words">
                       {(fields, { add, remove }) => (
@@ -333,6 +400,7 @@ export function CreateWordPage() {
                               wordClassOptions={wordClassOptions}
                               wordClassLoading={wordClassQuery.isLoading}
                               defaultLanguageIds={defaultLanguageIds}
+                              allowInline={false}
                             />
                           ))}
                           <Button type="dashed" block icon={<PlusOutlined />} onClick={() => add({ mode: 'link' })}>
@@ -428,18 +496,49 @@ export function CreateWordPage() {
         style={{ marginTop: 24, paddingTop: 16, borderTop: `1px solid ${colorFillAlter}` }}
       >
         <div>
-          {isContributor ? (
-            <Text type="warning">Sebagai kontributor, "Simpan & Publikasikan" akan menghasilkan status "Menunggu Review".</Text>
+          {currentStatus === 'published' ? (
+            <Text type="warning">"Simpan sebagai Draft" menurunkan status menjadi draft (tidak tayang).</Text>
           ) : null}
         </div>
         <Space wrap style={{ width: md ? undefined : '100%' }}>
-          <Button block={!md} onClick={() => navigate({ to: '/words' })}>Batal</Button>
-          <Button block={!md} icon={<SaveOutlined />} loading={createMutation.isPending} onClick={() => submit('draft')}>
-            Simpan sebagai Draft
+          <Button block={!md} onClick={() => navigate({ to: '/words' })}>
+            Batal
           </Button>
-          <Button block={!md} type="primary" icon={<SendOutlined />} loading={createMutation.isPending} onClick={() => submit('published')}>
-            Simpan &amp; Publikasikan
-          </Button>
+          {currentStatus === 'published' ? (
+            <Popconfirm
+              title="Hapus kata dari tayang?"
+              description="Menyimpan sebagai draft akan menurunkan status kata ini dan menghilangkannya dari kamus publik."
+              okText="Hapus dari Tayang"
+              cancelText="Batal"
+              okButtonProps={{ danger: true }}
+              onConfirm={() => submit('draft')}
+            >
+              <Button block={!md} icon={<SaveOutlined />} loading={updateMutation.isPending}>
+                Simpan sebagai Draft
+              </Button>
+            </Popconfirm>
+          ) : (
+            <Button block={!md} icon={<SaveOutlined />} loading={updateMutation.isPending} onClick={() => submit('draft')}>
+              Simpan sebagai Draft
+            </Button>
+          )}
+          {currentStatus === 'rejected' ? (
+            <Popconfirm
+              title="Aktifkan kata ini?"
+              description="Kata yang ditolak akan dihidupkan kembali dan tayang di kamus publik."
+              okText="Aktifkan"
+              cancelText="Batal"
+              onConfirm={() => submit('published')}
+            >
+              <Button block={!md} type="primary" icon={<SendOutlined />} loading={updateMutation.isPending}>
+                Simpan &amp; Publikasikan
+              </Button>
+            </Popconfirm>
+          ) : (
+            <Button block={!md} type="primary" icon={<SendOutlined />} loading={updateMutation.isPending} onClick={() => submit('published')}>
+              Simpan &amp; Publikasikan
+            </Button>
+          )}
         </Space>
       </Flex>
     </>

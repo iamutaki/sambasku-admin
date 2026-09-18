@@ -19,8 +19,15 @@ export interface AuditLogListItem {
 
 export interface ListAuditLogsParams {
   userId?: string;
+  /** partial match username pelaku (backend: ILIKE) */
+  userName?: string;
+  action?: string;
   entityType?: string;
   entityId?: string;
+  /** ISO datetime awal (inklusif) */
+  from?: string;
+  /** ISO datetime akhir (inklusif) */
+  to?: string;
   limit?: number;
   cursor?: string;
 }
@@ -38,3 +45,17 @@ export const AUDIT_ACTION_TAG_COLOR: Record<string, string> = {
   reject: 'red',
   correct: 'gold',
 };
+
+/** Opsi filter aksi (urutan tampilan). */
+export const AUDIT_ACTIONS: string[] = [
+  'create',
+  'update',
+  'delete',
+  'password_change',
+  'publish',
+  'verify',
+  'unverify',
+  'approve',
+  'reject',
+  'correct',
+];

@@ -3,6 +3,7 @@ import {
   buildCreateWordBody,
   fieldToNamePath,
   pickDefaultLanguageIds,
+  hasUploadingImages,
 } from '@/features/words/application/create-word-utils';
 import type {
   CreateWordFormValues,
@@ -401,5 +402,30 @@ describe('buildCreateWordBody - Form B (sinonim inline)', () => {
       expect(item).not.toHaveProperty('word');
     }
     expect(rel).toMatchObject({ relation_type: 'synonym', word_id: '01HXYZFFFFFFFFFFFFFFFFFFFF' });
+  });
+});
+describe('buildCreateWordBody - images (05-support-image)', () => {
+  it('hanya gambar selesai upload yang masuk body; field UI di-strip', () => {
+    const body = buildCreateWordBody(
+      formValues({
+        images: [
+          { uid: 'u1', status: 'done', url: 'https://cdn/1.jpg', provider_file_id: 'f1', alt_text: '  ilustrasi  ', is_primary: true },
+          { uid: 'u2', status: 'uploading', fileName: 'masih.jpg' },
+          { uid: 'u3', status: 'error', fileName: 'gagal.jpg' },
+          { uid: 'u4', status: 'done', url: '', provider_file_id: '' }, // done tapi tak lengkap
+        ],
+      }),
+      'published',
+    );
+    expect(body.images).toEqual([
+      { url: 'https://cdn/1.jpg', provider_file_id: 'f1', alt_text: 'ilustrasi', is_primary: true },
+    ]);
+  });
+
+  it('tanpa gambar → field images tidak dikirim; hasUploadingImages mendeteksi ongoing', () => {
+    const body = buildCreateWordBody(formValues({}), 'draft');
+    expect(body.images).toBeUndefined();
+    expect(hasUploadingImages(undefined)).toBe(false);
+    expect(hasUploadingImages([{ uid: 'u', status: 'uploading' }])).toBe(true);
   });
 });

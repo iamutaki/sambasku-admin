@@ -18,9 +18,11 @@ export default defineConfig({
     // Dengan proxy, semua request keluar dari origin yang sama (localhost),
     // cookie tersimpan di localhost, dan CORS tidak diperlukan.
     // Wajib set VITE_API_BASE_URL=/api/v1 (lihat .env.development).
+    // Default target = staging. Untuk test full-lokal set env saat menjalankan
+    // dev: `VITE_PROXY_TARGET=http://localhost:3000 pnpm dev`
     proxy: {
       '/api': {
-        target: 'https://sambasku-staging.iamutaki.com',
+        target: process.env.VITE_PROXY_TARGET ?? 'https://sambasku-staging.iamutaki.com',
         changeOrigin: true,
       },
     },
