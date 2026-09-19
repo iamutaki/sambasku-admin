@@ -11,7 +11,11 @@ import { EditWordPage } from '@/features/words/presentation/edit-word-page';
 import { WordDetailPage } from '@/features/words/presentation/word-detail-page';
 import { ContributionsPage } from '@/features/contributions/presentation/contributions-page';
 import { ContributionDetailPage } from '@/features/contributions/presentation/contribution-detail-page';
+import { CommentsPage } from '@/features/comments/presentation/comments-page';
+import { SearchMissesPage } from '@/features/search-miss/presentation/search-misses-page';
+import { VoteModerationPage } from '@/features/vote-moderation/presentation/vote-moderation-page';
 import { AuditLogsPage } from '@/features/audit/presentation/audit-logs-page';
+import { UsersPage } from '@/features/users/presentation/users-page';
 import { NotFoundPage } from '@/shared/layouts/not-found-page';
 
 /**
@@ -112,16 +116,40 @@ const contributionDetailRoute = createRoute({
   component: ContributionDetailPage,
 });
 
+const commentsRoute = createRoute({
+  getParentRoute: () => consoleLayoutRoute,
+  path: '/comments',
+  component: CommentsPage,
+});
+
+const searchMissesRoute = createRoute({
+  getParentRoute: () => consoleLayoutRoute,
+  path: '/search-misses',
+  component: SearchMissesPage,
+});
+
+const voteModerationRoute = createRoute({
+  getParentRoute: () => consoleLayoutRoute,
+  path: '/vote-moderation',
+  component: VoteModerationPage,
+});
+
 const auditLogsRoute = createRoute({
   getParentRoute: () => consoleLayoutRoute,
   path: '/audit-logs',
   component: AuditLogsPage,
 });
 
+const usersRoute = createRoute({
+  getParentRoute: () => consoleLayoutRoute,
+  path: '/users',
+  component: UsersPage,
+});
+
 const routeTree = rootRoute.addChildren([
   indexRoute,
   baseLayoutRoute.addChildren([loginRoute]),
-  consoleLayoutRoute.addChildren([dashboardRoute, wordsRoute, createWordRoute, wordDetailRoute, editWordRoute, contributionsRoute, contributionDetailRoute, auditLogsRoute]),
+  consoleLayoutRoute.addChildren([dashboardRoute, wordsRoute, createWordRoute, wordDetailRoute, editWordRoute, contributionsRoute, contributionDetailRoute, commentsRoute, searchMissesRoute, voteModerationRoute, auditLogsRoute, usersRoute]),
 ]);
 
 export const router = createRouter({

@@ -73,3 +73,23 @@ export async function updateWordRequest(
 export async function deleteWordRequest(id: string): Promise<void> {
   await client.delete<ApiOkEnvelope<null>>(`/admin/words/${id}`);
 }
+
+/**
+ * POST /api/v1/admin/words/:id/verify - tandai kata sebagai verified
+ * (status berubah jadi published; audit log otomatis di backend).
+ * Role: admin / root / reviewer.
+ */
+export async function verifyWordRequest(id: string, signal?: AbortSignal): Promise<unknown> {
+  const res = await client.post<ApiOkEnvelope<unknown>>(`/admin/words/${id}/verify`, undefined, { signal });
+  return res.data.data;
+}
+
+/**
+ * POST /api/v1/admin/words/:id/unverify - batalkan verified (kembali ke
+ * pending_review / status sebelumnya non-published). Audit log otomatis.
+ * Role: admin / root / reviewer.
+ */
+export async function unverifyWordRequest(id: string, signal?: AbortSignal): Promise<unknown> {
+  const res = await client.post<ApiOkEnvelope<unknown>>(`/admin/words/${id}/unverify`, undefined, { signal });
+  return res.data.data;
+}

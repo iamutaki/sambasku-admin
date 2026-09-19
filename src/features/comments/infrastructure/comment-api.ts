@@ -35,3 +35,13 @@ export async function rejectCommentRequest(id: string): Promise<ReviewCommentRes
   const res = await client.post<ApiOkEnvelope<ReviewCommentResult>>(`/admin/comments/${id}/reject`);
   return res.data.data;
 }
+
+/**
+ * DELETE /api/v1/comments/:id - hapus permanen komentar (tidak bisa dibatalkan).
+ * Bedanya reject: reject = masih tersimpan record dengan status rejected;
+ * delete = hilang dari database untuk moderasi.
+ * Role: admin / root / reviewer.
+ */
+export async function deleteCommentRequest(id: string, signal?: AbortSignal): Promise<void> {
+  await client.delete<ApiOkEnvelope<null>>(`/comments/${id}`, { signal });
+}

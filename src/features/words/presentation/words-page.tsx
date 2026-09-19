@@ -1,6 +1,14 @@
 import { useMemo, useState } from 'react';
 import { createColumnHelper, getCoreRowModel, useReactTable } from '@tanstack/react-table';
-import { DeleteOutlined, EditOutlined, EyeOutlined, PlusOutlined, ReloadOutlined } from '@ant-design/icons';
+import {
+  CheckOutlined,
+  DeleteOutlined,
+  EditOutlined,
+  EyeOutlined,
+  PlusOutlined,
+  ReloadOutlined,
+  UndoOutlined,
+} from '@ant-design/icons';
 import { Alert, App as AntdApp, Button, Flex, Input, Popconfirm, Select, Tag, Tooltip, Typography } from 'antd';
 import { DataTable } from '@/shared/components/data-table';
 import { PageHeader } from '@/shared/components/page-header';
@@ -8,6 +16,8 @@ import { useNavigate } from '@tanstack/react-router';
 import { useWordList, type UseWordListArgs } from '../application/use-word-list';
 import { useAuth } from '@/shared/auth/use-auth';
 import { useDeleteWord } from '../application/use-delete-word';
+import { useVerifyWord, useUnverifyWord } from '../application/use-word-verify';
+import { normalizeError } from '@/shared/api/error';
 import {
   WORD_STATUS_LABELS,
   WORD_TYPES,
@@ -34,6 +44,9 @@ export function WordsPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const deleteWord = useDeleteWord();
+  const verifyWord = useVerifyWord();
+  const unverifyWord = useUnverifyWord();
+  const canVerify = user?.role === 'root' || user?.role === 'admin' || user?.role === 'reviewer';
   const [searchInput, setSearchInput] = useState('');
   const [wordType, setWordType] = useState<WordType | undefined>();
   const [isVerified, setIsVerified] = useState<boolean | undefined>();
@@ -44,8 +57,6 @@ export function WordsPage() {
   const { items, hasMore, loadMore, isLoading, isFetching, isFetchingNextPage, isError, error, refetch } =
     useWordList(listArgs);
 
-  // Hapus kata - soft-delete (07-api-delete-kata.md): hilang dari publik &
-  // list, baris dipertahankan backend untuk audit/recovery.
   const onDeleteWord = async (id: string, lemma: string) => {
     setDeletingId(id);
     try {
@@ -55,6 +66,28 @@ export function WordsPage() {
       });
     } finally {
       setDeletingId(undefined);
+    }
+  };
+
+  const onVerifyWord = async (id: string, lemma: string) => {
+    try {
+      await verifyWord.mutateAsync(id, {
+        onSuccess: () => message.success(`Kata "${lemma}" diverifikasi & dipublikasikan`),
+        onError: (err) => message.warning(normalizeError(err).message || 'Gagal verifikasi kata'),
+      });
+    } catch {
+      // Handled.
+    }
+  };
+
+  const onUnverifyWord = async (id: string, lemma: string) => {
+    try {
+      await unverifyWord.mutateAsync(id, {
+        onSuccess: () => message.success(`Kata "${lemma}" batal diverifikasi`),
+        onError: (err) => message.warning(normalizeError(err).message || 'Gagal membatalkan verifikasi'),
+      });
+    } catch {
+      // Handled.
     }
   };
 
@@ -89,7 +122,7 @@ export function WordsPage() {
       columnHelper.display({
         id: 'actions',
         header: 'Aksi',
-        size: 140,
+        size: 240,
         meta: { fixed: 'right' },
         cell: (info) => (
           <Flex gap={0} wrap={false} align="center">
@@ -115,6 +148,42 @@ export function WordsPage() {
                 />
               </Tooltip>
             ) : null}
+            {canVerify && info.row.original.status !== 'published' ? (
+              <Popconfirm
+                title={`Verifikasi kata "${info.row.original.lemma}"?`}
+                description="Kata akan dipublikasikan dan muncul di pencarian publik."
+                okText="Verifikasi"
+                okButtonProps={{ type: 'primary' }}
+                cancelText="Batal"
+                onConfirm={() => onVerifyWord(info.row.original.id, info.row.original.lemma)}
+              >
+                <Tooltip title="Verifikasi Kata">
+                  <Button
+                    type="link"
+                    icon={<CheckOutlined />}
+                    loading={verifyWord.isPending && verifyWord.variables === info.row.original.id}
+                  />
+                </Tooltip>
+              </Popconfirm>
+            ) : null}
+            {canVerify && info.row.original.status === 'published' ? (
+              <Popconfirm
+                title={`Batalkan verifikasi "${info.row.original.lemma}"?`}
+                description="Kata akan kembali ke status sebelum dipublikasikan."
+                okText="Batal Verifikasi"
+                okButtonProps={{ danger: true }}
+                cancelText="Batal"
+                onConfirm={() => onUnverifyWord(info.row.original.id, info.row.original.lemma)}
+              >
+                <Tooltip title="Batal Verifikasi">
+                  <Button
+                    type="link"
+                    icon={<UndoOutlined />}
+                    loading={unverifyWord.isPending && unverifyWord.variables === info.row.original.id}
+                  />
+                </Tooltip>
+              </Popconfirm>
+            ) : null}
             {user?.role !== 'contributor' ? (
               <Popconfirm
                 title={`Hapus kata "${info.row.original.lemma}"?`}
@@ -137,7 +206,7 @@ export function WordsPage() {
         ),
       }),
     ],
-    [message, navigate, user?.role, onDeleteWord, deletingId],
+    [message, navigate, user?.role, onDeleteWord, onVerifyWord, onUnverifyWord, canVerify, deletingId, verifyWord.isPending, verifyWord.variables, unverifyWord.isPending, unverifyWord.variables],
   );
 
   const table = useReactTable({

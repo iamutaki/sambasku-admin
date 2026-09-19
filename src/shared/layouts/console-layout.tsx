@@ -2,9 +2,12 @@ import { useEffect, useMemo } from 'react';
 import { Outlet, useLocation, useNavigate } from '@tanstack/react-router';
 import {
   AuditOutlined,
+  CommentOutlined,
   DashboardOutlined,
   InboxOutlined,
+  LikeOutlined,
   LogoutOutlined,
+  SearchOutlined,
   TranslationOutlined,
   UserOutlined,
 } from '@ant-design/icons';
@@ -20,17 +23,23 @@ const MENU_ROUTES = {
   '/dashboard': { icon: <DashboardOutlined />, label: 'Dashboard' },
   '/words': { icon: <TranslationOutlined />, label: 'Kata' },
   '/contributions': { icon: <InboxOutlined />, label: 'Review' },
+  '/comments': { icon: <CommentOutlined />, label: 'Komentar' },
+  '/search-misses': { icon: <SearchOutlined />, label: 'Search Miss' },
+  '/vote-moderation': { icon: <LikeOutlined />, label: 'Moderasi Vote' },
   '/audit-logs': { icon: <AuditOutlined />, label: 'Audit Log' },
+  '/users': { icon: <UserOutlined />, label: 'Pengguna' },
 } as const;
 type MenuRoute = keyof typeof MENU_ROUTES;
-
-const MENU_ITEMS = Object.entries(MENU_ROUTES).map(([key, { icon, label }]) => ({ key, icon, label }));
 
 const BREADCRUMB_LABELS: Record<string, string> = {
   dashboard: 'Dashboard',
   words: 'Kata',
   contributions: 'Review',
+  comments: 'Komentar',
+  'search-misses': 'Search Miss',
+  'vote-moderation': 'Moderasi Vote',
   'audit-logs': 'Audit Log',
+  users: 'Pengguna',
 };
 
 /**
@@ -50,6 +59,20 @@ export function ConsoleLayout() {
   } = theme.useToken();
 
   const isLoggedIn = isAuthenticated || !!user;
+
+  const menuItems = useMemo(() => {
+    // Gate per menu: /users hanya admin & root; /vote-moderation (moderasi
+    // level konten, matrix sama dengan review kontribusi) reviewer ke atas.
+    const canModerateContent =
+      user?.role === 'root' || user?.role === 'admin' || user?.role === 'reviewer';
+    return Object.entries(MENU_ROUTES)
+      .filter(([key]) => {
+        if (key === '/users') return user?.role === 'root' || user?.role === 'admin';
+        if (key === '/vote-moderation') return canModerateContent;
+        return true;
+      })
+      .map(([key, { icon, label }]) => ({ key, icon, label }));
+  }, [user?.role]);
 
   const breadcrumbItems = useMemo(() => {
     const segments = pathname.split('/').filter(Boolean);
@@ -92,7 +115,7 @@ export function ConsoleLayout() {
           theme="dark"
           mode="inline"
           selectedKeys={[currentMenuKey]}
-          items={MENU_ITEMS}
+          items={menuItems}
           onClick={({ key }) => navigate({ to: key as MenuRoute })}
         />
       </Sider>

@@ -138,7 +138,11 @@ export function CreateWordPage() {
   const submit = async (status: 'draft' | 'published') => {
     setSubmitError(null);
     try {
-      const values = await form.validateFields();
+      await form.validateFields();
+      // `images` di-set via setFieldsValue tanpa Form.Item name (kelola
+      // manual di WordImagesField) - validateFields() menyaringnya keluar,
+      // jadi ambil nilai dari full store.
+      const values = form.getFieldsValue(true) as CreateWordFormValues;
       // Gambar yang masih terunggah tidak akan terkirim (buildImages hanya
       // ambil yang selesai) - tahan submit supaya tidak ada yang hilang diam-diam.
       if (hasUploadingImages(values.images)) {

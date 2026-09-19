@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { createColumnHelper, getCoreRowModel, useReactTable } from '@tanstack/react-table';
-import { CheckOutlined, CloseOutlined, ReloadOutlined } from '@ant-design/icons';
-import { Alert, App as AntdApp, Button, Flex, Tabs, Tag, Tooltip, Typography } from 'antd';
+import { CheckOutlined, CloseOutlined, DeleteOutlined, ReloadOutlined } from '@ant-design/icons';
+import { Alert, App as AntdApp, Button, Flex, Popconfirm, Tabs, Tag, Tooltip, Typography } from 'antd';
 import dayjs from 'dayjs';
 import { useNavigate } from '@tanstack/react-router';
 import { DataTable } from '@/shared/components/data-table';
@@ -10,6 +10,7 @@ import { normalizeError } from '@/shared/api/error';
 import { useAuth } from '@/shared/auth/use-auth';
 import { useCommentList } from '../application/use-comment-list';
 import { useReviewComment, type ReviewCommentDecision } from '../application/use-review-comment';
+import { useDeleteComment } from '../application/use-delete-comment';
 import {
   COMMENT_STATUS_LABELS,
   COMMENT_STATUSES,
@@ -38,6 +39,8 @@ export function CommentsPage() {
     });
 
   const reviewMutation = useReviewComment();
+  const deleteComment = useDeleteComment();
+  const canDelete = user?.role === 'root' || user?.role === 'admin' || user?.role === 'reviewer';
 
   const confirmReview = (item: AdminCommentItem, decision: ReviewCommentDecision) => {
     modal.confirm({
@@ -56,6 +59,17 @@ export function CommentsPage() {
         }
       },
     });
+  };
+
+  const onDeleteComment = async (item: AdminCommentItem) => {
+    try {
+      await deleteComment.mutateAsync(item.id, {
+        onSuccess: () => message.success('Komentar dihapus'),
+        onError: (err) => message.warning(normalizeError(err).message || 'Gagal menghapus komentar'),
+      });
+    } catch {
+      // Handled.
+    }
   };
 
   const columns = useMemo(
@@ -124,39 +138,64 @@ export function CommentsPage() {
       columnHelper.display({
         id: 'actions',
         header: 'Aksi',
-        size: 150,
+        size: 200,
         meta: { fixed: 'right' },
         cell: ({ row }) => {
           const item = row.original;
-          if (item.status !== 'pending_review') return '-';
-          const busy = reviewMutation.isPending && reviewMutation.variables?.id === item.id;
+          const reviewBusy = reviewMutation.isPending && reviewMutation.variables?.id === item.id;
+          const deleteBusy = deleteComment.isPending && deleteComment.variables === item.id;
           return (
             <Flex gap={4}>
-              <Tooltip title="Terbitkan">
-                <Button
-                  size="small"
-                  type="primary"
-                  ghost
-                  icon={<CheckOutlined />}
-                  loading={busy}
-                  onClick={() => confirmReview(item, 'approve')}
-                />
-              </Tooltip>
-              <Tooltip title="Tolak">
-                <Button
-                  size="small"
-                  danger
-                  icon={<CloseOutlined />}
-                  loading={busy}
-                  onClick={() => confirmReview(item, 'reject')}
-                />
-              </Tooltip>
+              {item.status === 'pending_review' ? (
+                <>
+                  <Tooltip title="Terbitkan">
+                    <Button
+                      size="small"
+                      type="primary"
+                      ghost
+                      icon={<CheckOutlined />}
+                      loading={reviewBusy}
+                      onClick={() => confirmReview(item, 'approve')}
+                    />
+                  </Tooltip>
+                  <Tooltip title="Tolak">
+                    <Button
+                      size="small"
+                      danger
+                      icon={<CloseOutlined />}
+                      loading={reviewBusy}
+                      onClick={() => confirmReview(item, 'reject')}
+                    />
+                  </Tooltip>
+                </>
+              ) : null}
+              {canDelete ? (
+                <Popconfirm
+                  title="Hapus komentar ini?"
+                  description="Aksi tidak bisa dibatalkan."
+                  okText="Hapus"
+                  okButtonProps={{ danger: true }}
+                  cancelText="Batal"
+                  onConfirm={() => onDeleteComment(item)}
+                >
+                  <Tooltip title="Hapus Komentar">
+                    <Button
+                      size="small"
+                      type="link"
+                      danger
+                      icon={<DeleteOutlined />}
+                      loading={deleteBusy}
+                    />
+                  </Tooltip>
+                </Popconfirm>
+              ) : null}
+              {item.status !== 'pending_review' && !canDelete ? '-' : null}
             </Flex>
           );
         },
       }),
     ],
-    [navigate, reviewMutation.isPending, reviewMutation.variables?.id, confirmReview],
+    [navigate, reviewMutation.isPending, reviewMutation.variables?.id, confirmReview, canDelete, deleteComment.isPending, deleteComment.variables, onDeleteComment],
   );
 
   const table = useReactTable({

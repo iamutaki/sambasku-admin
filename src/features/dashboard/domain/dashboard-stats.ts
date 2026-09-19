@@ -47,3 +47,17 @@ export const ROLE_LABELS_SHORT: Record<AppRoleKey, string> = {
   reviewer: 'Reviewer',
   contributor: 'Kontributor',
 };
+
+export const WORD_STATUS_TAG_COLOR: Record<WordStatusKey, string> = {
+  published: 'green',
+  pending_review: 'orange',
+  draft: 'default',
+  rejected: 'red',
+};
+
+export const CONTRIBUTION_STATUS_TAG_COLOR: Record<ContributionStatusKey, string> = {
+  pending: 'orange',
+  approved: 'green',
+  rejected: 'red',
+  corrected: 'gold',
+};

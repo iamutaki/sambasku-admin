@@ -6,8 +6,8 @@ import {
   TRANSLATION_TYPE_LABELS,
   VARIANT_TYPE_LABELS,
 } from '../domain/create-word';
-import { Alert, Button, Card, Descriptions, Flex, Image, Skeleton, Space, Tag, Typography } from 'antd';
-import { EditOutlined, RollbackOutlined } from '@ant-design/icons';
+import { Alert, App as AntdApp, Button, Card, Descriptions, Flex, Image, Popconfirm, Skeleton, Space, Tag, Typography } from 'antd';
+import { CheckOutlined, EditOutlined, RollbackOutlined, UndoOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { useNavigate, useParams } from '@tanstack/react-router';
 import { PageHeader } from '@/shared/components/page-header';
@@ -15,6 +15,8 @@ import { useAuth } from '@/shared/auth/use-auth';
 import { WORD_STATUS_LABELS, WORD_TYPE_LABELS, type WordStatus } from '../domain/word';
 import { useWordDetail } from '../application/use-word-detail';
 import { useDialectOptions, useLanguageOptions } from '../application/use-reference-data';
+import { useVerifyWord, useUnverifyWord } from '../application/use-word-verify';
+import { normalizeError } from '@/shared/api/error';
 import { WordVoteCount } from '@/features/votes/presentation/word-vote-count';
 import { WordComments } from '@/features/comments/presentation/word-comments';
 import type { WordDetail } from '../domain/word-detail';
@@ -42,13 +44,17 @@ function StatusTag({ status }: { status: WordStatus }) {
  * sama seperti Edit kata: tombol disembunyikan dan navigasi manual menampilkan 403.
  */
 export function WordDetailPage() {
+  const { message } = AntdApp.useApp();
   const navigate = useNavigate();
   const { user } = useAuth();
   const { id } = useParams({ from: '/console-layout/words/$id' });
 
   const isContributor = user?.role === 'contributor';
+  const canVerify = user?.role === 'root' || user?.role === 'admin' || user?.role === 'reviewer';
   const detailQuery = useWordDetail(id, { enabled: !isContributor });
   const detail = detailQuery.data;
+  const verifyWord = useVerifyWord();
+  const unverifyWord = useUnverifyWord();
 
   // Nama bahasa/dialek di-resolve dari data referensi (respons detail hanya
   // membawa id). Bahasa lead = bahasa kata, dialek anak dihitung dari situ.
@@ -132,6 +138,60 @@ export function WordDetailPage() {
             <Button icon={<RollbackOutlined />} onClick={() => navigate({ to: '/words' })}>
               Kembali ke Daftar
             </Button>
+            {canVerify && detail.status !== 'published' ? (
+              <Popconfirm
+                title={`Verifikasi kata "${detail.lemma}"?`}
+                description="Kata akan dipublikasikan dan muncul di pencarian publik."
+                okText="Verifikasi"
+                okButtonProps={{ type: 'primary' }}
+                cancelText="Batal"
+                onConfirm={async () => {
+                  try {
+                    await verifyWord.mutateAsync(detail.id, {
+                      onSuccess: () => message.success(`Kata "${detail.lemma}" diverifikasi & dipublikasikan`),
+                      onError: (err) => message.warning(normalizeError(err).message || 'Gagal verifikasi'),
+                    });
+                  } catch {
+                    // Handled.
+                  }
+                }}
+              >
+                <Button
+                  type="primary"
+                  icon={<CheckOutlined />}
+                  loading={verifyWord.isPending && verifyWord.variables === detail.id}
+                >
+                  Verifikasi & Publikasikan
+                </Button>
+              </Popconfirm>
+            ) : null}
+            {canVerify && detail.status === 'published' ? (
+              <Popconfirm
+                title={`Batalkan verifikasi "${detail.lemma}"?`}
+                description="Kata akan kembali ke status sebelum dipublikasikan."
+                okText="Batal Verifikasi"
+                okButtonProps={{ danger: true }}
+                cancelText="Batal"
+                onConfirm={async () => {
+                  try {
+                    await unverifyWord.mutateAsync(detail.id, {
+                      onSuccess: () => message.success(`Kata "${detail.lemma}" batal diverifikasi`),
+                      onError: (err) => message.warning(normalizeError(err).message || 'Gagal'),
+                    });
+                  } catch {
+                    // Handled.
+                  }
+                }}
+              >
+                <Button
+                  danger
+                  icon={<UndoOutlined />}
+                  loading={unverifyWord.isPending && unverifyWord.variables === detail.id}
+                >
+                  Batal Verifikasi
+                </Button>
+              </Popconfirm>
+            ) : null}
             <Button
               type="primary"
               icon={<EditOutlined />}
