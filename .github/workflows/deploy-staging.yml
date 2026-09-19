@@ -61,8 +61,14 @@ jobs:
         run: pnpm test
 
       # tsc -b (typecheck) sudah termasuk di dalam build:staging.
+      # .env.staging TIDAK ter-track (gitignore) - nilai build di-inject
+      # langsung di sini; Vite memberi process env prioritas tertinggi.
+      # Nilai VITE_* memang publik (ter-embed di bundle JS) - aman inline.
       - name: Build (staging)
         run: pnpm build:staging
+        env:
+          VITE_API_BASE_URL: https://sambasku-staging.iamutaki.com/api/v1
+          VITE_APP_NAME: Kamus Sambas - Admin Console (Staging)
 
       # Idempotent: bikin project kalau belum ada, diamkan kalau sudah.
       - name: Pastikan project Cloudflare Pages ada
