@@ -1,14 +1,19 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Outlet, useLocation, useNavigate } from '@tanstack/react-router';
 import {
   AuditOutlined,
+  BookOutlined,
+  CommentOutlined,
   DashboardOutlined,
   InboxOutlined,
+  LikeOutlined,
   LogoutOutlined,
+  SearchOutlined,
   TranslationOutlined,
   UserOutlined,
 } from '@ant-design/icons';
 import { Avatar, Breadcrumb, Button, Dropdown, Layout, Menu, Space, Tag, Typography, theme } from 'antd';
+import type { MenuProps } from 'antd';
 import { useAuth } from '@/shared/auth/use-auth';
 import { ROLE_LABELS, type UserRole } from '@/features/auth/domain/user';
 import { useLogout } from '@/features/auth/application/use-logout';
@@ -16,25 +21,40 @@ import { App as AntdApp } from 'antd';
 
 const { Sider, Header, Content } = Layout;
 
-const MENU_ROUTES = {
-  '/dashboard': { icon: <DashboardOutlined />, label: 'Dashboard' },
+/** Leaf routes di bawah grup Kamus - selectedKeys + auto-expand parent. */
+const KAMUS_ROUTES = {
   '/words': { icon: <TranslationOutlined />, label: 'Kata' },
-  '/contributions': { icon: <InboxOutlined />, label: 'Antrean Review' },
-  '/audit-logs': { icon: <AuditOutlined />, label: 'Audit Log' },
+  '/contributions': { icon: <InboxOutlined />, label: 'Review' },
+  '/comments': { icon: <CommentOutlined />, label: 'Komentar' },
+  '/search-misses': { icon: <SearchOutlined />, label: 'Search Miss' },
+  '/vote-moderation': { icon: <LikeOutlined />, label: 'Vote' },
 } as const;
-type MenuRoute = keyof typeof MENU_ROUTES;
 
-const MENU_ITEMS = Object.entries(MENU_ROUTES).map(([key, { icon, label }]) => ({ key, icon, label }));
+type KamusRoute = keyof typeof KAMUS_ROUTES;
+type TopRoute = '/dashboard' | '/users' | '/audit-logs';
+type MenuRoute = KamusRoute | TopRoute;
+
+const KAMUS_GROUP_KEY = 'kamus';
 
 const BREADCRUMB_LABELS: Record<string, string> = {
   dashboard: 'Dashboard',
   words: 'Kata',
-  contributions: 'Antrean Review',
+  contributions: 'Review',
+  comments: 'Komentar',
+  'search-misses': 'Search Miss',
+  'vote-moderation': 'Vote',
   'audit-logs': 'Audit Log',
+  users: 'Pengguna',
+  profile: 'Profil',
 };
 
+function isKamusPath(pathname: string): boolean {
+  const top = '/' + (pathname.split('/').filter(Boolean)[0] ?? '');
+  return top in KAMUS_ROUTES;
+}
+
 /**
- * Console layout — dipakai SEMUA halaman yang sudah ter-autentikasi.
+ * Console layout - dipakai SEMUA halaman yang sudah ter-autentikasi.
  * Berisi: sider menu navigasi, header (breadcrumb + profil user), content
  * (Outlet). Guard utama (redirect saat belum login) dilakukan di router
  * `beforeLoad`; di sini cuma guard reaktif untuk momen logout/sesi mati.
@@ -51,21 +71,72 @@ export function ConsoleLayout() {
 
   const isLoggedIn = isAuthenticated || !!user;
 
+  const menuItems = useMemo((): MenuProps['items'] => {
+    const canModerateContent =
+      user?.role === 'root' || user?.role === 'admin' || user?.role === 'reviewer';
+    const canManageUsers = user?.role === 'root' || user?.role === 'admin';
+
+    const kamusChildren = (Object.entries(KAMUS_ROUTES) as [KamusRoute, (typeof KAMUS_ROUTES)[KamusRoute]][])
+      .filter(([key]) => (key === '/vote-moderation' ? canModerateContent : true))
+      .map(([key, { icon, label }]) => ({ key, icon, label }));
+
+    const items: MenuProps['items'] = [
+      { key: '/dashboard', icon: <DashboardOutlined />, label: 'Dashboard' },
+      {
+        key: KAMUS_GROUP_KEY,
+        icon: <BookOutlined />,
+        label: 'Kamus',
+        children: kamusChildren,
+      },
+    ];
+    if (canManageUsers) {
+      items.push({ key: '/users', icon: <UserOutlined />, label: 'Pengguna' });
+    }
+    items.push({ key: '/audit-logs', icon: <AuditOutlined />, label: 'Audit Log' });
+    return items;
+  }, [user?.role]);
+
   const breadcrumbItems = useMemo(() => {
     const segments = pathname.split('/').filter(Boolean);
     const label = BREADCRUMB_LABELS[segments[0]] ?? 'Halaman';
-    return [{ title: 'Konsol' }, ...(segments.length ? [{ title: label }] : [])];
+    const items = [{ title: 'Konsol' }, ...(segments.length ? [{ title: label }] : [])];
+    const subLabel =
+      segments[0] === 'words'
+        ? segments[1] === 'new'
+          ? 'Tambah Kata'
+          : segments[2] === 'edit'
+            ? 'Edit Kata'
+            : segments[1]
+              ? 'Detail Kata'
+              : undefined
+        : segments[0] === 'contributions' && segments[1]
+          ? 'Detail Kontribusi'
+          : undefined;
+    if (subLabel) {
+      items.push({ title: subLabel });
+    }
+    return items;
   }, [pathname]);
 
   useEffect(() => {
-    // Sesi mati (logout manual / refresh gagal) saat user sedang di halaman
-    // proteksi → lemparkan ke halaman login.
     if (!isLoggedIn) {
       navigate({ to: '/login' });
     }
   }, [isLoggedIn, navigate]);
 
-  const currentMenuKey = '/' + pathname.split('/').filter(Boolean)[0];
+  const currentMenuKey = '/' + (pathname.split('/').filter(Boolean)[0] ?? 'dashboard');
+  const kamusActive = isKamusPath(pathname);
+
+  // Controlled openKeys: route di bawah Kamus → parent tetap expand;
+  // user boleh collapse manual, tapi navigasi ke child me-expand lagi.
+  const [openKeys, setOpenKeys] = useState<string[]>(() =>
+    kamusActive ? [KAMUS_GROUP_KEY] : [],
+  );
+
+  useEffect(() => {
+    if (!kamusActive) return;
+    setOpenKeys((prev) => (prev.includes(KAMUS_GROUP_KEY) ? prev : [...prev, KAMUS_GROUP_KEY]));
+  }, [kamusActive, currentMenuKey]);
 
   return (
     <Layout className="console-layout">
@@ -78,8 +149,15 @@ export function ConsoleLayout() {
           theme="dark"
           mode="inline"
           selectedKeys={[currentMenuKey]}
-          items={MENU_ITEMS}
-          onClick={({ key }) => navigate({ to: key as MenuRoute })}
+          openKeys={openKeys}
+          onOpenChange={setOpenKeys}
+          items={menuItems}
+          onClick={({ key }) => {
+            // Parent group key ('kamus') tidak navigate - hanya leaf path
+            if (key.startsWith('/')) {
+              navigate({ to: key as MenuRoute });
+            }
+          }}
         />
       </Sider>
       <Layout>
@@ -96,8 +174,15 @@ export function ConsoleLayout() {
           <Breadcrumb items={breadcrumbItems} />
           <Dropdown
             menu={{
-              items: [{ key: 'logout', icon: <LogoutOutlined />, label: 'Keluar', danger: true }],
+              items: [
+                { key: 'profile', icon: <UserOutlined />, label: 'Profil' },
+                { key: 'logout', icon: <LogoutOutlined />, label: 'Keluar', danger: true },
+              ],
               onClick: async ({ key }) => {
+                if (key === 'profile') {
+                  navigate({ to: '/profile' });
+                  return;
+                }
                 if (key !== 'logout') return;
                 await logoutMutation.mutateAsync(undefined, {
                   onError: () => message.warning('Gagal logout di server, tetapi sesi lokal dibersihkan'),

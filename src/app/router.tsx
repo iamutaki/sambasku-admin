@@ -7,22 +7,30 @@ import { LoginPage } from '@/features/auth/presentation/login-page';
 import { DashboardPage } from '@/features/dashboard/presentation/dashboard-page';
 import { WordsPage } from '@/features/words/presentation/words-page';
 import { CreateWordPage } from '@/features/words/presentation/create-word-page';
+import { EditWordPage } from '@/features/words/presentation/edit-word-page';
+import { WordDetailPage } from '@/features/words/presentation/word-detail-page';
 import { ContributionsPage } from '@/features/contributions/presentation/contributions-page';
+import { ContributionDetailPage } from '@/features/contributions/presentation/contribution-detail-page';
+import { CommentsPage } from '@/features/comments/presentation/comments-page';
+import { SearchMissesPage } from '@/features/search-miss/presentation/search-misses-page';
+import { VoteModerationPage } from '@/features/vote-moderation/presentation/vote-moderation-page';
 import { AuditLogsPage } from '@/features/audit/presentation/audit-logs-page';
+import { UsersPage } from '@/features/users/presentation/users-page';
+import { ProfilePage } from '@/features/profile/presentation/pages/profile-page';
 import { NotFoundPage } from '@/shared/layouts/not-found-page';
 
 /**
- * Route tree (didefinisikan manual, bukan file-based) — satu-satunya tempat
+ * Route tree (didefinisikan manual, bukan file-based) - satu-satunya tempat
  * pemetaan path → halaman. Prinsip:
  *
  * - Root route: `beforeLoad` menjalankan session restore (hard reload) &
  *   seluruh navigasi lewat sini duluan.
  * - Dua layout (docs/admin/admin-base-stack.md Section 7):
- *   - `base-layout`   — publik / pra-auth (login). Guard: kalau sudah login,
+ *   - `base-layout`   - publik / pra-auth (login). Guard: kalau sudah login,
  *     tidak boleh mampir ke sini (redirect /dashboard).
- *   - `console-layout` — area terproteksi. Guard: kalau belum login,
+ *   - `console-layout` - area terproteksi. Guard: kalau belum login,
  *     dilempar ke /login.
- * - `/` (index) tidak menampilkan halaman apa pun — hanya redirect cerdas
+ * - `/` (index) tidak menampilkan halaman apa pun - hanya redirect cerdas
  *   berdasarkan status sesi.
  */
 const rootRoute = createRootRoute({
@@ -82,7 +90,27 @@ const wordsRoute = createRoute({
 const createWordRoute = createRoute({
   getParentRoute: () => consoleLayoutRoute,
   path: '/words/new',
+  validateSearch: (search: Record<string, unknown>) => ({
+    from_miss: typeof search.from_miss === 'string' ? search.from_miss : undefined,
+    term: typeof search.term === 'string' ? search.term : undefined,
+    direction:
+      search.direction === 'lemma' || search.direction === 'translation'
+        ? (search.direction as 'lemma' | 'translation')
+        : undefined,
+  }),
   component: CreateWordPage,
+});
+
+const editWordRoute = createRoute({
+  getParentRoute: () => consoleLayoutRoute,
+  path: '/words/$id/edit',
+  component: EditWordPage,
+});
+
+const wordDetailRoute = createRoute({
+  getParentRoute: () => consoleLayoutRoute,
+  path: '/words/$id',
+  component: WordDetailPage,
 });
 
 const contributionsRoute = createRoute({
@@ -91,16 +119,52 @@ const contributionsRoute = createRoute({
   component: ContributionsPage,
 });
 
+const contributionDetailRoute = createRoute({
+  getParentRoute: () => consoleLayoutRoute,
+  path: '/contributions/$id',
+  component: ContributionDetailPage,
+});
+
+const commentsRoute = createRoute({
+  getParentRoute: () => consoleLayoutRoute,
+  path: '/comments',
+  component: CommentsPage,
+});
+
+const searchMissesRoute = createRoute({
+  getParentRoute: () => consoleLayoutRoute,
+  path: '/search-misses',
+  component: SearchMissesPage,
+});
+
+const voteModerationRoute = createRoute({
+  getParentRoute: () => consoleLayoutRoute,
+  path: '/vote-moderation',
+  component: VoteModerationPage,
+});
+
 const auditLogsRoute = createRoute({
   getParentRoute: () => consoleLayoutRoute,
   path: '/audit-logs',
   component: AuditLogsPage,
 });
 
+const usersRoute = createRoute({
+  getParentRoute: () => consoleLayoutRoute,
+  path: '/users',
+  component: UsersPage,
+});
+
+const profileRoute = createRoute({
+  getParentRoute: () => consoleLayoutRoute,
+  path: '/profile',
+  component: ProfilePage,
+});
+
 const routeTree = rootRoute.addChildren([
   indexRoute,
   baseLayoutRoute.addChildren([loginRoute]),
-  consoleLayoutRoute.addChildren([dashboardRoute, wordsRoute, createWordRoute, contributionsRoute, auditLogsRoute]),
+  consoleLayoutRoute.addChildren([dashboardRoute, wordsRoute, createWordRoute, wordDetailRoute, editWordRoute, contributionsRoute, contributionDetailRoute, commentsRoute, searchMissesRoute, voteModerationRoute, auditLogsRoute, usersRoute, profileRoute]),
 ]);
 
 export const router = createRouter({

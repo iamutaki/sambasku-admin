@@ -3,7 +3,7 @@ import { createWordRequest } from '../infrastructure/word-api';
 import type { CreateWordRequest } from '../domain/create-word';
 
 /**
- * Use case Tambah Kata — satu pemilik logika "setelah sukses" (invalidate
+ * Use case Tambah Kata - satu pemilik logika "setelah sukses" (invalidate
  * list + search kata). Status akhir memberitahu UI via hasil mutation
  * (`CreateWordResult.status`), sumber kebenaran dari backend (approval gate).
  */

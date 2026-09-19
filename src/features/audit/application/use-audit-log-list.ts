@@ -5,7 +5,7 @@ import type { AuditLogListItem, ListAuditLogsParams } from '../domain/audit-log'
 const PAGE_LIMIT = 20;
 
 /**
- * List audit log — filter (user/entitas) + cursor pagination. Hanya di-enable
+ * List audit log - filter (user/entitas) + cursor pagination. Hanya di-enable
  * untuk role admin & root (guard diserahkan ke halaman/pemanggil).
  */
 export function useAuditLogList(args: { filters?: Omit<ListAuditLogsParams, 'limit' | 'cursor'>; enabled?: boolean } = {}) {

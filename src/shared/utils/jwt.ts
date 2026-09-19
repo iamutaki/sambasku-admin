@@ -1,4 +1,4 @@
-/** Decode klaim JWT (tanpa verifikasi signature — token dianggap valid karena
+/** Decode klaim JWT (tanpa verifikasi signature - token dianggap valid karena
  * baru diterima dari API kita sendiri). Hanya dipakai untuk restore session
  * (sub/role) setelah hard reload. */
 

@@ -9,7 +9,7 @@ export interface CursorListFetcher<T> {
 }
 
 export interface CursorListOptions<T> {
-  /** queryKey TanStack Query — setiap perubahan key = list baru dari halaman 1. */
+  /** queryKey TanStack Query - setiap perubahan key = list baru dari halaman 1. */
   queryKey: QueryKey;
   fetcher: CursorListFetcher<T>;
   enabled?: boolean;
@@ -24,7 +24,7 @@ export interface CursorListOptions<T> {
  * - `loadMore()` memicu halaman berikutnya (infinite scroll / tombol "Muat lagi")
  *
  * Dengan `signal` dari TanStack Query, request yang tidak relevan lagi
- * (mis. user mengetik query baru) otomatis di-cancel — mencegah race response.
+ * (mis. user mengetik query baru) otomatis di-cancel - mencegah race response.
  */
 export function useCursorList<T>(options: CursorListOptions<T>) {
   const query = useInfiniteQuery<CursorPage<T>, ApiError>({

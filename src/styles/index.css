@@ -1,5 +1,5 @@
 /* ========================================================================
-   Global styles — admin console
+   Global styles - admin console
    (Layout classes dipakai shared/layouts/base-layout.tsx &
    console-layout.tsx; token sebenarnya dari antd ConfigProvider di main.tsx)
    ======================================================================== */
@@ -12,15 +12,26 @@ html,
 body,
 #root {
   height: 100%;
+  width: 100%;
   margin: 0;
+  padding: 0;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  -moz-text-size-adjust: 100%;
+  text-size-adjust: 100%;
 }
 
 body {
+  min-width: 320px;
   font-family:
     -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial,
     'Noto Sans', 'Apple Color Emoji', 'Segoe UI Emoji', sans-serif;
   background: #f5f5f5;
   -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+  touch-action: manipulation;
 }
 
 /* ---- Base layout (pra-auth: login) ---- */
@@ -40,8 +51,10 @@ body {
 
 .base-layout__brand {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 12px;
+  text-align: center;
+  gap: 6px;
 }
 
 .base-layout__logo {
@@ -57,6 +70,16 @@ body {
 
 .console-layout {
   min-height: 100vh;
+}
+
+/* Sider selalu menempel di viewport: menu navigasi tidak ikut scroll
+   bersama konten (perilaku konsol admin standar). Lebar collapse tetap
+   otomatis karena posisi sticky masih in-flow (tanpa margin manual). */
+.console-layout .ant-layout-sider {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow: auto;
 }
 
 .console-layout__sider-brand {
@@ -115,4 +138,105 @@ body {
 .page-header {
   margin-bottom: 16px;
   min-height: 40px;
+}
+
+/* ---- Dashboard ---- */
+
+.dashboard {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.dashboard .page-header {
+  margin-bottom: 0;
+}
+
+.dashboard__strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 0;
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid #f0f0f0;
+  border-radius: 8px;
+  background: #fafafa;
+}
+
+.dashboard__strip--skeleton {
+  min-height: 40px;
+  align-items: center;
+}
+
+.dashboard__strip-cell {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.dashboard__strip-sep {
+  color: rgba(0, 0, 0, 0.25);
+  user-select: none;
+}
+
+.dashboard__strip-item {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  margin: 0;
+  padding: 2px 4px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  font: inherit;
+  color: inherit;
+  cursor: default;
+}
+
+.dashboard__strip-item--clickable {
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.dashboard__strip-item--clickable:hover {
+  background: #fff;
+}
+
+.dashboard__strip-item--attention {
+  background: #fffbe6;
+  box-shadow: inset 0 -2px 0 var(--strip-accent, #faad14);
+}
+
+.dashboard__strip-item--attention:hover {
+  background: #fff7d6;
+}
+
+.dashboard__strip-label {
+  font-size: 12px;
+  color: rgba(0, 0, 0, 0.45);
+}
+
+.dashboard__strip-value {
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: rgba(0, 0, 0, 0.88);
+  line-height: 1.2;
+}
+
+@media (max-width: 560px) {
+  .dashboard__strip {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+  }
+
+  .dashboard__strip-sep {
+    display: none;
+  }
+
+  .dashboard__strip-cell {
+    width: 100%;
+  }
 }

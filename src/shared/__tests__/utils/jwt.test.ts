@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { decodeJwtClaims } from '@/shared/utils/jwt';
 
-// base64url (RFC 4648) tanpa Buffer — TextEncoder + btoa (tersedia di Node 20+).
+// base64url (RFC 4648) tanpa Buffer - TextEncoder + btoa (tersedia di Node 20+).
 function b64url(input: string): string {
   const bytes = new TextEncoder().encode(input);
   let binary = '';

@@ -2,7 +2,7 @@ node_modules
 dist
 *.local
 .env
-.env.*.local
 !.env.example
+.env.*
 .DS_Store
 *.tsbuildinfo

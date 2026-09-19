@@ -6,7 +6,7 @@ import {
   listWordClassesRequest,
 } from '../infrastructure/reference-api';
 
-/** Dropdown Bahasa — data kecil, publik, tanpa pagination. */
+/** Dropdown Bahasa - data kecil, publik, tanpa pagination. */
 export function useLanguageOptions() {
   return useQuery({
     queryKey: ['reference', 'languages'],
@@ -15,7 +15,7 @@ export function useLanguageOptions() {
   });
 }
 
-/** Dropdown Dialek — hilang saat bahasa belum dipilih (query dimatikan). */
+/** Dropdown Dialek - hilang saat bahasa belum dipilih (query dimatikan). */
 export function useDialectOptions(languageId: string | undefined) {
   return useQuery({
     queryKey: ['reference', 'dialects', languageId ?? null],
@@ -25,7 +25,7 @@ export function useDialectOptions(languageId: string | undefined) {
   });
 }
 
-/** Dropdown Kelas Kata — hierarki di-format di halaman (parent › child). */
+/** Dropdown Kelas Kata - hierarki di-format di halaman (parent › child). */
 export function useWordClassOptions() {
   return useQuery({
     queryKey: ['reference', 'word-classes'],

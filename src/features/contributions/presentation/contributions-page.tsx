@@ -1,14 +1,14 @@
 import { useMemo, useState } from 'react';
 import { createColumnHelper, getCoreRowModel, useReactTable } from '@tanstack/react-table';
-import { ReloadOutlined } from '@ant-design/icons';
-import { Alert, Button, Flex, Select, Tag, Typography } from 'antd';
+import { ReloadOutlined, ToolOutlined } from '@ant-design/icons';
+import { Alert, Button, Flex, Select, Tabs, Tag, Tooltip, Typography } from 'antd';
 import dayjs from 'dayjs';
+import { useNavigate } from '@tanstack/react-router';
 import { DataTable } from '@/shared/components/data-table';
 import { PageHeader } from '@/shared/components/page-header';
 import { useContributionList } from '../application/use-contribution-list';
 import {
   CONTRIBUTION_STATUS_LABELS,
-  CONTRIBUTION_STATUSES,
   ENTITY_TYPES,
   ENTITY_TYPE_LABELS,
   type ContributionListItem,
@@ -26,10 +26,23 @@ const STATUS_TAG_COLOR: Record<ContributionStatus, string> = {
   corrected: 'blue',
 };
 
+/** Tabs antrean review (default: Menunggu). */
+type StatusTab = ContributionStatus | 'all';
+
+const STATUS_TABS: { key: StatusTab; label: string; status?: ContributionStatus }[] = [
+  { key: 'pending', label: CONTRIBUTION_STATUS_LABELS.pending, status: 'pending' },
+  { key: 'approved', label: CONTRIBUTION_STATUS_LABELS.approved, status: 'approved' },
+  { key: 'rejected', label: CONTRIBUTION_STATUS_LABELS.rejected, status: 'rejected' },
+  { key: 'corrected', label: CONTRIBUTION_STATUS_LABELS.corrected, status: 'corrected' },
+  { key: 'all', label: 'Semua' },
+];
+
 export function ContributionsPage() {
   const { user } = useAuth();
-  const [status, setStatus] = useState<ContributionStatus | undefined>('pending');
+  const navigate = useNavigate();
+  const [statusTab, setStatusTab] = useState<StatusTab>('pending');
   const [entityType, setEntityType] = useState<EntityType | undefined>();
+  const status = STATUS_TABS.find((t) => t.key === statusTab)?.status;
 
   const { items, hasMore, loadMore, isLoading, isFetching, isFetchingNextPage, isError, error, refetch } =
     useContributionList({ status, entityType, enabled: user?.role === 'reviewer' || user?.role === 'admin' || user?.role === 'root' });
@@ -57,6 +70,17 @@ export function ContributionsPage() {
         size: 130,
         cell: (info) => <Tag color={STATUS_TAG_COLOR[info.getValue()]}>{CONTRIBUTION_STATUS_LABELS[info.getValue()]}</Tag>,
       }),
+      columnHelper.display({
+        id: 'search_miss',
+        header: 'Sumber',
+        size: 160,
+        meta: { responsive: ['md'] },
+        cell: (info) => {
+          const term = info.row.original.search_miss_term;
+          if (!info.row.original.search_miss_id || !term) return '-';
+          return <Tag color="purple">Search miss: {term}</Tag>;
+        },
+      }),
       columnHelper.accessor('created_at', {
         header: 'Dikirim',
         size: 200,
@@ -65,12 +89,22 @@ export function ContributionsPage() {
       columnHelper.display({
         id: 'actions',
         header: 'Aksi',
-        size: 140,
+        size: 80,
         meta: { fixed: 'right' },
-        cell: () => <Button type="link" disabled>Review</Button>,
+        cell: (info) => (
+          <Tooltip title="Detail">
+            <Button
+              type="link"
+              icon={<ToolOutlined />}
+              onClick={() =>
+                navigate({ to: '/contributions/$id', params: { id: info.row.original.id } })
+              }
+            />
+          </Tooltip>
+        ),
       }),
     ],
-    [],
+    [navigate],
   );
 
   const table = useReactTable({
@@ -92,15 +126,13 @@ export function ContributionsPage() {
           </Button>
         }
       />
+      <Tabs
+        activeKey={statusTab}
+        onChange={(key) => setStatusTab(key as StatusTab)}
+        items={STATUS_TABS.map((t) => ({ key: t.key, label: t.label }))}
+        style={{ marginBottom: 8 }}
+      />
       <Flex wrap gap={12} style={{ marginBottom: 16 }}>
-        <Select
-          allowClear
-          placeholder="Status"
-          style={{ width: 180 }}
-          options={CONTRIBUTION_STATUSES.map((s) => ({ value: s, label: CONTRIBUTION_STATUS_LABELS[s] }))}
-          value={status}
-          onChange={setStatus}
-        />
         <Select
           allowClear
           placeholder="Jenis konten"

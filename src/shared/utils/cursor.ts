@@ -7,7 +7,7 @@ import type { CursorMeta } from '@/shared/api/types';
  * - `has_more: true`  → masih ada halaman berikutnya; page param = `next_cursor`
  * - `has_more: false` → halaman terakhir; berhenti (tidak perlu cursor)
  *
- * Dipakai `useCursorList` (getNextPageParam) — sebagai fungsi murni agar
+ * Dipakai `useCursorList` (getNextPageParam) - sebagai fungsi murni agar
  * mudah di-unit-test tanpa React.
  */
 export function getNextCursor(meta: CursorMeta): string | undefined {

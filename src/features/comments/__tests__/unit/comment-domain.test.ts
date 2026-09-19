@@ -1,0 +1,26 @@
+import { describe, expect, it } from 'vitest';
+import {
+  COMMENT_STATUSES,
+  COMMENT_STATUS_LABELS,
+  COMMENT_STATUS_TAG_COLOR,
+} from '@/features/comments/domain/comment';
+
+describe('COMMENT_STATUS_*', () => {
+  it('memiliki label untuk setiap status yang dikenal backend', () => {
+    expect(COMMENT_STATUSES).toEqual(['pending_review', 'published', 'rejected']);
+    for (const status of COMMENT_STATUSES) {
+      expect(COMMENT_STATUS_LABELS[status]).toBeTruthy();
+    }
+  });
+
+  it('menyediakan warna tag antd untuk setiap status', () => {
+    for (const status of COMMENT_STATUSES) {
+      expect(COMMENT_STATUS_TAG_COLOR[status]).toBeTruthy();
+    }
+  });
+
+  it('label & warna hanya didefinisikan untuk status yang valid (bukan workflow kontribusi)', () => {
+    expect(Object.keys(COMMENT_STATUS_LABELS).sort()).toEqual([...COMMENT_STATUSES].sort());
+    expect(Object.keys(COMMENT_STATUS_TAG_COLOR).sort()).toEqual([...COMMENT_STATUSES].sort());
+  });
+});

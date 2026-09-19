@@ -10,7 +10,7 @@ export interface UseWordSearchArgs {
 }
 
 /**
- * Pencarian kata untuk relasi sinonim/antonim/turunan — cursor pagination,
+ * Pencarian kata untuk relasi sinonim/antonim/turunan - cursor pagination,
  * debounce dilakukan di komponen (`useDebouncedValue`). Kunci query memuat
  * `q` sehingga setiap pencarian baru mulai dari halaman pertama.
  */
@@ -19,7 +19,8 @@ export function useWordSearch(args: UseWordSearchArgs = {}) {
 
   return useCursorList<WordListItem>({
     queryKey: ['words', 'search', { q }],
-    fetcher: (pageParam, signal) => listWordsRequest({ q, limit: PAGE_LIMIT, cursor: pageParam }, signal),
+    fetcher: (pageParam, signal) =>
+      listWordsRequest({ q, limit: PAGE_LIMIT, cursor: pageParam, published: true }, signal),
     enabled: enabled ?? true,
   });
 }

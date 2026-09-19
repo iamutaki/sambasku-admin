@@ -10,7 +10,7 @@ export interface UseContributionListArgs {
   enabled?: boolean;
 }
 
-/** Antrean review kontribusi — filter status/jenis entitas + cursor pagination. */
+/** Antrean review kontribusi - filter status/jenis entitas + cursor pagination. */
 export function useContributionList(args: UseContributionListArgs = {}) {
   const { status, entityType, enabled } = args;
 

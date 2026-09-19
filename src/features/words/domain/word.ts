@@ -18,7 +18,7 @@ export const WORD_STATUS_LABELS: Record<WordStatus, string> = {
   rejected: 'Ditolak',
 };
 
-/** Item list kata — contract GET /api/v1/words/search (docs/api/01-api-tambah-kata.md). */
+/** Item list kata - contract GET /api/v1/admin/words (15-api) / search publik. */
 export interface WordListItem {
   id: string; // ULID
   lemma: string;
@@ -26,13 +26,17 @@ export interface WordListItem {
   language_code: string;
   word_type: WordType;
   status: WordStatus;
+  is_verified: boolean;
   matched_translation?: string; // hanya saat search_in=translation
+  matched_variant?: string; // 11: form variasi yang cocok (search_in=lemma)
 }
 
 export interface ListWordsParams {
   q?: string;
   wordType?: WordType;
   isVerified?: boolean;
+  /** true=tayang, false=tidak tayang, omit=semua (GET /admin/words) */
+  published?: boolean;
   limit?: number;
   cursor?: string;
 }

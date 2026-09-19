@@ -1,38 +1,68 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { createColumnHelper, getCoreRowModel, useReactTable } from '@tanstack/react-table';
-import { ReloadOutlined } from '@ant-design/icons';
-import { Alert, Button, Flex, Result, Tag, Tooltip, Typography } from 'antd';
-import dayjs from 'dayjs';
+import { FilterOutlined, ReloadOutlined } from '@ant-design/icons';
+import { Alert, Button, DatePicker, Flex, Input, Result, Select, Tag, Typography } from 'antd';
+import dayjs, { type Dayjs } from 'dayjs';
 import { DataTable } from '@/shared/components/data-table';
 import { PageHeader } from '@/shared/components/page-header';
 import { useAuth } from '@/shared/auth/use-auth';
 import { useAuditLogList } from '../application/use-audit-log-list';
-import { AUDIT_ACTION_TAG_COLOR, type AuditLogListItem } from '../domain/audit-log';
+import { AUDIT_ACTIONS, AUDIT_ACTION_TAG_COLOR, type AuditLogListItem } from '../domain/audit-log';
+import { AuditChangesCell } from './audit-changes-cell';
 
 const columnHelper = createColumnHelper<AuditLogListItem>();
 
 /** ULID dipersingkat untuk tampilan (tetap unik sampai prefix 8 char). */
 function shortUlid(id: string | null): string {
-  if (!id) return '—';
+  if (!id) return '-';
   return id.slice(0, 8) + '…';
 }
 
-function renderDataSummary(data: Record<string, unknown> | null): string {
-  if (!data) return '—';
-  return JSON.stringify(data);
+interface AuditFilters {
+  from?: string;
+  to?: string;
+  userName?: string;
+  action?: string;
 }
 
 /**
- * Halaman Audit Log (role: admin & root) — jejak mutasi data secara
- * kronologis terbaru dulu (id DESC). Data mentah `new_data`/`old_data`
- * ditampilkan ringkas (JSON + Tooltip penuh).
+ * Halaman Audit Log (role: admin & root) - jejak mutasi data secara
+ * kronologis terbaru dulu (id DESC). Filter: rentang tanggal, username
+ * pelaku (partial), aksi. `new_data`/`old_data` diringkas jadi daftar
+ * field yang berubah (`AuditChangesCell`); klik baris untuk JSON rapi.
  */
 export function AuditLogsPage() {
   const { user } = useAuth();
   const canAudit = user?.role === 'admin' || user?.role === 'root';
 
+  // Draft = nilai di form; applied = filter yang memicu fetch (queryKey).
+  // Ubah filter = key baru = list baru dari halaman 1 (use-cursor-list).
+  const [draftRange, setDraftRange] = useState<[Dayjs | null, Dayjs | null] | null>(null);
+  const [draftUserName, setDraftUserName] = useState('');
+  const [draftAction, setDraftAction] = useState<string | undefined>(undefined);
+  const [filters, setFilters] = useState<AuditFilters>({});
+
   const { items, hasMore, loadMore, isLoading, isFetching, isFetchingNextPage, isError, error, refetch } =
-    useAuditLogList({ enabled: canAudit });
+    useAuditLogList({ filters, enabled: canAudit });
+
+  const hasActiveFilter = Boolean(filters.from || filters.to || filters.userName || filters.action);
+
+  const applyFilters = () => {
+    const [from, to] = draftRange ?? [null, null];
+    setFilters({
+      from: from ? from.startOf('day').toISOString() : undefined,
+      to: to ? to.endOf('day').toISOString() : undefined,
+      userName: draftUserName.trim() || undefined,
+      action: draftAction,
+    });
+  };
+
+  const resetFilters = () => {
+    setDraftRange(null);
+    setDraftUserName('');
+    setDraftAction(undefined);
+    setFilters({});
+  };
 
   const columns = useMemo(
     () => [
@@ -57,27 +87,23 @@ export function AuditLogsPage() {
         meta: { responsive: ['lg'] },
         cell: (info) => <Typography.Text type="secondary">{shortUlid(info.getValue())}</Typography.Text>,
       }),
-      columnHelper.accessor('user_id', {
+      columnHelper.accessor('user_name', {
         header: 'Pelaku',
-        size: 120,
+        size: 140,
         meta: { responsive: ['lg'] },
-        cell: (info) => <Typography.Text type="secondary">{shortUlid(info.getValue())}</Typography.Text>,
+        cell: (info) => {
+          const name = info.getValue();
+          return name ? (
+            <Typography.Text strong>{name}</Typography.Text>
+          ) : (
+            <Typography.Text type="secondary">{shortUlid(info.row.original.user_id)}</Typography.Text>
+          );
+        },
       }),
       columnHelper.display({
         id: 'changes',
         header: 'Perubahan',
-        size: 300,
-        cell: (info) => {
-          const row = info.row.original;
-          const text = renderDataSummary(row.new_data ?? row.old_data);
-          return (
-            <Tooltip title={text} placement="topLeft">
-              <Typography.Text type="secondary" ellipsis={{ tooltip: text }} style={{ maxWidth: '100%', display: 'block' }}>
-                {text}
-              </Typography.Text>
-            </Tooltip>
-          );
-        },
+        cell: (info) => <AuditChangesCell oldData={info.row.original.old_data} newData={info.row.original.new_data} />,
       }),
     ],
     [],
@@ -110,13 +136,44 @@ export function AuditLogsPage() {
     <>
       <PageHeader
         title="Audit Log"
-        subtitle="Jejak mutasi data (create / update / delete / approve / reject / …) — hanya admin & root."
+        subtitle="Jejak mutasi data (create / update / delete / approve / reject / …) - hanya admin & root."
         extra={
           <Button icon={<ReloadOutlined />} onClick={() => refetch()}>
             Muat ulang
           </Button>
         }
       />
+
+      <Flex wrap gap={12} align="center" style={{ marginBottom: 16 }}>
+        <DatePicker.RangePicker
+          value={draftRange}
+          onChange={(range) => setDraftRange(range as [Dayjs | null, Dayjs | null] | null)}
+          style={{ width: 280 }}
+          placeholder={['Tanggal awal', 'Tanggal akhir']}
+        />
+        <Input.Search
+          placeholder="Username pelaku…"
+          value={draftUserName}
+          onChange={(e) => setDraftUserName(e.target.value)}
+          onSearch={() => applyFilters()}
+          allowClear
+          style={{ width: 210 }}
+        />
+        <Select
+          placeholder="Semua aksi"
+          value={draftAction}
+          onChange={setDraftAction}
+          allowClear
+          options={AUDIT_ACTIONS.map((a) => ({ value: a, label: a }))}
+          style={{ width: 190 }}
+        />
+        <Button type="primary" icon={<FilterOutlined />} onClick={applyFilters}>
+          Terapkan
+        </Button>
+        <Button onClick={resetFilters} disabled={!hasActiveFilter} danger>
+          Reset
+        </Button>
+      </Flex>
 
       {isError ? <Alert type="error" showIcon style={{ marginBottom: 16 }} message="Gagal memuat data" description={error?.message} /> : null}
 
