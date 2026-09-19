@@ -9,6 +9,7 @@ import type {
   CreateWordRequestVariant,
   CreateWordExampleFormValue,
   CreateWordVariantFormValue,
+  DialectOption,
   InlineWordFormValue,
   InlineWordRequest,
   LanguageOption,
@@ -55,6 +56,19 @@ export function pickDefaultLanguageIds(languages: LanguageOption[]): DefaultLang
     : undefined;
 
   return { sourceId: source?.id, targetId: target?.id };
+}
+
+/**
+ * Dialek default untuk form create: `is_default`, fallback code `umum`.
+ * Return undefined kalau daftar kosong — biarkan Select kosong.
+ */
+export function pickDefaultDialectId(dialects: DialectOption[]): string | undefined {
+  const active = dialects.filter((d) => d.is_active);
+  const pool = active.length > 0 ? active : dialects;
+  return (
+    pool.find((d) => d.is_default)?.id ??
+    pool.find((d) => d.code.trim().toLowerCase() === 'umum')?.id
+  );
 }
 
 /**

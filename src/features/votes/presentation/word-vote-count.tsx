@@ -1,4 +1,4 @@
-import { LikeOutlined, DislikeOutlined } from '@ant-design/icons';
+import { CaretUpOutlined, CaretDownOutlined } from '@ant-design/icons';
 import { Flex, Skeleton, Tag, Typography, theme } from 'antd';
 import { toVoteCountMap } from '../application/use-vote-counts';
 import { useVoteCounts } from '../application/use-vote-counts';
@@ -9,6 +9,8 @@ const { Text } = Typography;
  * Ringkasan vote kata (READ-ONLY) - GET /api/v1/votes/counts untuk
  * target `word:<id>`. Tampilan: up ↑, down ↓, skor. Tanpa tombol vote -
  * admin mengawasi engagement, bukan memilih (keputusan produk admin).
+ *
+ * Icon caret atas/bawah (ala Reddit), bukan thumbs.
  */
 export function WordVoteCount({ wordId }: { wordId: string }) {
   const target = `word:${wordId}`;
@@ -32,10 +34,10 @@ export function WordVoteCount({ wordId }: { wordId: string }) {
 
   return (
     <Flex gap={8} align="center">
-      <Tag icon={<LikeOutlined />} color="green">
+      <Tag icon={<CaretUpOutlined />} color="green">
         {upvotes}
       </Tag>
-      <Tag icon={<DislikeOutlined />} color="red">
+      <Tag icon={<CaretDownOutlined />} color="red">
         {downvotes}
       </Tag>
       <Text type="secondary">Skor {upvotes - downvotes}</Text>

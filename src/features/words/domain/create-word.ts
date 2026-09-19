@@ -72,6 +72,8 @@ export interface DialectOption {
   code: string;
   name: string;
   is_active: boolean;
+  /** True = pilihan default form (biasanya code=umum). */
+  is_default: boolean;
 }
 
 export interface WordClassOption {

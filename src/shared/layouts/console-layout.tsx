@@ -6,7 +6,7 @@ import {
   CommentOutlined,
   DashboardOutlined,
   InboxOutlined,
-  LikeOutlined,
+  CaretUpOutlined,
   LogoutOutlined,
   SearchOutlined,
   TranslationOutlined,
@@ -27,7 +27,7 @@ const KAMUS_ROUTES = {
   '/contributions': { icon: <InboxOutlined />, label: 'Review' },
   '/comments': { icon: <CommentOutlined />, label: 'Komentar' },
   '/search-misses': { icon: <SearchOutlined />, label: 'Search Miss' },
-  '/vote-moderation': { icon: <LikeOutlined />, label: 'Vote' },
+  '/vote-moderation': { icon: <CaretUpOutlined />, label: 'Vote' },
 } as const;
 
 type KamusRoute = keyof typeof KAMUS_ROUTES;

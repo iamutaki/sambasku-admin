@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { createColumnHelper, getCoreRowModel, useReactTable } from '@tanstack/react-table';
 import { useNavigate } from '@tanstack/react-router';
-import { DeleteOutlined, ReloadOutlined, SearchOutlined } from '@ant-design/icons';
+import { CaretDownOutlined, CaretUpOutlined, DeleteOutlined, ReloadOutlined, SearchOutlined } from '@ant-design/icons';
 import {
   Alert,
   App as AntdApp,
@@ -187,7 +187,15 @@ function VoteListTab() {
         header: 'Nilai',
         size: 130,
         cell: (info) =>
-          info.getValue() === 1 ? <Tag color="green">↑ Upvote</Tag> : <Tag color="red">↓ Downvote</Tag>,
+          info.getValue() === 1 ? (
+            <Tag icon={<CaretUpOutlined />} color="green">
+              Upvote
+            </Tag>
+          ) : (
+            <Tag icon={<CaretDownOutlined />} color="red">
+              Downvote
+            </Tag>
+          ),
       }),
       voteColumnHelper.accessor('createdAt', {
         header: 'Waktu',
@@ -323,12 +331,20 @@ function TopTargetsTab({ enabled }: { enabled: boolean }) {
       topColumnHelper.accessor('upvotes', {
         header: 'Upvote',
         size: 110,
-        cell: (info) => <Tag color="green">↑ {info.getValue()}</Tag>,
+        cell: (info) => (
+          <Tag icon={<CaretUpOutlined />} color="green">
+            {info.getValue()}
+          </Tag>
+        ),
       }),
       topColumnHelper.accessor('downvotes', {
         header: 'Downvote',
         size: 110,
-        cell: (info) => <Tag color="red">↓ {info.getValue()}</Tag>,
+        cell: (info) => (
+          <Tag icon={<CaretDownOutlined />} color="red">
+            {info.getValue()}
+          </Tag>
+        ),
       }),
       topColumnHelper.accessor('net', {
         header: 'Skor Bersih',

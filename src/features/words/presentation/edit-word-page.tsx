@@ -24,7 +24,7 @@ import { useNavigate, useParams } from '@tanstack/react-router';
 import { PageHeader } from '@/shared/components/page-header';
 import { ApiError } from '@/shared/api/error';
 import { useAuth } from '@/shared/auth/use-auth';
-import { fieldToNamePath, pickDefaultLanguageIds } from '../application/create-word-utils';
+import { fieldToNamePath, pickDefaultDialectId, pickDefaultLanguageIds } from '../application/create-word-utils';
 import { buildUpdateWordBody, wordDetailToFormValues } from '../application/word-detail-mappers';
 import { hasUploadingImages } from '../application/create-word-utils';
 import { useUpdateWord } from '../application/use-update-word';
@@ -107,6 +107,15 @@ export function EditWordPage() {
       form.setFieldsValue(wordDetailToFormValues(detail));
     }
   }, [detail, detailQuery.isPending, detailQuery.isFetching, form]);
+
+  // Kata lama tanpa dialect_id → isi default (umum); jangan overwrite nilai yang sudah ada.
+  useEffect(() => {
+    if (!seeded.current || !dialectQuery.data?.length) return;
+    const current = form.getFieldValue('dialect_id') as string | undefined | null;
+    if (current) return;
+    const defaultId = pickDefaultDialectId(dialectQuery.data);
+    if (defaultId) form.setFieldsValue({ dialect_id: defaultId });
+  }, [dialectQuery.data, form, detail]);
 
   const currentStatus = detail?.status;
 
@@ -288,7 +297,7 @@ export function EditWordPage() {
                   <Select
                     options={(dialectQuery.data ?? []).map((d) => ({ value: d.id, label: d.name }))}
                     loading={dialectQuery.isFetching}
-                    placeholder="Umum / tidak ada"
+                    placeholder="Pilih dialek"
                     allowClear
                   />
                 </Form.Item>

@@ -18,7 +18,7 @@ import {
   Typography,
   type FormInstance,
 } from 'antd';
-import { fieldToNamePath, pickDefaultLanguageIds } from '@/features/words/application/create-word-utils';
+import { fieldToNamePath, pickDefaultDialectId, pickDefaultLanguageIds } from '@/features/words/application/create-word-utils';
 import { useCategoryOptions, useDialectOptions, useLanguageOptions, useWordClassOptions } from '@/features/words/application/use-reference-data';
 import {
   MeaningFields,
@@ -170,6 +170,15 @@ function CorrectWordForm({ form }: { form: FormInstance<CorrectFormValues> }) {
   const sourceLanguageId = (form.getFieldValue('language_id') as string | undefined) ?? defaultLanguageIds.sourceId;
   const dialectQuery = useDialectOptions(sourceLanguageId);
 
+  // Kalau kontribusi belum punya dialect_id, isi default (umum) — user tetap bisa ganti.
+  useEffect(() => {
+    if (!dialectQuery.data?.length) return;
+    const current = form.getFieldValue('dialect_id') as string | undefined;
+    if (current) return;
+    const defaultId = pickDefaultDialectId(dialectQuery.data);
+    if (defaultId) form.setFieldsValue({ dialect_id: defaultId });
+  }, [dialectQuery.data, form]);
+
   const wordClassOptions = useMemo(
     () => buildWordClassOptions(wordClassQuery.data ?? []),
     [wordClassQuery.data],
@@ -210,7 +219,7 @@ function CorrectWordForm({ form }: { form: FormInstance<CorrectFormValues> }) {
                 <Select
                   options={(dialectQuery.data ?? []).map((d) => ({ value: d.id, label: d.name }))}
                   loading={dialectQuery.isFetching}
-                  placeholder="Umum / tidak ada"
+                  placeholder="Pilih dialek"
                   allowClear
                 />
               </Form.Item>

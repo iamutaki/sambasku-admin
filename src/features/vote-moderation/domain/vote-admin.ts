@@ -57,6 +57,6 @@ export const TARGET_TYPE_OPTIONS: { value: AdminVoteTargetType; label: string }[
 ).map((value) => ({ value, label: TARGET_TYPE_LABELS[value] }));
 
 export const VALUE_OPTIONS: { value: 1 | -1; label: string }[] = [
-  { value: 1, label: '👍 Upvote' },
-  { value: -1, label: '👎 Downvote' },
+  { value: 1, label: '↑ Upvote' },
+  { value: -1, label: '↓ Downvote' },
 ];

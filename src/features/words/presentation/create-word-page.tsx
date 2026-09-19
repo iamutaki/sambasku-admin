@@ -22,7 +22,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { PageHeader } from '@/shared/components/page-header';
 import { ApiError } from '@/shared/api/error';
 import { useAuth } from '@/shared/auth/use-auth';
-import { buildCreateWordBody, fieldToNamePath, hasUploadingImages, pickDefaultLanguageIds } from '../application/create-word-utils';
+import { buildCreateWordBody, fieldToNamePath, hasUploadingImages, pickDefaultDialectId, pickDefaultLanguageIds } from '../application/create-word-utils';
 import { useCreateWord } from '../application/use-create-word';
 import { useCategoryOptions, useDialectOptions, useLanguageOptions, useWordClassOptions } from '../application/use-reference-data';
 import type { CreateWordFormValues } from '../domain/create-word';
@@ -131,6 +131,21 @@ export function CreateWordPage() {
       ],
     });
   }, [directionReady, defaultLanguageIds.sourceId, defaultLanguageIds.targetId, form, missParams]);
+
+  // Dialek default (is_default / umum) — sekali, hanya jika user belum pilih.
+  const dialectSeeded = useRef(false);
+  useEffect(() => {
+    if (dialectSeeded.current || !dialectQuery.data?.length) return;
+    const current = form.getFieldValue('dialect_id') as string | undefined;
+    if (current) {
+      dialectSeeded.current = true;
+      return;
+    }
+    const defaultId = pickDefaultDialectId(dialectQuery.data);
+    if (!defaultId) return;
+    dialectSeeded.current = true;
+    form.setFieldsValue({ dialect_id: defaultId });
+  }, [dialectQuery.data, form]);
 
   const wordClassOptions = useMemo(
     () => buildWordClassOptions(wordClassQuery.data ?? []),
@@ -271,7 +286,7 @@ export function CreateWordPage() {
                   <Select
                     options={(dialectQuery.data ?? []).map((d) => ({ value: d.id, label: d.name }))}
                     loading={dialectQuery.isFetching}
-                    placeholder="Umum / tidak ada"
+                    placeholder="Pilih dialek"
                     allowClear
                   />
                 </Form.Item>

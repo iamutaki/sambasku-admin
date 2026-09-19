@@ -2,11 +2,13 @@ import { describe, expect, it } from 'vitest';
 import {
   buildCreateWordBody,
   fieldToNamePath,
+  pickDefaultDialectId,
   pickDefaultLanguageIds,
   hasUploadingImages,
 } from '@/features/words/application/create-word-utils';
 import type {
   CreateWordFormValues,
+  DialectOption,
   InlineWordRequest,
   LanguageOption,
 } from '@/features/words/domain/create-word';
@@ -95,6 +97,49 @@ describe('pickDefaultLanguageIds', () => {
     const { sourceId, targetId } = pickDefaultLanguageIds([]);
     expect(sourceId).toBeUndefined();
     expect(targetId).toBeUndefined();
+  });
+});
+
+const UMUM_ID = '01HXYDIALECTUMUM00000000000';
+const KOTA_ID = '01HXYDIALECTKOTA00000000000';
+
+function dialect(
+  id: string,
+  code: string,
+  name: string,
+  opts: { is_default?: boolean; is_active?: boolean } = {},
+): DialectOption {
+  return {
+    id,
+    language_id: SAMBAS_ID,
+    code,
+    name,
+    is_active: opts.is_active ?? true,
+    is_default: opts.is_default ?? false,
+  };
+}
+
+describe('pickDefaultDialectId', () => {
+  it('memilih dialek dengan is_default=true', () => {
+    expect(
+      pickDefaultDialectId([
+        dialect(KOTA_ID, 'kota', 'Sambas Kota'),
+        dialect(UMUM_ID, 'umum', 'Umum', { is_default: true }),
+      ]),
+    ).toBe(UMUM_ID);
+  });
+
+  it('fallback ke code umum bila belum ada is_default', () => {
+    expect(
+      pickDefaultDialectId([
+        dialect(KOTA_ID, 'kota', 'Sambas Kota'),
+        dialect(UMUM_ID, 'umum', 'Umum'),
+      ]),
+    ).toBe(UMUM_ID);
+  });
+
+  it('mengembalikan undefined bila daftar kosong', () => {
+    expect(pickDefaultDialectId([])).toBeUndefined();
   });
 });
 
