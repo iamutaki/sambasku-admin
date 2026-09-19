@@ -16,6 +16,7 @@ import { SearchMissesPage } from '@/features/search-miss/presentation/search-mis
 import { VoteModerationPage } from '@/features/vote-moderation/presentation/vote-moderation-page';
 import { AuditLogsPage } from '@/features/audit/presentation/audit-logs-page';
 import { UsersPage } from '@/features/users/presentation/users-page';
+import { ProfilePage } from '@/features/profile/presentation/pages/profile-page';
 import { NotFoundPage } from '@/shared/layouts/not-found-page';
 
 /**
@@ -146,10 +147,16 @@ const usersRoute = createRoute({
   component: UsersPage,
 });
 
+const profileRoute = createRoute({
+  getParentRoute: () => consoleLayoutRoute,
+  path: '/profile',
+  component: ProfilePage,
+});
+
 const routeTree = rootRoute.addChildren([
   indexRoute,
   baseLayoutRoute.addChildren([loginRoute]),
-  consoleLayoutRoute.addChildren([dashboardRoute, wordsRoute, createWordRoute, wordDetailRoute, editWordRoute, contributionsRoute, contributionDetailRoute, commentsRoute, searchMissesRoute, voteModerationRoute, auditLogsRoute, usersRoute]),
+  consoleLayoutRoute.addChildren([dashboardRoute, wordsRoute, createWordRoute, wordDetailRoute, editWordRoute, contributionsRoute, contributionDetailRoute, commentsRoute, searchMissesRoute, voteModerationRoute, auditLogsRoute, usersRoute, profileRoute]),
 ]);
 
 export const router = createRouter({

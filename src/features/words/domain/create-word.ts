@@ -293,6 +293,10 @@ export interface WordImageFormValue {
   provider_file_id?: string;
   alt_text?: string;
   is_primary?: boolean;
+  /** Blob URL preview file lokal - UI only (sebelum/Failed upload), tidak ikut submit. */
+  localUrl?: string;
+  /** Persen progres upload 0-100 - UI only, tidak ikut submit. */
+  progress?: number;
 }
 
 export interface CreateWordFormValues {

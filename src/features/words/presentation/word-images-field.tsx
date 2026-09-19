@@ -1,6 +1,6 @@
 import { useRef } from 'react';
 import { FileImageOutlined, InboxOutlined, LoadingOutlined, RedoOutlined } from '@ant-design/icons';
-import { Alert, App as AntdApp, Button, Card, Image, Input, Space, Switch, Typography, Upload } from 'antd';
+import { Alert, App as AntdApp, Button, Card, Image, Input, Progress, Space, Switch, Typography, Upload } from 'antd';
 import type { UploadFile, UploadProps } from 'antd';
 import { Form } from 'antd';
 import type { WordImageFormValue } from '../domain/create-word';
@@ -39,6 +39,8 @@ export function WordImagesField() {
     setImages(images.map((img) => (img.uid === uid ? { ...img, is_primary: value } : { ...img, is_primary: false })));
 
   const remove = (uid: string) => {
+    const img = images.find((i) => i.uid === uid);
+    if (img?.localUrl) URL.revokeObjectURL(img.localUrl);
     fileByUid.current.delete(uid);
     setImages(images.filter((img) => img.uid !== uid));
   };
@@ -63,12 +65,16 @@ export function WordImagesField() {
   const customRequest: UploadProps['customRequest'] = async ({ file, onSuccess, onError }) => {
     const raw = file as File & { uid: string };
     fileByUid.current.set(raw.uid, raw);
-    setImages([...images, { uid: raw.uid, fileName: raw.name, status: 'uploading' }]);
+    // Preview instan dari file lokal (blob URL) - user langsung lihat
+    // gambar yang dipilih tanpa menunggu byte terkirim ke CDN.
+    const localUrl = URL.createObjectURL(raw);
+    setImages([...images, { uid: raw.uid, fileName: raw.name, status: 'uploading', localUrl, progress: 0 }]);
     try {
-      const uploaded = await upload(raw);
+      const uploaded = await upload(raw, (percent) => patchFresh(raw.uid, form, { progress: percent }));
       // images di closure bisa basi kalau dua file selesai berdekatan -
       // patch by-uid dari nilai form TERKINI.
       patchFresh(raw.uid, form, { status: 'done', url: uploaded.url, provider_file_id: uploaded.file_id });
+      URL.revokeObjectURL(localUrl); // preview CDN (img.url) sudah menggantikan
       onSuccess?.(uploaded);
     } catch (err) {
       patchFresh(raw.uid, form, { status: 'error' });
@@ -83,10 +89,11 @@ export function WordImagesField() {
       message.info('File tidak tersedia lagi - hapus baris ini lalu pilih ulang filenya');
       return;
     }
-    patchFresh(img.uid, form, { status: 'uploading' });
+    patchFresh(img.uid, form, { status: 'uploading', progress: 0 });
     try {
-      const uploaded = await upload(file);
+      const uploaded = await upload(file, (percent) => patchFresh(img.uid, form, { progress: percent }));
       patchFresh(img.uid, form, { status: 'done', url: uploaded.url, provider_file_id: uploaded.file_id });
+      if (img.localUrl) URL.revokeObjectURL(img.localUrl);
     } catch {
       patchFresh(img.uid, form, { status: 'error' });
       message.error(`Gagal mengunggah ${file.name}`);
@@ -129,6 +136,15 @@ export function WordImagesField() {
           <Space align="start" wrap>
             {img.url ? (
               <Image src={img.url} alt={img.alt_text ?? img.fileName} width={72} height={72} style={{ objectFit: 'cover' }} />
+            ) : img.localUrl ? (
+              <Image
+                src={img.localUrl}
+                alt={img.fileName}
+                width={72}
+                height={72}
+                preview={false}
+                style={{ objectFit: 'cover', opacity: img.status === 'uploading' ? 0.55 : 1 }}
+              />
             ) : (
               <div
                 style={{
@@ -149,7 +165,9 @@ export function WordImagesField() {
               <Text strong ellipsis style={{ display: 'block', maxWidth: 360 }}>
                 {img.fileName ?? img.url}
               </Text>
-              {img.status === 'uploading' ? <Text type="secondary">Mengunggah…</Text> : null}
+              {img.status === 'uploading' ? (
+                <Progress percent={img.progress ?? 0} size="small" status="active" style={{ maxWidth: 320, margin: 0 }} />
+              ) : null}
               {img.status === 'error' ? (
                 <Space>
                   <Text type="danger">Gagal mengunggah</Text>

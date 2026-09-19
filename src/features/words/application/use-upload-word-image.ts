@@ -12,11 +12,11 @@ import { type UploadedImage, getUploadTokenRequest, uploadToImageKit } from '../
 export function useUploadWordImage() {
   const [unavailable, setUnavailable] = useState(false);
 
-  const upload = useCallback(async (file: File): Promise<UploadedImage> => {
+  const upload = useCallback(async (file: File, onProgress?: (percent: number) => void): Promise<UploadedImage> => {
     try {
       const creds = await getUploadTokenRequest();
       setUnavailable(false);
-      return await uploadToImageKit(file, creds);
+      return await uploadToImageKit(file, creds, onProgress);
     } catch (err) {
       if (err instanceof ApiError && err.status === 503) setUnavailable(true);
       throw err;

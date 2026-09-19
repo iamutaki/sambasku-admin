@@ -40,6 +40,7 @@ const BREADCRUMB_LABELS: Record<string, string> = {
   'vote-moderation': 'Moderasi Vote',
   'audit-logs': 'Audit Log',
   users: 'Pengguna',
+  profile: 'Profil',
 };
 
 /**
@@ -133,8 +134,15 @@ export function ConsoleLayout() {
           <Breadcrumb items={breadcrumbItems} />
           <Dropdown
             menu={{
-              items: [{ key: 'logout', icon: <LogoutOutlined />, label: 'Keluar', danger: true }],
+              items: [
+                { key: 'profile', icon: <UserOutlined />, label: 'Profil' },
+                { key: 'logout', icon: <LogoutOutlined />, label: 'Keluar', danger: true },
+              ],
               onClick: async ({ key }) => {
+                if (key === 'profile') {
+                  navigate({ to: '/profile' });
+                  return;
+                }
                 if (key !== 'logout') return;
                 await logoutMutation.mutateAsync(undefined, {
                   onError: () => message.warning('Gagal logout di server, tetapi sesi lokal dibersihkan'),

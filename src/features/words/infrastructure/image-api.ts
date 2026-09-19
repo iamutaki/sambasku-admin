@@ -26,14 +26,17 @@ export async function getUploadTokenRequest(): Promise<ImageUploadCredentials> {
 }
 
 /**
- * POST langsung ke CDN ImageKit - fetch POLOS, BUKAN axios `client`:
+ * POST langsung ke CDN ImageKit - request POLOS, BUKAN axios `client`:
  * host berbeda, response bukan envelope sambasku, dan TANPA header
  * Authorization (otentikasinya justru signature dari token endpoint).
  * folder dikirim client sebagai param upload (bukan bagian signature).
+ * Memakai XHR (bukan fetch) karena progress byte upload hanya bisa
+ * dibaca dari `xhr.upload.onprogress`.
  */
 export async function uploadToImageKit(
   file: File,
   creds: ImageUploadCredentials,
+  onProgress?: (percent: number) => void,
 ): Promise<UploadedImage> {
   const form = new FormData();
   form.append('file', file);
@@ -44,10 +47,23 @@ export async function uploadToImageKit(
   form.append('expire', String(creds.expire));
   form.append('signature', creds.signature);
 
-  const res = await fetch(creds.upload_endpoint, { method: 'POST', body: form });
-  if (!res.ok) {
-    throw new Error(`Upload ke penyedia gagal (HTTP ${res.status})`);
-  }
-  const data = (await res.json()) as { url: string; fileId: string };
-  return { url: data.url, file_id: data.fileId };
+  return new Promise<UploadedImage>((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', creds.upload_endpoint);
+    xhr.upload.onprogress = (e) => {
+      if (e.lengthComputable && onProgress) {
+        onProgress(Math.round((e.loaded / e.total) * 100));
+      }
+    };
+    xhr.onload = () => {
+      if (xhr.status < 200 || xhr.status >= 300) {
+        reject(new Error(`Upload ke penyedia gagal (HTTP ${xhr.status})`));
+        return;
+      }
+      const data = JSON.parse(xhr.responseText) as { url: string; fileId: string };
+      resolve({ url: data.url, file_id: data.fileId });
+    };
+    xhr.onerror = () => reject(new Error('Upload ke penyedia gagal (jaringan)'));
+    xhr.send(form);
+  });
 }
