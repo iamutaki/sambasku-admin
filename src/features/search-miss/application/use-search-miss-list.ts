@@ -9,23 +9,24 @@ export interface UseSearchMissListArgs {
   q?: string;
   direction?: SearchMissDirection;
   fulfilled?: boolean;
+  visible?: boolean;
   enabled?: boolean;
 }
 
 /**
  * List search miss admin: q untuk pencarian lemma partial,
- * direction/fulfilled sebagai filter AND. Query key MENGANDUNG SEMUA
+ * direction/fulfilled/visible sebagai filter AND. Query key MENGANDUNG SEMUA
  * filter - filter berubah = list baru dari halaman pertama (aturan
  * Section 12 admin-base-stack).
  */
 export function useSearchMissList(args: UseSearchMissListArgs = {}) {
-  const { q, direction, fulfilled, enabled } = args;
+  const { q, direction, fulfilled, visible, enabled } = args;
 
   return useCursorList<SearchMissListItem>({
-    queryKey: ['search-misses', { q, direction, fulfilled }],
+    queryKey: ['search-misses', { q, direction, fulfilled, visible }],
     fetcher: async (pageParam, signal) => {
       const page = await listSearchMissesRequest(
-        { q, direction, fulfilled, limit: PAGE_LIMIT, cursor: pageParam },
+        { q, direction, fulfilled, visible, limit: PAGE_LIMIT, cursor: pageParam },
         signal,
       );
       return {

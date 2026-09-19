@@ -13,6 +13,8 @@ export interface AdminVoteListItem {
   voterEmail: string;
   targetType: AdminVoteTargetType;
   targetId: string;
+  /** Body komentar / lemma / dll — dari API target_preview */
+  targetPreview: string | null;
   value: 1 | -1;
   createdAt: string;
   updatedAt: string | null;
@@ -21,6 +23,7 @@ export interface AdminVoteListItem {
 export interface AdminTopTargetItem {
   targetType: AdminVoteTargetType;
   targetId: string;
+  targetPreview: string | null;
   upvotes: number;
   downvotes: number;
   net: number;

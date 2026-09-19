@@ -69,6 +69,7 @@ export function fieldToNamePath(field: string): (string | number)[] {
 export function buildCreateWordBody(
   values: CreateWordFormValues,
   status: 'draft' | 'published',
+  options?: { searchMissId?: string },
 ): CreateWordRequest {
   const meanings = buildMeanings(values.meanings ?? []);
 
@@ -105,6 +106,7 @@ export function buildCreateWordBody(
     ...(pronunciation ? { pronunciation } : {}),
     ...(images.length ? { images } : {}),
     status,
+    ...(options?.searchMissId ? { search_miss_id: options.searchMissId } : {}),
   };
 }
 

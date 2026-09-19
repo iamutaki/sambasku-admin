@@ -35,10 +35,9 @@ import { WORD_STATUS_LABELS } from '../domain/word';
 import {
   MeaningFields,
   RelatedWordItem,
-  affixTypeOptions,
+  WordVariantsField,
   buildRelationOptions,
   buildWordClassOptions,
-  variantTypeOptions,
   wordTypeOptions,
 } from './word-form-blocks';
 import { WordImagesField } from './word-images-field';
@@ -336,7 +335,9 @@ export function EditWordPage() {
                     >
                       <MeaningFields
                         name={[field.name]}
+                        absolutePath={['meanings', field.name]}
                         wordClassOptions={wordClassOptions}
+                        wordClasses={wordClassQuery.data ?? []}
                         wordClassLoading={wordClassQuery.isLoading}
                         defaultLanguageIds={defaultLanguageIds}
                         showOrderIndex
@@ -402,6 +403,7 @@ export function EditWordPage() {
                               remove={() => remove(field.name)}
                               relationOptions={relationOptions}
                               wordClassOptions={wordClassOptions}
+                              wordClasses={wordClassQuery.data ?? []}
                               wordClassLoading={wordClassQuery.isLoading}
                               defaultLanguageIds={defaultLanguageIds}
                               allowInline={false}
@@ -418,47 +420,8 @@ export function EditWordPage() {
               },
               {
                 key: 'variants',
-                label: '5. Bentuk Turunan (opsional)',
-                children: (
-                  <Form.List name="variants">
-                    {(fields, { add, remove }) => (
-                      <Space direction="vertical" size={8} style={{ width: '100%' }}>
-                        {fields.map((field) => (
-                          <Row key={field.key} gutter={12} align="top">
-                            <Col flex="180px">
-                              <Form.Item name={[field.name, 'form']} label="Bentuk" rules={[{ required: true, message: 'Wajib' }]}>
-                                <Input placeholder="mis. memakan" />
-                              </Form.Item>
-                            </Col>
-                            <Col flex="140px">
-                              <Form.Item name={[field.name, 'variant_type']} label="Jenis" initialValue="alternative">
-                                <Select options={variantTypeOptions} />
-                              </Form.Item>
-                            </Col>
-                            <Col flex="150px">
-                              <Form.Item name={[field.name, 'affix_type']} label="Tipe Afiks">
-                                <Select allowClear placeholder="tanpa afiks" options={affixTypeOptions} />
-                              </Form.Item>
-                            </Col>
-                            <Col flex="130px">
-                              <Form.Item name={[field.name, 'affix_value']} label="Nilai Afiks">
-                                <Input placeholder="mis. me-" />
-                              </Form.Item>
-                            </Col>
-                            <Col flex="32px">
-                              <Form.Item label=" ">
-                                <Button type="text" danger icon={<DeleteOutlined />} onClick={() => remove(field.name)} />
-                              </Form.Item>
-                            </Col>
-                          </Row>
-                        ))}
-                        <Button type="dashed" block icon={<PlusOutlined />} onClick={() => add()}>
-                          Tambah Bentuk Turunan
-                        </Button>
-                      </Space>
-                    )}
-                  </Form.List>
-                ),
+                label: '5. Variasi & Bentuk Turunan (opsional)',
+                children: <WordVariantsField />,
               },
               {
                 key: 'pronunciation',

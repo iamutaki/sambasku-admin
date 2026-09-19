@@ -15,6 +15,7 @@ import {
   Select,
   Tabs,
   Tag,
+  Tooltip,
   Typography,
 } from 'antd';
 import dayjs from 'dayjs';
@@ -40,23 +41,36 @@ import {
 const voteColumnHelper = createColumnHelper<AdminVoteListItem>();
 const topColumnHelper = createColumnHelper<AdminTopTargetItem>();
 
-/** Preview target: word → link detail kata, lainnya text [type]:[id] (MVP). */
+/** Preview target: comment → body; word → lemma (+ link); fallback type:id. */
 function TargetPreviewCell({
   targetType,
   targetId,
+  targetPreview,
 }: {
   targetType: AdminVoteTargetType;
   targetId: string;
+  targetPreview: string | null;
 }) {
   const navigate = useNavigate();
+  const label = targetPreview?.trim() || null;
+
   if (targetType === 'word') {
     return (
       <Typography.Link onClick={() => navigate({ to: '/words/$id', params: { id: targetId } })}>
-        Lihat detail kata
+        {label ?? 'Lihat detail kata'}
       </Typography.Link>
     );
   }
-  return <Typography.Text code>{`${targetType}:${targetId}`}</Typography.Text>;
+
+  if (label) {
+    return (
+      <Typography.Text ellipsis={{ tooltip: label }} style={{ maxWidth: 360 }}>
+        {label}
+      </Typography.Text>
+    );
+  }
+
+  return <Typography.Text type="secondary">Target dihapus / tidak ditemukan</Typography.Text>;
 }
 
 /** Aksi hapus per-baris (mutasi milik baris → loading terisolasi per baris). */
@@ -82,7 +96,9 @@ function DeleteVoteAction({ vote }: { vote: AdminVoteListItem }) {
           });
       }}
     >
-      <Button type="link" danger icon={<DeleteOutlined />} loading={deleteVote.isPending} />
+      <Tooltip title="Hapus vote">
+        <Button type="link" danger icon={<DeleteOutlined />} loading={deleteVote.isPending} />
+      </Tooltip>
     </Popconfirm>
   );
 }
@@ -114,9 +130,9 @@ function ResetTargetAction({ target }: { target: AdminTopTargetItem }) {
           });
       }}
     >
-      <Button type="link" danger icon={<DeleteOutlined />} loading={resetTarget.isPending}>
-        Reset
-      </Button>
+      <Tooltip title="Reset semua vote">
+        <Button type="link" danger icon={<DeleteOutlined />} loading={resetTarget.isPending} />
+      </Tooltip>
     </Popconfirm>
   );
 }
@@ -159,7 +175,13 @@ function VoteListTab() {
         id: 'target',
         header: 'Target',
         size: 220,
-        cell: ({ row }) => <TargetPreviewCell targetType={row.original.targetType} targetId={row.original.targetId} />,
+        cell: ({ row }) => (
+          <TargetPreviewCell
+            targetType={row.original.targetType}
+            targetId={row.original.targetId}
+            targetPreview={row.original.targetPreview}
+          />
+        ),
       }),
       voteColumnHelper.accessor('value', {
         header: 'Nilai',
@@ -290,7 +312,13 @@ function TopTargetsTab({ enabled }: { enabled: boolean }) {
         id: 'target',
         header: 'Target',
         size: 220,
-        cell: ({ row }) => <TargetPreviewCell targetType={row.original.targetType} targetId={row.original.targetId} />,
+        cell: ({ row }) => (
+          <TargetPreviewCell
+            targetType={row.original.targetType}
+            targetId={row.original.targetId}
+            targetPreview={row.original.targetPreview}
+          />
+        ),
       }),
       topColumnHelper.accessor('upvotes', {
         header: 'Upvote',
@@ -374,7 +402,7 @@ function TopTargetsTab({ enabled }: { enabled: boolean }) {
 }
 
 /**
- * Panel Moderasi Vote - list vote granular (audit + hapus spam) dan top
+ * Panel Vote - list vote granular (audit + hapus spam) dan top
  * target terurut skor bersih (deteksi brigading + reset massal). Hanya
  * role root/admin/reviewer (matrix destructive action level konten).
  */
@@ -388,7 +416,7 @@ export function VoteModerationPage() {
       <Result
         status="403"
         title="403"
-        subTitle="Panel moderasi vote hanya untuk role reviewer, admin, dan root."
+        subTitle="Panel vote hanya untuk role reviewer, admin, dan root."
       />
     );
   }
@@ -396,7 +424,7 @@ export function VoteModerationPage() {
   return (
     <>
       <PageHeader
-        title="Moderasi Vote"
+        title="Vote"
         subtitle="Audit vote granular (hapus vote spam individual) dan reset massal per target untuk penanganan brigading."
       />
       <Tabs

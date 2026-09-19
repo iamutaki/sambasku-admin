@@ -22,10 +22,15 @@ export function WordSearchSelect({ value, onChange, placeholder = 'Cari kata…'
   const q = useDebouncedValue(searchInput, 300);
 
   const { items, hasMore, loadMore, isLoading } = useWordSearch({ q });
-  const options = items.map((word) => ({
-    value: word.id,
-    label: word.language_code ? `${word.lemma} (${word.language_code})` : word.lemma,
-  }));
+  const options = items.map((word) => {
+    const base = word.language_code ? `${word.lemma} (${word.language_code})` : word.lemma;
+    return {
+      value: word.id,
+      // 11: q cocok lewat variasi penulisan → tampilkan form yang cocok
+      // supaya verifikator paham kenapa kata muncul untuk q tsb.
+      label: word.matched_variant ? `${base} - cocok varian: "${word.matched_variant}"` : base,
+    };
+  });
 
   return (
     <Select

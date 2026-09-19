@@ -147,7 +147,7 @@ export function UsersPage() {
           if (row.role === 'root') {
             return (
               <Tooltip title="Role root hanya dapat diatur via SQL seed (keamanan)">
-                <Typography.Text type="secondary">—</Typography.Text>
+                <Typography.Text type="secondary">-</Typography.Text>
               </Tooltip>
             );
           }
@@ -189,13 +189,10 @@ export function UsersPage() {
                 <Tooltip title={changed ? 'Simpan perubahan peran' : 'Pilih peran baru terlebih dahulu'}>
                   <Button
                     type="link"
-                    size="small"
                     icon={<SaveOutlined />}
                     loading={isMutationThisRow}
                     disabled={!changed || updateRole.isPending}
-                  >
-                    Simpan
-                  </Button>
+                  />
                 </Tooltip>
               </Popconfirm>
             </Flex>

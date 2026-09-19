@@ -100,12 +100,13 @@ export function CommentsPage() {
       }),
       columnHelper.accessor('word_id', {
         header: 'Kata',
-        size: 220,
+        size: 160,
         cell: (info) => {
           const wordId = info.getValue();
+          const lemma = info.row.original.word_lemma;
           return (
             <Typography.Link onClick={() => navigate({ to: '/words/$id', params: { id: wordId } })}>
-              {wordId}
+              {lemma ?? wordId}
             </Typography.Link>
           );
         },
@@ -138,21 +139,19 @@ export function CommentsPage() {
       columnHelper.display({
         id: 'actions',
         header: 'Aksi',
-        size: 200,
+        size: 140,
         meta: { fixed: 'right' },
         cell: ({ row }) => {
           const item = row.original;
           const reviewBusy = reviewMutation.isPending && reviewMutation.variables?.id === item.id;
           const deleteBusy = deleteComment.isPending && deleteComment.variables === item.id;
           return (
-            <Flex gap={4}>
+            <Flex gap={0} wrap={false} align="center">
               {item.status === 'pending_review' ? (
                 <>
                   <Tooltip title="Terbitkan">
                     <Button
-                      size="small"
-                      type="primary"
-                      ghost
+                      type="link"
                       icon={<CheckOutlined />}
                       loading={reviewBusy}
                       onClick={() => confirmReview(item, 'approve')}
@@ -160,7 +159,7 @@ export function CommentsPage() {
                   </Tooltip>
                   <Tooltip title="Tolak">
                     <Button
-                      size="small"
+                      type="link"
                       danger
                       icon={<CloseOutlined />}
                       loading={reviewBusy}
@@ -178,9 +177,8 @@ export function CommentsPage() {
                   cancelText="Batal"
                   onConfirm={() => onDeleteComment(item)}
                 >
-                  <Tooltip title="Hapus Komentar">
+                  <Tooltip title="Hapus">
                     <Button
-                      size="small"
                       type="link"
                       danger
                       icon={<DeleteOutlined />}
@@ -189,7 +187,9 @@ export function CommentsPage() {
                   </Tooltip>
                 </Popconfirm>
               ) : null}
-              {item.status !== 'pending_review' && !canDelete ? '-' : null}
+              {item.status !== 'pending_review' && !canDelete ? (
+                <Typography.Text type="secondary">-</Typography.Text>
+              ) : null}
             </Flex>
           );
         },

@@ -90,6 +90,14 @@ const wordsRoute = createRoute({
 const createWordRoute = createRoute({
   getParentRoute: () => consoleLayoutRoute,
   path: '/words/new',
+  validateSearch: (search: Record<string, unknown>) => ({
+    from_miss: typeof search.from_miss === 'string' ? search.from_miss : undefined,
+    term: typeof search.term === 'string' ? search.term : undefined,
+    direction:
+      search.direction === 'lemma' || search.direction === 'translation'
+        ? (search.direction as 'lemma' | 'translation')
+        : undefined,
+  }),
   component: CreateWordPage,
 });
 

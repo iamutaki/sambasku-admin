@@ -138,7 +138,7 @@ function WordEntityDetail({ word }: { word: WordEntityView }) {
                     {meaning.examples.map((e, i) => (
                       <div key={i}>
                         <Text italic>“{e.source}”</Text>
-                        {e.target ? <Text type="secondary"> — {e.target}</Text> : null}
+                        {e.target ? <Text type="secondary"> - {e.target}</Text> : null}
                         {e.sourceType ? (
                           <Text type="secondary"> ({EXAMPLE_SOURCE_LABELS[e.sourceType as keyof typeof EXAMPLE_SOURCE_LABELS] ?? e.sourceType})</Text>
                         ) : null}

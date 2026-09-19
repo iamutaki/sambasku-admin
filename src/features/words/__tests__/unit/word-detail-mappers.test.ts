@@ -25,7 +25,7 @@ function wordDetail(overrides: Partial<WordDetail> = {}): WordDetail {
     meanings: [
       {
         id: 'm1',
-        word_class: { id: WC_ID, code: 'verb', name: 'Verba', parent_id: null },
+        word_class: { id: WC_ID, code: 'verb', name: 'Verba', alias: 'Kata Kerja', parent_id: null },
         inherited_from_meaning_id: null,
         definition: 'Aktivitas makan',
         order_index: 1,
@@ -95,7 +95,7 @@ describe('wordDetailToFormValues', () => {
         meanings: [
           {
             id: 'm1',
-            word_class: { id: WC_ID, code: 'verb', name: 'Verba', parent_id: null },
+            word_class: { id: WC_ID, code: 'verb', name: 'Verba', alias: 'Kata Kerja', parent_id: null },
             inherited_from_meaning_id: null,
             definition: 'Aktivitas makan',
             order_index: 1,

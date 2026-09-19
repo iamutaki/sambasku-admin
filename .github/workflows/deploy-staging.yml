@@ -13,8 +13,8 @@ name: Deploy Admin (Staging)
 #      (api/wrangler.toml → env.staging.vars), kalau tidak login akan diblokir.
 #
 # Secrets repo (Settings → Secrets and variables → Actions):
-#   CLOUDFLARE_API_TOKEN   — izin "Cloudflare Pages: Edit"
-#   CLOUDFLARE_ACCOUNT_ID  — Account ID Cloudflare
+#   CLOUDFLARE_API_TOKEN   - izin "Cloudflare Pages: Edit"
+#   CLOUDFLARE_ACCOUNT_ID  - Account ID Cloudflare
 #
 # Kenapa custom domain WAJIB: cookie refresh_token ber-SameSite=Strict, jadi
 # admin dan API harus satu registrable domain (iamutaki.com) agar auto-refresh
@@ -75,7 +75,7 @@ jobs:
         run: >
           pnpm dlx wrangler pages project create sambasku-admin-staging
           --production-branch=staging
-          || echo "Project sudah ada — lanjut deploy."
+          || echo "Project sudah ada - lanjut deploy."
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}

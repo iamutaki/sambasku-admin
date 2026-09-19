@@ -8,6 +8,7 @@ export function normalizeSearchMissListItem(wire: SearchMissWire): SearchMissLis
     direction: wire.direction as SearchMissListItem['direction'],
     searchCount: wire.hit_count,
     fulfilled: wire.is_fulfilled,
+    isVisible: wire.is_visible,
     createdAt: wire.created_at,
   };
 }

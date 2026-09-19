@@ -10,6 +10,7 @@ export function normalizeAdminVoteListItem(wire: AdminVoteWire): AdminVoteListIt
     voterEmail: wire.voter_email,
     targetType: wire.target_type,
     targetId: wire.target_id,
+    targetPreview: wire.target_preview ?? null,
     value: wire.value,
     createdAt: wire.created_at,
     updatedAt: wire.updated_at,
@@ -20,6 +21,7 @@ export function normalizeAdminTopTarget(wire: AdminTopTargetWire): AdminTopTarge
   return {
     targetType: wire.target_type,
     targetId: wire.target_id,
+    targetPreview: wire.target_preview ?? null,
     upvotes: wire.upvotes,
     downvotes: wire.downvotes,
     net: wire.net,

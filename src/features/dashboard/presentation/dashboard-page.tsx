@@ -1,67 +1,68 @@
+import { ReloadOutlined } from '@ant-design/icons';
 import { useNavigate } from '@tanstack/react-router';
-import { Card, Flex, Skeleton, Spin, Typography } from 'antd';
+import { Alert, Button, Skeleton } from 'antd';
 import { PageHeader } from '@/shared/components/page-header';
 import { useAuth } from '@/shared/auth/use-auth';
-import type { UserRole } from '@/features/auth/domain/user';
+import { ROLE_LABELS, type UserRole } from '@/features/auth/domain/user';
 import { useDashboardStats } from '../application/use-dashboard-stats';
-import { WelcomeCard } from './components/welcome-card';
 import { StatCards } from './components/stat-cards';
-import { QuickActionsRow, type QuickActionTarget } from './components/quick-actions-row';
 
 /**
- * Dashboard - halaman pertama setelah login. Menampilkan statistik agregat
- * (kata, kontribusi, pengguna, aktivitas) dari GET /admin/dashboard/stats
- * plus pintu cepat ke fitur konsol yang relevan.
- *
- * Komposisi halaman (dari komponen terpisah):
- *   PageHeader → WelcomeCard → (StatCards | Error | Skeleton Loading) → QuickActionsRow
- * Seluruh blok konten dibungkus Spin + Skeleton agar loading state seragam
- * (tidak separuh-separuh setengah tampil, setengah loading).
+ * Dashboard - strip KPI ringkas. Navigasi kerja lewat sider.
  */
 export function DashboardPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { data: stats, isPending, isError, refetch } = useDashboardStats();
+  const { data: stats, isPending, isError, isFetching, refetch } = useDashboardStats();
 
   const role = user?.role as UserRole | undefined;
-
-  const handleQuickNavigate = (to: QuickActionTarget) => navigate({ to });
+  const roleLabel = role ? (ROLE_LABELS[role] ?? role) : null;
+  const subtitle = [user?.username ? `Halo, ${user.username}` : null, roleLabel]
+    .filter(Boolean)
+    .join(' · ');
 
   return (
-    <>
-      <PageHeader title="Dashboard" subtitle="Ringkasan dan pintu cepat konsol admin." />
+    <div className="dashboard">
+      <PageHeader
+        title="Dashboard"
+        subtitle={subtitle || 'Ringkasan konsol admin.'}
+        extra={
+          <Button
+            icon={<ReloadOutlined />}
+            onClick={() => refetch()}
+            loading={isFetching && !isPending}
+          >
+            Muat ulang
+          </Button>
+        }
+      />
 
-      <Spin spinning={isPending}>
-        <WelcomeCard username={user?.username} role={role} />
+      {isError ? (
+        <Alert
+          type="error"
+          showIcon
+          message="Statistik gagal dimuat"
+          description="Periksa koneksi lalu coba lagi."
+          action={
+            <Button size="small" onClick={() => refetch()}>
+              Coba lagi
+            </Button>
+          }
+        />
+      ) : null}
 
-        {isError ? (
-          <Card style={{ marginBottom: 16 }}>
-            <Flex align="center" justify="space-between" gap={12}>
-              <Typography.Text type="secondary">
-                Statistik gagal dimuat. Periksa koneksi lalu coba lagi.
-              </Typography.Text>
-              <Typography.Link onClick={() => refetch()}>Muat ulang</Typography.Link>
-            </Flex>
-          </Card>
-        ) : stats ? (
-          <StatCards
-            stats={stats}
-            onNavigateContributions={() => navigate({ to: '/contributions' })}
-          />
-        ) : isPending ? (
-          <Card style={{ marginBottom: 16 }}>
-            <Skeleton active paragraph={{ rows: 4 }} title />
-          </Card>
-        ) : null}
+      {isPending && !stats ? (
+        <div className="dashboard__strip dashboard__strip--skeleton">
+          <Skeleton.Input active size="small" style={{ width: 280 }} />
+        </div>
+      ) : null}
 
-        {isPending ? (
-          <Card>
-            <Skeleton active paragraph={{ rows: 3 }} title={false} />
-          </Card>
-        ) : (
-          <QuickActionsRow onNavigate={handleQuickNavigate} />
-        )}
-      </Spin>
-    </>
+      {stats ? (
+        <StatCards
+          stats={stats}
+          onNavigateContributions={() => navigate({ to: '/contributions' })}
+        />
+      ) : null}
+    </div>
   );
 }

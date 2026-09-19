@@ -5,22 +5,19 @@ import type { CreateWordRequest, CreateWordResult } from '../domain/create-word'
 import type { UpdateWordRequest, UpdateWordResult, WordDetail } from '../domain/word-detail';
 
 /**
- * GET /api/v1/words/search - list/penelusuran kata (cursor pagination,
- * docs/api Section 13). Backend membungkus `meta` SEBLAHAN `data` di level
- * envelope (`{ success, data: [...], meta }`) - di-normalisasi jadi
- * `CursorPage` agar `useCursorList` membaca `page.data` / `page.meta`.
- * Query param yang tidak diisi otomatis dihilangkan (undefined tidak
- * diserialisasi axios).
+ * GET /api/v1/admin/words - list panel Kata (semua status + filter tayang).
+ * Bukan /words/search publik (yang hanya published + bisa catat search miss).
  */
 export async function listWordsRequest(
   params: ListWordsParams,
   signal?: AbortSignal,
 ): Promise<CursorPage<WordListItem>> {
-  const res = await client.get<ApiCursorPageEnvelope<WordListItem>>('/words/search', {
+  const res = await client.get<ApiCursorPageEnvelope<WordListItem>>('/admin/words', {
     params: {
       q: params.q || undefined,
       word_type: params.wordType,
       is_verified: params.isVerified,
+      published: params.published,
       limit: params.limit ?? 20,
       cursor: params.cursor,
     },
@@ -91,5 +88,28 @@ export async function verifyWordRequest(id: string, signal?: AbortSignal): Promi
  */
 export async function unverifyWordRequest(id: string, signal?: AbortSignal): Promise<unknown> {
   const res = await client.post<ApiOkEnvelope<unknown>>(`/admin/words/${id}/unverify`, undefined, { signal });
+  return res.data.data;
+}
+
+/**
+ * POST /api/v1/admin/words/:id/publish - tayangkan kata (status → published).
+ * Role: admin / root / reviewer.
+ */
+export async function publishWordRequest(
+  id: string,
+  signal?: AbortSignal,
+): Promise<{ word_id: string; merged_into_word_id: string | null }> {
+  const res = await client.post<
+    ApiOkEnvelope<{ word_id: string; merged_into_word_id: string | null }>
+  >(`/admin/words/${id}/publish`, undefined, { signal });
+  return res.data.data;
+}
+
+/**
+ * POST /api/v1/admin/words/:id/unpublish - tarik dari tayang (status → draft).
+ * Role: admin / root / reviewer.
+ */
+export async function unpublishWordRequest(id: string, signal?: AbortSignal): Promise<unknown> {
+  const res = await client.post<ApiOkEnvelope<unknown>>(`/admin/words/${id}/unpublish`, undefined, { signal });
   return res.data.data;
 }

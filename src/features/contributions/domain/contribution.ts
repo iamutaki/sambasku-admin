@@ -33,6 +33,9 @@ export interface ContributionListItem {
   action: string;
   status: ContributionStatus;
   created_at: string;
+  search_miss_id?: string | null;
+  search_miss_term?: string | null;
+  search_miss_direction?: 'lemma' | 'translation' | null;
 }
 
 export interface ListContributionsParams {
@@ -211,4 +214,6 @@ export interface ReviewDecisionResult {
   entity_id: string;
   status: ContributionStatus;
   is_corrected?: boolean;
+  /** Makna digabung ke kata published yang sudah ada (12-api §8) */
+  merged_into_word_id?: string;
 }

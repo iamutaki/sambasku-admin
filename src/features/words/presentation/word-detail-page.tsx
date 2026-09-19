@@ -6,8 +6,8 @@ import {
   TRANSLATION_TYPE_LABELS,
   VARIANT_TYPE_LABELS,
 } from '../domain/create-word';
-import { Alert, App as AntdApp, Button, Card, Descriptions, Flex, Image, Popconfirm, Skeleton, Space, Tag, Typography } from 'antd';
-import { CheckOutlined, EditOutlined, RollbackOutlined, UndoOutlined } from '@ant-design/icons';
+import { Alert, App as AntdApp, Button, Card, Descriptions, Flex, Image, Skeleton, Space, Switch, Tag, Tooltip, Typography } from 'antd';
+import { EditOutlined, RollbackOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { useNavigate, useParams } from '@tanstack/react-router';
 import { PageHeader } from '@/shared/components/page-header';
@@ -16,10 +16,12 @@ import { WORD_STATUS_LABELS, WORD_TYPE_LABELS, type WordStatus } from '../domain
 import { useWordDetail } from '../application/use-word-detail';
 import { useDialectOptions, useLanguageOptions } from '../application/use-reference-data';
 import { useVerifyWord, useUnverifyWord } from '../application/use-word-verify';
+import { usePublishWord, useUnpublishWord } from '../application/use-word-publish';
 import { normalizeError } from '@/shared/api/error';
 import { WordVoteCount } from '@/features/votes/presentation/word-vote-count';
 import { WordComments } from '@/features/comments/presentation/word-comments';
 import type { WordDetail } from '../domain/word-detail';
+import { useState } from 'react';
 
 const { Text, Paragraph } = Typography;
 
@@ -55,6 +57,9 @@ export function WordDetailPage() {
   const detail = detailQuery.data;
   const verifyWord = useVerifyWord();
   const unverifyWord = useUnverifyWord();
+  const publishWord = usePublishWord();
+  const unpublishWord = useUnpublishWord();
+  const [publishing, setPublishing] = useState(false);
 
   // Nama bahasa/dialek di-resolve dari data referensi (respons detail hanya
   // membawa id). Bahasa lead = bahasa kata, dialek anak dihitung dari situ.
@@ -138,59 +143,82 @@ export function WordDetailPage() {
             <Button icon={<RollbackOutlined />} onClick={() => navigate({ to: '/words' })}>
               Kembali ke Daftar
             </Button>
-            {canVerify && detail.status !== 'published' ? (
-              <Popconfirm
-                title={`Verifikasi kata "${detail.lemma}"?`}
-                description="Kata akan dipublikasikan dan muncul di pencarian publik."
-                okText="Verifikasi"
-                okButtonProps={{ type: 'primary' }}
-                cancelText="Batal"
-                onConfirm={async () => {
-                  try {
-                    await verifyWord.mutateAsync(detail.id, {
-                      onSuccess: () => message.success(`Kata "${detail.lemma}" diverifikasi & dipublikasikan`),
-                      onError: (err) => message.warning(normalizeError(err).message || 'Gagal verifikasi'),
-                    });
-                  } catch {
-                    // Handled.
-                  }
-                }}
-              >
-                <Button
-                  type="primary"
-                  icon={<CheckOutlined />}
-                  loading={verifyWord.isPending && verifyWord.variables === detail.id}
-                >
-                  Verifikasi & Publikasikan
-                </Button>
-              </Popconfirm>
+            {canVerify ? (
+              <Space size={8}>
+                <Text type="secondary">Tayang</Text>
+                <Switch
+                  checked={detail.status === 'published'}
+                  loading={publishing}
+                  onChange={async (next) => {
+                    setPublishing(true);
+                    try {
+                      if (next) {
+                        await publishWord.mutateAsync(detail.id, {
+                          onSuccess: (data) => {
+                            if (data?.merged_into_word_id) {
+                              message.success(
+                                `Makna digabung ke kata "${detail.lemma}" yang sudah tayang`,
+                              );
+                              void navigate({
+                                to: '/words/$id',
+                                params: { id: data.merged_into_word_id },
+                              });
+                            } else {
+                              message.success(`Kata "${detail.lemma}" ditayangkan`);
+                            }
+                          },
+                          onError: (err) =>
+                            message.warning(normalizeError(err).message || 'Gagal menayangkan'),
+                        });
+                      } else {
+                        await unpublishWord.mutateAsync(detail.id, {
+                          onSuccess: () => message.success(`Kata "${detail.lemma}" ditarik dari tayang`),
+                          onError: (err) =>
+                            message.warning(normalizeError(err).message || 'Gagal menarik tayang'),
+                        });
+                      }
+                    } catch {
+                      // Handled.
+                    } finally {
+                      setPublishing(false);
+                    }
+                  }}
+                />
+              </Space>
             ) : null}
-            {canVerify && detail.status === 'published' ? (
-              <Popconfirm
-                title={`Batalkan verifikasi "${detail.lemma}"?`}
-                description="Kata akan kembali ke status sebelum dipublikasikan."
-                okText="Batal Verifikasi"
-                okButtonProps={{ danger: true }}
-                cancelText="Batal"
-                onConfirm={async () => {
-                  try {
-                    await unverifyWord.mutateAsync(detail.id, {
-                      onSuccess: () => message.success(`Kata "${detail.lemma}" batal diverifikasi`),
-                      onError: (err) => message.warning(normalizeError(err).message || 'Gagal'),
-                    });
-                  } catch {
-                    // Handled.
-                  }
-                }}
-              >
-                <Button
-                  danger
-                  icon={<UndoOutlined />}
-                  loading={unverifyWord.isPending && unverifyWord.variables === detail.id}
-                >
-                  Batal Verifikasi
-                </Button>
-              </Popconfirm>
+            {canVerify ? (
+              <Tooltip title={detail.status !== 'published' ? 'Hanya kata tayang yang bisa diverifikasi' : undefined}>
+                <Space size={8}>
+                  <Text type="secondary">Terverifikasi</Text>
+                  <Switch
+                    checked={detail.is_verified}
+                    disabled={detail.status !== 'published'}
+                    loading={
+                      (verifyWord.isPending && verifyWord.variables === detail.id) ||
+                      (unverifyWord.isPending && unverifyWord.variables === detail.id)
+                    }
+                    onChange={async (next) => {
+                      try {
+                        if (next) {
+                          await verifyWord.mutateAsync(detail.id, {
+                            onSuccess: () => message.success(`Kata "${detail.lemma}" diverifikasi`),
+                            onError: (err) =>
+                              message.warning(normalizeError(err).message || 'Gagal verifikasi'),
+                          });
+                        } else {
+                          await unverifyWord.mutateAsync(detail.id, {
+                            onSuccess: () =>
+                              message.success(`Kata "${detail.lemma}" batal diverifikasi`),
+                            onError: (err) => message.warning(normalizeError(err).message || 'Gagal'),
+                          });
+                        }
+                      } catch {
+                        // Handled.
+                      }
+                    }}
+                  />
+                </Space>
+              </Tooltip>
             ) : null}
             <Button
               type="primary"
@@ -288,8 +316,13 @@ function WordDetailContent({
             <div key={meaning.id}>
               <Flex justify="space-between" align="baseline" wrap gap={8}>
                 <Space size={6} wrap>
-                  <Text strong>{meaning.word_class?.name ?? 'Makna'}</Text>
-                  {meaning.word_class?.code ? <Text type="secondary">({meaning.word_class.code})</Text> : null}
+                  <Text strong>
+                    {meaning.word_class
+                      ? meaning.word_class.alias
+                        ? `${meaning.word_class.name} (${meaning.word_class.alias})`
+                        : meaning.word_class.name
+                      : 'Makna'}
+                  </Text>
                 </Space>
                 {meaning.order_index ? <Text type="secondary">Urutan {meaning.order_index}</Text> : null}
               </Flex>
@@ -315,7 +348,7 @@ function WordDetailContent({
                   {meaning.examples.map((e, i) => (
                     <div key={i}>
                       <Text italic>“{e.source_sentence}”</Text>
-                      {e.target_sentence ? <Text type="secondary"> — {e.target_sentence}</Text> : null}
+                      {e.target_sentence ? <Text type="secondary"> - {e.target_sentence}</Text> : null}
                       {e.source_type ? (
                         <Text type="secondary">
                           {' '}
@@ -386,22 +419,28 @@ function WordDetailContent({
         </div>
       ) : null}
 
-      {/* 5. Bentuk turunan */}
+      {/* 5. Variasi penulisan & bentuk turunan (11) */}
       <div>
         <Text strong style={{ display: 'block', marginBottom: 8 }}>
-          Bentuk Turunan
+          {detail.variants.every((v) => v.variant_type === 'alternative')
+            ? 'Variasi Penulisan'
+            : 'Variasi & Bentuk Turunan'}
         </Text>
         {detail.variants.length ? (
           <Space direction="vertical" size={4}>
             {detail.variants.map((v) => (
               <div key={v.id}>
-                <Text>{v.form}</Text>{' '}
+                {v.variant_type === 'alternative' ? (
+                  <Tag color="blue">{v.form}</Tag>
+                ) : (
+                  <Text>{v.form}</Text>
+                )}{' '}
                 <Text type="secondary">
                   ({VARIANT_TYPE_LABELS[v.variant_type as keyof typeof VARIANT_TYPE_LABELS] ?? v.variant_type}
                   {v.affix_type ? `, ${AFFIX_TYPE_LABELS[v.affix_type as keyof typeof AFFIX_TYPE_LABELS] ?? v.affix_type}` : ''}
                   {v.affix_value ? ` "${v.affix_value}"` : ''}
                   {v.dialect_id ? `, ${dialectName(v.dialect_id)}` : ''}
-                  {v.notes ? ` — ${v.notes}` : ''})
+                  {v.notes ? ` - ${v.notes}` : ''})
                 </Text>
               </div>
             ))}

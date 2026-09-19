@@ -8,6 +8,7 @@ export interface SearchMissWire {
   direction: string;
   hit_count: number;
   is_fulfilled: boolean;
+  is_visible: boolean;
   created_at: string;
 }
 
@@ -15,13 +16,19 @@ export interface ListSearchMissesParams {
   q?: string;
   direction?: SearchMissDirection;
   fulfilled?: boolean;
+  visible?: boolean;
   limit?: number;
   cursor?: string;
 }
 
+export interface UpdateSearchMissBody {
+  term?: string;
+  isVisible?: boolean;
+}
+
 /**
  * GET /api/v1/admin/search-misses - daftar pencarian yang 0 hasil (search miss).
- * Filter AND opsional: q lemma partial, direction, fulfilled + cursor
+ * Filter AND opsional: q lemma partial, direction, fulfilled, visible + cursor
  * pagination. Bentuk backend envelope → dinormalisasi ke CursorPage.
  */
 export async function listSearchMissesRequest(
@@ -33,12 +40,34 @@ export async function listSearchMissesRequest(
       q: params.q || undefined,
       direction: params.direction,
       fulfilled: params.fulfilled,
+      visible: params.visible,
       limit: params.limit ?? 20,
       cursor: params.cursor,
     },
     signal,
   });
   return { data: res.data.data, meta: res.data.meta };
+}
+
+/**
+ * PATCH /api/v1/admin/search-misses/:id - koreksi term dan/atau toggle tayang
+ * (14-api-search-miss-moderation.md).
+ */
+export async function updateSearchMissRequest(
+  id: string,
+  body: UpdateSearchMissBody,
+  signal?: AbortSignal,
+): Promise<SearchMissWire> {
+  const payload: { term?: string; is_visible?: boolean } = {};
+  if (body.term !== undefined) payload.term = body.term;
+  if (body.isVisible !== undefined) payload.is_visible = body.isVisible;
+
+  const res = await client.patch<{ success: true; data: SearchMissWire }>(
+    `/admin/search-misses/${id}`,
+    payload,
+    { signal },
+  );
+  return res.data.data;
 }
 
 /**
@@ -49,5 +78,41 @@ export async function dismissSearchMissRequest(id: string, signal?: AbortSignal)
   const res = await client.post<ApiCursorPageEnvelope<unknown>>(`/admin/search-misses/${id}/dismiss`, undefined, {
     signal,
   });
+  return res.data.data;
+}
+
+export type ResolveSearchMissAction = 'variant' | 'synonym' | 'translation';
+
+export interface ResolveSearchMissBody {
+  action: ResolveSearchMissAction;
+  wordId: string;
+  meaningId?: string;
+}
+
+export interface ResolveSearchMissWire extends SearchMissWire {
+  resolved_as: ResolveSearchMissAction;
+  target_word_id: string;
+  created_word_id: string | null;
+  variant_id: string | null;
+}
+
+/**
+ * POST /api/v1/admin/search-misses/:id/resolve - tempel miss ke kata existing
+ * sebagai varian / sinonim / terjemahan.
+ */
+export async function resolveSearchMissRequest(
+  id: string,
+  body: ResolveSearchMissBody,
+  signal?: AbortSignal,
+): Promise<ResolveSearchMissWire> {
+  const res = await client.post<{ success: true; data: ResolveSearchMissWire }>(
+    `/admin/search-misses/${id}/resolve`,
+    {
+      action: body.action,
+      word_id: body.wordId,
+      meaning_id: body.meaningId,
+    },
+    { signal },
+  );
   return res.data.data;
 }

@@ -19,7 +19,8 @@ export function useWordSearch(args: UseWordSearchArgs = {}) {
 
   return useCursorList<WordListItem>({
     queryKey: ['words', 'search', { q }],
-    fetcher: (pageParam, signal) => listWordsRequest({ q, limit: PAGE_LIMIT, cursor: pageParam }, signal),
+    fetcher: (pageParam, signal) =>
+      listWordsRequest({ q, limit: PAGE_LIMIT, cursor: pageParam, published: true }, signal),
     enabled: enabled ?? true,
   });
 }

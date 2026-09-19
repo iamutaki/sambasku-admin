@@ -33,7 +33,13 @@ export interface WordDetailMeaningExample {
 
 export interface WordDetailMeaning {
   id: string;
-  word_class: { id: string; code: string; name: string; parent_id: string | null } | null;
+  word_class: {
+    id: string;
+    code: string;
+    name: string;
+    alias: string | null;
+    parent_id: string | null;
+  } | null;
   inherited_from_meaning_id: string | null;
   definition: string;
   order_index: number;

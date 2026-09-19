@@ -7,6 +7,7 @@ export interface SearchMissListItem {
   direction: SearchMissDirection;
   searchCount: number;
   fulfilled: boolean;
+  isVisible: boolean;
   createdAt: string;
 }
 

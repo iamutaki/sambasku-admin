@@ -38,7 +38,7 @@ export const RELATION_TYPE_LABELS: Record<RelationType, string> = {
 export const VARIANT_TYPE_LABELS: Record<VariantType, string> = {
   inflection: 'Fleksi',
   derivation: 'Turunan',
-  alternative: 'Alternatif',
+  alternative: 'Ejaan Alternatif',
   reduplication: 'Pengulangan',
 };
 
@@ -78,6 +78,8 @@ export interface WordClassOption {
   id: string;
   code: string;
   name: string;
+  /** Nama umum yang lebih dikenal user (Verba → "Kata Kerja") */
+  alias: string | null;
   parent_id: string | null;
 }
 
@@ -183,6 +185,8 @@ export interface CreateWordRequest {
   pronunciation?: { notation: string; value: string };
   images?: WordImageInput[];
   status: 'draft' | 'published';
+  /** Provenance jalur search-miss (12-api) */
+  search_miss_id?: string;
 }
 
 /** Hasil kata inline (Form B) dari backend - untuk summary di toast sukses. */

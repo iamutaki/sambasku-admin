@@ -1,15 +1,13 @@
 import { useMemo, useState } from 'react';
 import { createColumnHelper, getCoreRowModel, useReactTable } from '@tanstack/react-table';
 import {
-  CheckOutlined,
   DeleteOutlined,
   EditOutlined,
   EyeOutlined,
   PlusOutlined,
   ReloadOutlined,
-  UndoOutlined,
 } from '@ant-design/icons';
-import { Alert, App as AntdApp, Button, Flex, Input, Popconfirm, Select, Tag, Tooltip, Typography } from 'antd';
+import { Alert, App as AntdApp, Button, Flex, Input, Popconfirm, Select, Switch, Tabs, Tooltip, Typography } from 'antd';
 import { DataTable } from '@/shared/components/data-table';
 import { PageHeader } from '@/shared/components/page-header';
 import { useNavigate } from '@tanstack/react-router';
@@ -17,27 +15,28 @@ import { useWordList, type UseWordListArgs } from '../application/use-word-list'
 import { useAuth } from '@/shared/auth/use-auth';
 import { useDeleteWord } from '../application/use-delete-word';
 import { useVerifyWord, useUnverifyWord } from '../application/use-word-verify';
+import { usePublishWord, useUnpublishWord } from '../application/use-word-publish';
 import { normalizeError } from '@/shared/api/error';
 import {
-  WORD_STATUS_LABELS,
   WORD_TYPES,
   WORD_TYPE_LABELS,
   type WordListItem,
-  type WordStatus,
   type WordType,
 } from '../domain/word';
 import { useDebouncedValue } from '@/shared/hooks/use-debounced-value';
 
 const columnHelper = createColumnHelper<WordListItem>();
 
-const STATUS_TAG_COLOR: Record<WordStatus, string> = {
-  draft: 'default',
-  pending_review: 'orange',
-  published: 'green',
-  rejected: 'red',
-};
-
 const wordTypeOptions = WORD_TYPES.map((type) => ({ value: type, label: WORD_TYPE_LABELS[type] }));
+
+/** Tabs tayang di menu Kata (default: Tayang). */
+type PublishedTab = 'published' | 'unpublished' | 'all';
+
+const PUBLISHED_TABS: { key: PublishedTab; label: string; published?: boolean }[] = [
+  { key: 'published', label: 'Tayang', published: true },
+  { key: 'unpublished', label: 'Tidak tayang', published: false },
+  { key: 'all', label: 'Semua' },
+];
 
 export function WordsPage() {
   const { message } = AntdApp.useApp();
@@ -46,14 +45,20 @@ export function WordsPage() {
   const deleteWord = useDeleteWord();
   const verifyWord = useVerifyWord();
   const unverifyWord = useUnverifyWord();
+  const publishWord = usePublishWord();
+  const unpublishWord = useUnpublishWord();
   const canVerify = user?.role === 'root' || user?.role === 'admin' || user?.role === 'reviewer';
   const [searchInput, setSearchInput] = useState('');
   const [wordType, setWordType] = useState<WordType | undefined>();
   const [isVerified, setIsVerified] = useState<boolean | undefined>();
+  const [publishedTab, setPublishedTab] = useState<PublishedTab>('published');
   const [deletingId, setDeletingId] = useState<string | undefined>();
+  const [publishingId, setPublishingId] = useState<string | undefined>();
+  const [verifyingId, setVerifyingId] = useState<string | undefined>();
   const q = useDebouncedValue(searchInput, 300);
+  const published = PUBLISHED_TABS.find((t) => t.key === publishedTab)?.published;
 
-  const listArgs: UseWordListArgs = { q, wordType, isVerified };
+  const listArgs: UseWordListArgs = { q, wordType, isVerified, published };
   const { items, hasMore, loadMore, isLoading, isFetching, isFetchingNextPage, isError, error, refetch } =
     useWordList(listArgs);
 
@@ -69,25 +74,51 @@ export function WordsPage() {
     }
   };
 
-  const onVerifyWord = async (id: string, lemma: string) => {
+  const onToggleVerified = async (id: string, lemma: string, next: boolean) => {
+    setVerifyingId(id);
     try {
-      await verifyWord.mutateAsync(id, {
-        onSuccess: () => message.success(`Kata "${lemma}" diverifikasi & dipublikasikan`),
-        onError: (err) => message.warning(normalizeError(err).message || 'Gagal verifikasi kata'),
-      });
+      if (next) {
+        await verifyWord.mutateAsync(id, {
+          onSuccess: () => message.success(`Kata "${lemma}" diverifikasi`),
+          onError: (err) => message.warning(normalizeError(err).message || 'Gagal verifikasi kata'),
+        });
+      } else {
+        await unverifyWord.mutateAsync(id, {
+          onSuccess: () => message.success(`Kata "${lemma}" batal diverifikasi`),
+          onError: (err) => message.warning(normalizeError(err).message || 'Gagal membatalkan verifikasi'),
+        });
+      }
     } catch {
       // Handled.
+    } finally {
+      setVerifyingId(undefined);
     }
   };
 
-  const onUnverifyWord = async (id: string, lemma: string) => {
+  const onTogglePublished = async (id: string, lemma: string, next: boolean) => {
+    setPublishingId(id);
     try {
-      await unverifyWord.mutateAsync(id, {
-        onSuccess: () => message.success(`Kata "${lemma}" batal diverifikasi`),
-        onError: (err) => message.warning(normalizeError(err).message || 'Gagal membatalkan verifikasi'),
-      });
+      if (next) {
+        await publishWord.mutateAsync(id, {
+          onSuccess: (data) => {
+            if (data?.merged_into_word_id) {
+              message.success(`Makna "${lemma}" digabung ke kata yang sudah tayang`);
+            } else {
+              message.success(`Kata "${lemma}" ditayangkan`);
+            }
+          },
+          onError: (err) => message.warning(normalizeError(err).message || 'Gagal menayangkan'),
+        });
+      } else {
+        await unpublishWord.mutateAsync(id, {
+          onSuccess: () => message.success(`Kata "${lemma}" ditarik dari tayang`),
+          onError: (err) => message.warning(normalizeError(err).message || 'Gagal menarik tayang'),
+        });
+      }
     } catch {
       // Handled.
+    } finally {
+      setPublishingId(undefined);
     }
   };
 
@@ -103,26 +134,58 @@ export function WordsPage() {
         size: 140,
         cell: (info) => WORD_TYPE_LABELS[info.getValue()],
       }),
-      columnHelper.accessor('status', {
-        header: 'Status',
-        size: 160,
-        cell: (info) => <Tag color={STATUS_TAG_COLOR[info.getValue()]}>{WORD_STATUS_LABELS[info.getValue()]}</Tag>,
+      columnHelper.display({
+        id: 'published',
+        header: 'Tayang',
+        size: 100,
+        cell: (info) => {
+          const row = info.row.original;
+          const checked = row.status === 'published';
+          if (!canVerify) {
+            return <Switch checked={checked} disabled size="small" />;
+          }
+          return (
+            <Switch
+              checked={checked}
+              size="small"
+              loading={publishingId === row.id}
+              onChange={(next) => onTogglePublished(row.id, row.lemma, next)}
+            />
+          );
+        },
+      }),
+      columnHelper.display({
+        id: 'verified',
+        header: 'Terverifikasi',
+        size: 120,
+        cell: (info) => {
+          const row = info.row.original;
+          const published = row.status === 'published';
+          const canToggle = canVerify && published;
+          const switchEl = (
+            <Switch
+              checked={row.is_verified}
+              size="small"
+              disabled={!canToggle}
+              loading={verifyingId === row.id}
+              onChange={(next) => onToggleVerified(row.id, row.lemma, next)}
+            />
+          );
+          if (canVerify && !published) {
+            return <Tooltip title="Hanya kata tayang yang bisa diverifikasi">{switchEl}</Tooltip>;
+          }
+          return switchEl;
+        },
       }),
       columnHelper.accessor('language_code', {
         header: 'Bahasa',
         size: 100,
         meta: { responsive: ['lg'] },
       }),
-      columnHelper.accessor('matched_translation', {
-        header: 'Terjemahan',
-        size: 220,
-        meta: { responsive: ['lg'] },
-        cell: (info) => info.getValue() ?? '-',
-      }),
       columnHelper.display({
         id: 'actions',
         header: 'Aksi',
-        size: 240,
+        size: 120,
         meta: { fixed: 'right' },
         cell: (info) => (
           <Flex gap={0} wrap={false} align="center">
@@ -148,42 +211,6 @@ export function WordsPage() {
                 />
               </Tooltip>
             ) : null}
-            {canVerify && info.row.original.status !== 'published' ? (
-              <Popconfirm
-                title={`Verifikasi kata "${info.row.original.lemma}"?`}
-                description="Kata akan dipublikasikan dan muncul di pencarian publik."
-                okText="Verifikasi"
-                okButtonProps={{ type: 'primary' }}
-                cancelText="Batal"
-                onConfirm={() => onVerifyWord(info.row.original.id, info.row.original.lemma)}
-              >
-                <Tooltip title="Verifikasi Kata">
-                  <Button
-                    type="link"
-                    icon={<CheckOutlined />}
-                    loading={verifyWord.isPending && verifyWord.variables === info.row.original.id}
-                  />
-                </Tooltip>
-              </Popconfirm>
-            ) : null}
-            {canVerify && info.row.original.status === 'published' ? (
-              <Popconfirm
-                title={`Batalkan verifikasi "${info.row.original.lemma}"?`}
-                description="Kata akan kembali ke status sebelum dipublikasikan."
-                okText="Batal Verifikasi"
-                okButtonProps={{ danger: true }}
-                cancelText="Batal"
-                onConfirm={() => onUnverifyWord(info.row.original.id, info.row.original.lemma)}
-              >
-                <Tooltip title="Batal Verifikasi">
-                  <Button
-                    type="link"
-                    icon={<UndoOutlined />}
-                    loading={unverifyWord.isPending && unverifyWord.variables === info.row.original.id}
-                  />
-                </Tooltip>
-              </Popconfirm>
-            ) : null}
             {user?.role !== 'contributor' ? (
               <Popconfirm
                 title={`Hapus kata "${info.row.original.lemma}"?`}
@@ -193,20 +220,32 @@ export function WordsPage() {
                 cancelText="Batal"
                 onConfirm={() => onDeleteWord(info.row.original.id, info.row.original.lemma)}
               >
-                <Button
-                  type="link"
-                  danger
-                  icon={<DeleteOutlined />}
-                  loading={deletingId === info.row.original.id}
-                  disabled={deletingId !== undefined && deletingId !== info.row.original.id}
-                />
+                <Tooltip title="Hapus">
+                  <Button
+                    type="link"
+                    danger
+                    icon={<DeleteOutlined />}
+                    loading={deletingId === info.row.original.id}
+                    disabled={deletingId !== undefined && deletingId !== info.row.original.id}
+                  />
+                </Tooltip>
               </Popconfirm>
             ) : null}
           </Flex>
         ),
       }),
     ],
-    [message, navigate, user?.role, onDeleteWord, onVerifyWord, onUnverifyWord, canVerify, deletingId, verifyWord.isPending, verifyWord.variables, unverifyWord.isPending, unverifyWord.variables],
+    [
+      navigate,
+      user?.role,
+      onDeleteWord,
+      onToggleVerified,
+      onTogglePublished,
+      canVerify,
+      deletingId,
+      publishingId,
+      verifyingId,
+    ],
   );
 
   const table = useReactTable({
@@ -221,12 +260,18 @@ export function WordsPage() {
     <>
       <PageHeader
         title="Kata"
-        subtitle="Kamus kosakata - list, cari, dan kelola entri."
+        subtitle="Kamus kosakata - list, cari, dan kelola entri. Tab Tidak tayang untuk draft / ditarik."
         extra={
           <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate({ to: '/words/new' })}>
             Tambah Kata
           </Button>
         }
+      />
+      <Tabs
+        activeKey={publishedTab}
+        onChange={(key) => setPublishedTab(key as PublishedTab)}
+        items={PUBLISHED_TABS.map((t) => ({ key: t.key, label: t.label }))}
+        style={{ marginBottom: 8 }}
       />
       <Flex wrap gap={12} style={{ marginBottom: 16 }}>
         <Input.Search

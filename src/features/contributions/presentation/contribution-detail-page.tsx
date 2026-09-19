@@ -61,7 +61,15 @@ export function ContributionDetailPage() {
         comment: comment.trim() || undefined,
       });
       const label = CONTRIBUTION_STATUS_LABELS[result.status] ?? result.status;
-      message.success(decision === 'approve' ? `Kontribusi disetujui (${label}).` : `Kontribusi ditolak (${label}).`);
+      if (decision === 'approve' && result.merged_into_word_id) {
+        message.success(
+          `Kontribusi disetujui - makna digabung ke kata yang sudah tayang (${label}).`,
+        );
+      } else {
+        message.success(
+          decision === 'approve' ? `Kontribusi disetujui (${label}).` : `Kontribusi ditolak (${label}).`,
+        );
+      }
       closeDecision();
     } catch {
       // error global mutation sudah ditampilkan hook/status; modal tetap terbuka
@@ -104,7 +112,7 @@ export function ContributionDetailPage() {
   return (
     <>
       <PageHeader
-        title={`${entityLabel} — ${titlePrefix}`}
+        title={`${entityLabel} - ${titlePrefix}`}
         subtitle={`Kontribusi oleh ${detail.contribution.contributor_username} · aksi ${detail.contribution.action}`}
         extra={
           <Space wrap>
@@ -116,6 +124,14 @@ export function ContributionDetailPage() {
       />
 
       <Space direction="vertical" size={20} style={{ width: '100%' }}>
+        {isPending && detail.entityType === 'word' ? (
+          <Alert
+            type="info"
+            showIcon
+            message="Satu lemma tayang per bahasa"
+            description="Jika kata dengan lemma sama sudah tayang, Setujui akan menggabungkan makna ke entri itu (bukan membuat entri kedua)."
+          />
+        ) : null}
         <Descriptions
           size="small"
           column={{ xs: 1, md: 2 }}
@@ -127,6 +143,22 @@ export function ContributionDetailPage() {
               children: <Tag color={STATUS_TAG_COLOR[detail.contribution.status]}>{CONTRIBUTION_STATUS_LABELS[detail.contribution.status]}</Tag>,
             },
             { key: 'submitted', label: 'Dikirim', children: dayjs(detail.contribution.created_at).format('DD MMM YYYY HH:mm') },
+            ...(detail.contribution.search_miss_id
+              ? [
+                  {
+                    key: 'search_miss',
+                    label: 'Search miss',
+                    children: (
+                      <Tag color="purple">
+                        {detail.contribution.search_miss_term ?? detail.contribution.search_miss_id}
+                        {detail.contribution.search_miss_direction
+                          ? ` (${detail.contribution.search_miss_direction === 'translation' ? 'Indonesia → Sambas' : 'Sambas → Indonesia'})`
+                          : ''}
+                      </Tag>
+                    ),
+                  },
+                ]
+              : []),
           ]}
         />
 

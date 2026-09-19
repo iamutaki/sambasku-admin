@@ -1,8 +1,31 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { createColumnHelper, getCoreRowModel, useReactTable } from '@tanstack/react-table';
-import { ReloadOutlined, SearchOutlined, ToolOutlined } from '@ant-design/icons';
-import { Alert, App as AntdApp, Button, Col, Flex, Input, Popconfirm, Row, Select, Tag, Tooltip, Typography } from 'antd';
+import {
+  LinkOutlined,
+  PlusOutlined,
+  ReloadOutlined,
+  SearchOutlined,
+  ToolOutlined,
+} from '@ant-design/icons';
+import {
+  Alert,
+  App as AntdApp,
+  Button,
+  Col,
+  Flex,
+  Input,
+  Popconfirm,
+  Row,
+  Select,
+  Space,
+  Switch,
+  Tabs,
+  Tag,
+  Tooltip,
+  Typography,
+} from 'antd';
 import dayjs from 'dayjs';
+import { useNavigate } from '@tanstack/react-router';
 import { DataTable } from '@/shared/components/data-table';
 import { PageHeader } from '@/shared/components/page-header';
 import { useAuth } from '@/shared/auth/use-auth';
@@ -10,12 +33,14 @@ import { normalizeError } from '@/shared/api/error';
 import { useDebouncedValue } from '@/shared/hooks/use-debounced-value';
 import { useSearchMissList } from '../application/use-search-miss-list';
 import { useDismissSearchMiss } from '../application/use-dismiss-search-miss';
+import { useUpdateSearchMiss } from '../application/use-update-search-miss';
 import {
   DIRECTION_LABELS,
   DIRECTION_TAG_COLOR,
   type SearchMissDirection,
   type SearchMissListItem,
 } from '../domain/search-miss';
+import { ResolveSearchMissModal } from './resolve-search-miss-modal';
 
 const columnHelper = createColumnHelper<SearchMissListItem>();
 
@@ -24,30 +49,46 @@ const directionOptions: { value: SearchMissDirection; label: string }[] = [
   { value: 'translation', label: DIRECTION_LABELS.translation },
 ];
 
-const fulfilledOptions = [
-  { value: true, label: 'Sudah Terpenuhi' },
-  { value: false, label: 'Belum Terpenuhi' },
+const visibleOptions = [
+  { value: true, label: 'Tayang' },
+  { value: false, label: 'Tidak tayang' },
+];
+
+/** Tab antrean admin: belum terpenuhi dulu (kerja utama). */
+type FulfilledTab = 'pending' | 'done' | 'all';
+
+const FULFILLED_TABS: { key: FulfilledTab; label: string; fulfilled?: boolean }[] = [
+  { key: 'pending', label: 'Belum Terpenuhi', fulfilled: false },
+  { key: 'done', label: 'Terpenuhi', fulfilled: true },
+  { key: 'all', label: 'Semua' },
 ];
 
 /**
  * Search Miss Panel - daftar pencarian user yang 0 hasil (peluang
- * prioritas kontribusi). Semua role login boleh lihat; aksi Dismiss
- * (soft-delete) hanya untuk root/admin/reviewer.
+ * prioritas kontribusi). Semua role login boleh lihat; koreksi term +
+ * tayang + resolve hanya admin/root; dismiss soft-delete root/admin/reviewer.
+ * Tabs: Belum Terpenuhi (default) | Terpenuhi | Semua.
  */
 export function SearchMissesPage() {
+  const navigate = useNavigate();
   const { message } = AntdApp.useApp();
   const { user } = useAuth();
-  const canDismiss = user?.role === 'root' || user?.role === 'admin' || user?.role === 'reviewer';
+  const canEdit = user?.role === 'root' || user?.role === 'admin';
+  const canDismiss = canEdit || user?.role === 'reviewer';
 
   const [searchInput, setSearchInput] = useState('');
   const [direction, setDirection] = useState<SearchMissDirection | undefined>();
-  const [fulfilled, setFulfilled] = useState<boolean | undefined>();
+  const [visible, setVisible] = useState<boolean | undefined>();
+  const [fulfilledTab, setFulfilledTab] = useState<FulfilledTab>('pending');
+  const [resolveMiss, setResolveMiss] = useState<SearchMissListItem | null>(null);
   const q = useDebouncedValue(searchInput, 300);
+  const fulfilled = FULFILLED_TABS.find((t) => t.key === fulfilledTab)?.fulfilled;
 
   const { items, hasMore, loadMore, isLoading, isFetching, isFetchingNextPage, isError, error, refetch } =
-    useSearchMissList({ q, direction, fulfilled });
+    useSearchMissList({ q, direction, fulfilled, visible });
 
   const dismissSearchMiss = useDismissSearchMiss();
+  const updateSearchMiss = useUpdateSearchMiss();
 
   const onDismiss = async (id: string, term: string) => {
     try {
@@ -60,13 +101,93 @@ export function SearchMissesPage() {
     }
   };
 
+  const onSaveTerm = useCallback(
+    async (id: string, nextTerm: string) => {
+      const trimmed = nextTerm.trim();
+      if (!trimmed) {
+        message.warning('Kata dicari tidak boleh kosong');
+        return;
+      }
+      try {
+        await updateSearchMiss.mutateAsync(
+          { id, body: { term: trimmed } },
+          {
+            onSuccess: () => message.success('Kata dicari diperbarui'),
+            onError: (err) =>
+              message.warning(normalizeError(err).message || 'Gagal memperbarui kata dicari'),
+          },
+        );
+      } catch {
+        // Handled di atas.
+      }
+    },
+    [message, updateSearchMiss],
+  );
+
+  const onToggleVisible = useCallback(
+    async (id: string, term: string, next: boolean) => {
+      try {
+        await updateSearchMiss.mutateAsync(
+          { id, body: { isVisible: next } },
+          {
+            onSuccess: () =>
+              message.success(next ? `"${term}" ditayangkan di beranda` : `"${term}" disembunyikan dari beranda`),
+            onError: (err) =>
+              message.warning(normalizeError(err).message || 'Gagal mengubah status tayang'),
+          },
+        );
+      } catch {
+        // Handled di atas.
+      }
+    },
+    [message, updateSearchMiss],
+  );
+
+  const onCreateWord = useCallback(
+    (row: SearchMissListItem) => {
+      navigate({
+        to: '/words/new',
+        search: {
+          from_miss: row.id,
+          term: row.term,
+          direction: row.direction,
+        },
+      });
+    },
+    [navigate],
+  );
+
+  const updatingId =
+    updateSearchMiss.isPending && updateSearchMiss.variables
+      ? updateSearchMiss.variables.id
+      : null;
+
   const columns = useMemo(
     () => [
       columnHelper.accessor('term', {
         header: 'Kata Dicari',
         size: 240,
         meta: { fixed: 'left' },
-        cell: (info) => <Typography.Text strong>{info.getValue()}</Typography.Text>,
+        cell: (info) => {
+          const row = info.row.original;
+          if (!canEdit) {
+            return <Typography.Text strong>{info.getValue()}</Typography.Text>;
+          }
+          return (
+            <Typography.Text
+              strong
+              editable={{
+                triggerType: ['icon', 'text'],
+                onChange: (next) => {
+                  if (next.trim() === row.term) return;
+                  void onSaveTerm(row.id, next);
+                },
+              }}
+            >
+              {info.getValue()}
+            </Typography.Text>
+          );
+        },
       }),
       columnHelper.accessor('direction', {
         header: 'Arah',
@@ -83,6 +204,25 @@ export function SearchMissesPage() {
             {info.getValue()}×
           </Typography.Text>
         ),
+      }),
+      columnHelper.accessor('isVisible', {
+        header: 'Tayang',
+        size: 100,
+        cell: (info) => {
+          const row = info.row.original;
+          const checked = info.getValue();
+          if (!canEdit) {
+            return <Switch checked={checked} disabled size="small" />;
+          }
+          return (
+            <Switch
+              checked={checked}
+              size="small"
+              loading={updatingId === row.id}
+              onChange={(next) => void onToggleVisible(row.id, row.term, next)}
+            />
+          );
+        },
       }),
       columnHelper.accessor('fulfilled', {
         header: 'Terpenuhi',
@@ -103,34 +243,65 @@ export function SearchMissesPage() {
       columnHelper.display({
         id: 'actions',
         header: 'Aksi',
-        size: 120,
+        size: 200,
         meta: { fixed: 'right' },
-        cell: (info) =>
-          canDismiss ? (
-            <Popconfirm
-              title="Dismiss search miss ini?"
-              description="Aksi tidak bisa dibatalkan. Search miss akan hilang dari daftar."
-              okText="Dismiss"
-              okButtonProps={{ danger: true }}
-              cancelText="Batal"
-              onConfirm={() => onDismiss(info.row.original.id, info.row.original.term)}
-            >
-              <Tooltip title="Dismiss">
-                <Button
-                  type="link"
-                  danger
-                  icon={<ToolOutlined />}
-                  loading={
-                    dismissSearchMiss.isPending &&
-                    dismissSearchMiss.variables === info.row.original.id
-                  }
-                />
-              </Tooltip>
-            </Popconfirm>
-          ) : null,
+        cell: (info) => {
+          const row = info.row.original;
+          return (
+            <Space size={0}>
+              {!row.fulfilled ? (
+                <>
+                  <Tooltip title="Buat kata">
+                    <Button type="link" icon={<PlusOutlined />} onClick={() => onCreateWord(row)} />
+                  </Tooltip>
+                  {canEdit ? (
+                    <Tooltip title="Selesaikan ke kata existing (varian / sinonim / terjemahan)">
+                      <Button
+                        type="link"
+                        icon={<LinkOutlined />}
+                        onClick={() => setResolveMiss(row)}
+                      />
+                    </Tooltip>
+                  ) : null}
+                </>
+              ) : null}
+              {canDismiss ? (
+                <Popconfirm
+                  title="Dismiss search miss ini?"
+                  description="Aksi tidak bisa dibatalkan. Search miss akan hilang dari daftar."
+                  okText="Dismiss"
+                  okButtonProps={{ danger: true }}
+                  cancelText="Batal"
+                  onConfirm={() => onDismiss(row.id, row.term)}
+                >
+                  <Tooltip title="Dismiss">
+                    <Button
+                      type="link"
+                      danger
+                      icon={<ToolOutlined />}
+                      loading={
+                        dismissSearchMiss.isPending && dismissSearchMiss.variables === row.id
+                      }
+                    />
+                  </Tooltip>
+                </Popconfirm>
+              ) : null}
+            </Space>
+          );
+        },
       }),
     ],
-    [canDismiss, onDismiss, dismissSearchMiss.isPending, dismissSearchMiss.variables],
+    [
+      canDismiss,
+      canEdit,
+      onDismiss,
+      onCreateWord,
+      onSaveTerm,
+      onToggleVisible,
+      dismissSearchMiss.isPending,
+      dismissSearchMiss.variables,
+      updatingId,
+    ],
   );
 
   const table = useReactTable({
@@ -145,11 +316,23 @@ export function SearchMissesPage() {
     <>
       <PageHeader
         title="Search Miss"
-        subtitle="Pencarian pengguna yang tidak ketemu hasil (0 result) — peluang prioritas untuk kontribusi kata."
+        subtitle="Antrean kata yang dicari user tapi belum ada di kamus. Buat kata baru, atau selesaikan ke kata existing (varian / sinonim / terjemahan)."
+        extra={
+          <Button icon={<ReloadOutlined />} onClick={() => refetch()}>
+            Muat ulang
+          </Button>
+        }
+      />
+
+      <Tabs
+        activeKey={fulfilledTab}
+        onChange={(key) => setFulfilledTab(key as FulfilledTab)}
+        items={FULFILLED_TABS.map((t) => ({ key: t.key, label: t.label }))}
+        style={{ marginBottom: 8 }}
       />
 
       <Row gutter={[12, 12]} style={{ marginBottom: 16 }}>
-        <Col xs={24} md={8}>
+        <Col xs={24} md={10}>
           <Input
             allowClear
             prefix={<SearchOutlined />}
@@ -158,7 +341,7 @@ export function SearchMissesPage() {
             onChange={(e) => setSearchInput(e.target.value)}
           />
         </Col>
-        <Col xs={24} md={6}>
+        <Col xs={24} md={7}>
           <Select
             allowClear
             style={{ width: '100%' }}
@@ -168,22 +351,15 @@ export function SearchMissesPage() {
             onChange={setDirection}
           />
         </Col>
-        <Col xs={24} md={6}>
+        <Col xs={24} md={7}>
           <Select
             allowClear
             style={{ width: '100%' }}
-            placeholder="Status terpenuhi"
-            options={fulfilledOptions}
-            value={fulfilled}
-            onChange={setFulfilled}
+            placeholder="Tayang di beranda"
+            options={visibleOptions}
+            value={visible}
+            onChange={setVisible}
           />
-        </Col>
-        <Col xs={24} md={4}>
-          <Flex justify="flex-end" wrap>
-            <Button icon={<ReloadOutlined />} onClick={() => refetch()} block={!true}>
-              Muat ulang
-            </Button>
-          </Flex>
         </Col>
       </Row>
 
@@ -211,6 +387,12 @@ export function SearchMissesPage() {
           </Button>
         ) : null}
       </Flex>
+
+      <ResolveSearchMissModal
+        open={resolveMiss !== null}
+        miss={resolveMiss}
+        onClose={() => setResolveMiss(null)}
+      />
     </>
   );
 }

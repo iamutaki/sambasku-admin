@@ -9,6 +9,7 @@ export interface AdminVoteWire {
   voter_email: string;
   target_type: AdminVoteTargetType;
   target_id: string;
+  target_preview: string | null;
   value: 1 | -1;
   created_at: string;
   updated_at: string | null;
@@ -17,6 +18,7 @@ export interface AdminVoteWire {
 export interface AdminTopTargetWire {
   target_type: AdminVoteTargetType;
   target_id: string;
+  target_preview: string | null;
   upvotes: number;
   downvotes: number;
   net: number;
