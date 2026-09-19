@@ -15,6 +15,8 @@ import { useAuth } from '@/shared/auth/use-auth';
 import { WORD_STATUS_LABELS, WORD_TYPE_LABELS, type WordStatus } from '../domain/word';
 import { useWordDetail } from '../application/use-word-detail';
 import { useDialectOptions, useLanguageOptions } from '../application/use-reference-data';
+import { WordVoteCount } from '@/features/votes/presentation/word-vote-count';
+import { WordComments } from '@/features/comments/presentation/word-comments';
 import type { WordDetail } from '../domain/word-detail';
 
 const { Text, Paragraph } = Typography;
@@ -198,6 +200,14 @@ function WordDetailContent({
     <Space direction="vertical" size={20} style={{ width: '100%' }}>
       {/* 1. Informasi dasar */}
       <Descriptions size="small" column={{ xs: 1, md: 2 }} bordered items={basics} />
+
+      {/* 1b. Vote kata (read-only - counts publik, tanpa tombol vote) */}
+      <div>
+        <Text strong style={{ display: 'block', marginBottom: 8 }}>
+          Vote
+        </Text>
+        <WordVoteCount wordId={detail.id} />
+      </div>
 
       {detail.notes ? (
         <div>
@@ -388,6 +398,14 @@ function WordDetailContent({
         ) : (
           <Text type="secondary">Tidak ada</Text>
         )}
+      </div>
+
+      {/* 8. Komentar - semua status + moderasi inline (docs/admin/06) */}
+      <div>
+        <Text strong style={{ display: 'block', marginBottom: 8 }}>
+          Komentar
+        </Text>
+        <WordComments wordId={detail.id} />
       </div>
     </Space>
   );
