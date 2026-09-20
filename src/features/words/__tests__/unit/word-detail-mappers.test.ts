@@ -20,6 +20,7 @@ function wordDetail(overrides: Partial<WordDetail> = {}): WordDetail {
     status: 'published',
     is_verified: false,
     is_corrected: false,
+    self_verified: false,
     verified_by: null,
     verified_at: null,
     created_at: '2026-09-18T10:00:00Z',

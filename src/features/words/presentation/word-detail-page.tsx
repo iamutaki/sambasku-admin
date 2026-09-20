@@ -6,11 +6,13 @@ import {
   TRANSLATION_TYPE_LABELS,
   VARIANT_TYPE_LABELS,
 } from '../domain/create-word';
-import { Alert, App as AntdApp, Button, Card, Descriptions, Flex, Image, Modal, Skeleton, Space, Switch, Tag, Tooltip, Typography } from 'antd';
-import { EditOutlined, RollbackOutlined } from '@ant-design/icons';
+import { Alert, App as AntdApp, Button, Descriptions, Flex, Image, Modal, Space, Switch, Tag, Tooltip, Typography } from 'antd';
+import { EditOutlined, ReloadOutlined, RollbackOutlined } from '@ant-design/icons';
 import { formatDateTime } from '@/shared/utils/format-datetime';
 import { useNavigate, useParams } from '@tanstack/react-router';
+import { useQueryClient } from '@tanstack/react-query';
 import { PageHeader } from '@/shared/components/page-header';
+import { PageLoading } from '@/shared/components/page-loading';
 import { useAuth } from '@/shared/auth/use-auth';
 import { WORD_STATUS_LABELS, WORD_TYPE_LABELS, type WordStatus } from '../domain/word';
 import { useWordDetail } from '../application/use-word-detail';
@@ -48,6 +50,7 @@ function StatusTag({ status }: { status: WordStatus }) {
 export function WordDetailPage() {
   const { message } = AntdApp.useApp();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { user } = useAuth();
   const { id } = useParams({ from: '/console-layout/words/$id' });
 
@@ -55,6 +58,13 @@ export function WordDetailPage() {
   const canVerify = user?.role === 'root' || user?.role === 'admin' || user?.role === 'reviewer';
   const detailQuery = useWordDetail(id, { enabled: !isContributor });
   const detail = detailQuery.data;
+  const refreshing = detailQuery.isFetching && !detailQuery.isPending;
+
+  const refreshPage = () => {
+    void detailQuery.refetch();
+    void queryClient.invalidateQueries({ queryKey: ['comments', 'word', id] });
+    void queryClient.invalidateQueries({ queryKey: ['votes', 'counts'] });
+  };
   const verifyWord = useVerifyWord();
   const unverifyWord = useUnverifyWord();
   const publishWord = usePublishWord();
@@ -102,29 +112,35 @@ export function WordDetailPage() {
   }
 
   if (detailQuery.isPending) {
-    return (
-      <>
-        <PageHeader title="Detail Kata" subtitle="Memuat detail kata…" />
-        <Card>
-          <Skeleton active paragraph={{ rows: 8 }} />
-        </Card>
-      </>
-    );
+    return <PageLoading tip="Memuat detail kata…" />;
   }
 
   if (detailQuery.isError || !detail) {
     return (
       <>
-        <PageHeader title="Detail Kata" subtitle="Gagal memuat detail kata." />
+        <PageHeader
+          title="Detail Kata"
+          subtitle="Gagal memuat detail kata."
+          extra={
+            <Button icon={<ReloadOutlined />} onClick={() => refreshPage()} loading={refreshing}>
+              Muat ulang
+            </Button>
+          }
+        />
         <Alert
           type="error"
           showIcon
           message="Tidak dapat membuka kata ini"
           description={detailQuery.error?.message ?? 'Kata tidak ditemukan atau akses ditolak.'}
           action={
-            <Button onClick={() => navigate({ to: '/words' })} style={{ whiteSpace: 'nowrap' }}>
-              Kembali ke Daftar
-            </Button>
+            <Space>
+              <Button icon={<ReloadOutlined />} onClick={() => refreshPage()} loading={refreshing}>
+                Coba lagi
+              </Button>
+              <Button onClick={() => navigate({ to: '/words' })} style={{ whiteSpace: 'nowrap' }}>
+                Kembali ke Daftar
+              </Button>
+            </Space>
           }
         />
       </>
@@ -140,6 +156,9 @@ export function WordDetailPage() {
         subtitle={`${WORD_TYPE_LABELS[detail.word_type] ?? detail.word_type} · ${languageName}`}
         extra={
           <Space wrap>
+            <Button icon={<ReloadOutlined />} onClick={() => refreshPage()} loading={refreshing}>
+              Muat ulang
+            </Button>
             <Button icon={<RollbackOutlined />} onClick={() => navigate({ to: '/words' })}>
               Kembali ke Daftar
             </Button>
@@ -301,7 +320,11 @@ function WordDetailContent({
       >
         {detail.verified_by ? (
           <Space direction="vertical" size={4}>
-            <Text>Diverifikasi oleh {detail.verified_by.username}</Text>
+            <Text>
+              {detail.self_verified
+                ? `Dibuat dan diverifikasi oleh ${detail.verified_by.username}`
+                : `Diverifikasi oleh ${detail.verified_by.username}`}
+            </Text>
             {detail.verified_at ? (
               <Text type="secondary">{formatDateTime(detail.verified_at)}</Text>
             ) : null}

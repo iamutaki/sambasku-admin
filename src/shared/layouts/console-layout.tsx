@@ -216,11 +216,10 @@ export function ConsoleLayout() {
         </Header>
         <Content className="console-layout__content">
           <div
+            className="console-layout__card"
             style={{
               background: colorBgContainer,
               borderRadius: borderRadiusLG,
-              padding: 24,
-              minHeight: '100%',
             }}
           >
             <Outlet />

@@ -70,6 +70,7 @@ body {
 
 .console-layout {
   min-height: 100vh;
+  min-height: 100dvh;
 }
 
 /* Sider selalu menempel di viewport: menu navigasi tidak ikut scroll
@@ -118,6 +119,16 @@ body {
 
 .console-layout__content {
   padding: 24px;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+.console-layout__card {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  padding: 24px;
 }
 
 /* Layar kecil: kurangi padding kanan-kiri agar tabel punya ruang maksimal */
@@ -138,6 +149,14 @@ body {
 .page-header {
   margin-bottom: 16px;
   min-height: 40px;
+}
+
+/* Loading halaman penuh: isi sisa kartu konten, spinner di tengah. */
+.page-loading {
+  flex: 1;
+  align-self: stretch;
+  width: 100%;
+  min-height: 240px;
 }
 
 /* ---- Dashboard ---- */

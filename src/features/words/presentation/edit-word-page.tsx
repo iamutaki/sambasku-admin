@@ -13,7 +13,6 @@ import {
   Input,
   Popconfirm,
   Row,
-  Skeleton,
   Select,
   Space,
   Tag,
@@ -22,6 +21,7 @@ import {
 } from 'antd';
 import { useNavigate, useParams } from '@tanstack/react-router';
 import { PageHeader } from '@/shared/components/page-header';
+import { PageLoading } from '@/shared/components/page-loading';
 import { ApiError } from '@/shared/api/error';
 import { useAuth } from '@/shared/auth/use-auth';
 import { fieldToNamePath, pickDefaultDialectId, pickDefaultLanguageIds } from '../application/create-word-utils';
@@ -220,12 +220,7 @@ export function EditWordPage() {
   }
 
   if (detailQuery.isPending) {
-    return (
-      <Card>
-        <PageHeader title="Edit Kata" subtitle="Memuat detail kata…" />
-        <Skeleton active paragraph={{ rows: 6 }} />
-      </Card>
-    );
+    return <PageLoading tip="Memuat detail kata…" />;
   }
 
   if (detailQuery.isError || !detail) {

@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { App, Button, Card, Descriptions, Flex, Image, Input, Space, Spin, Tag, Typography } from 'antd';
+import { App, Button, Card, Descriptions, Flex, Image, Input, Space, Tag, Typography } from 'antd';
 import { useNavigate, useParams } from '@tanstack/react-router';
 import { PageHeader } from '@/shared/components/page-header';
+import { PageLoading } from '@/shared/components/page-loading';
 import {
   useApproveWordSuggestion,
   useRejectWordSuggestion,
@@ -18,7 +19,7 @@ export function WordSuggestionDetailPage() {
   const reject = useRejectWordSuggestion();
   const [comment, setComment] = useState('');
 
-  if (isLoading) return <Spin />;
+  if (isLoading) return <PageLoading tip="Memuat usulan…" />;
   if (isError || !data) {
     return (
       <Typography.Text type="danger">

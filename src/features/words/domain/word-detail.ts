@@ -72,6 +72,7 @@ export interface WordDetail {
   status: WordStatus;
   is_verified: boolean;
   is_corrected: boolean;
+  self_verified: boolean;
   verified_by: { username: string; role: string } | null;
   verified_at: string | null;
   created_at: string;

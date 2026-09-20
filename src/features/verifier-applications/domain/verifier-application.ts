@@ -16,9 +16,15 @@ export const SOCIAL_PLATFORM_LABELS: Record<string, string> = {
   website: 'Website',
 };
 
+export interface VerifierApplicationSocialScreenshot {
+  url: string;
+  provider_file_id: string;
+}
+
 export interface VerifierApplicationSocialLink {
   platform: string;
-  url: string;
+  username: string;
+  screenshot: VerifierApplicationSocialScreenshot;
 }
 
 export interface VerifierApplicationListItem {

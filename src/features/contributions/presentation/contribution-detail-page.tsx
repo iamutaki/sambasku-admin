@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { useNavigate, useParams } from '@tanstack/react-router';
 import { CheckOutlined, CloseOutlined, EditOutlined, RollbackOutlined } from '@ant-design/icons';
-import { Alert, App as AntdApp, Button, Card, Descriptions, Flex, Form, Input, Modal, Skeleton, Space, Tag, Typography } from 'antd';
+import { Alert, App as AntdApp, Button, Card, Descriptions, Flex, Form, Input, Modal, Space, Tag, Typography } from 'antd';
 import { formatDateTime } from '@/shared/utils/format-datetime';
 import { PageHeader } from '@/shared/components/page-header';
+import { PageLoading } from '@/shared/components/page-loading';
 import {
   CONTRIBUTION_STATUS_LABELS,
   ENTITY_TYPE_LABELS,
@@ -77,14 +78,7 @@ export function ContributionDetailPage() {
   };
 
   if (detailQuery.isPending) {
-    return (
-      <>
-        <PageHeader title="Detail Kontribusi" subtitle="Memuat detail kontribusi…" />
-        <Card>
-          <Skeleton active paragraph={{ rows: 8 }} />
-        </Card>
-      </>
-    );
+    return <PageLoading tip="Memuat detail kontribusi…" />;
   }
 
   if (detailQuery.isError || !detail) {

@@ -9,16 +9,17 @@ import {
   Descriptions,
   Flex,
   Form,
+  Image,
   Input,
   Modal,
   Result,
-  Skeleton,
   Space,
   Tag,
   Typography,
 } from 'antd';
 import { formatDateTime } from '@/shared/utils/format-datetime';
 import { PageHeader } from '@/shared/components/page-header';
+import { PageLoading } from '@/shared/components/page-loading';
 import { useAuth } from '@/shared/auth/use-auth';
 import { useVerifierApplicationDetail } from '../application/use-verifier-application-detail';
 import {
@@ -81,7 +82,7 @@ export function VerifierApplicationDetailPage() {
   }
 
   if (detailQuery.isPending) {
-    return <Skeleton active paragraph={{ rows: 8 }} />;
+    return <PageLoading tip="Memuat pengajuan…" />;
   }
 
   if (detailQuery.isError || !detail) {
@@ -124,11 +125,26 @@ export function VerifierApplicationDetailPage() {
             <Text style={{ whiteSpace: 'pre-wrap' }}>{detail.address}</Text>
           </Descriptions.Item>
           <Descriptions.Item label="Media sosial">
-            <Space direction="vertical" size={4}>
+            <Space direction="vertical" size={12}>
               {detail.social_links.map((link) => (
-                <Typography.Link key={`${link.platform}-${link.url}`} href={link.url} target="_blank">
-                  {SOCIAL_PLATFORM_LABELS[link.platform] ?? link.platform}: {link.url}
-                </Typography.Link>
+                <Space key={`${link.platform}-${link.username}`} align="start" size={12}>
+                  {link.screenshot?.url ? (
+                    <Image
+                      src={link.screenshot.url}
+                      width={72}
+                      height={72}
+                      style={{ objectFit: 'cover', borderRadius: 6 }}
+                      alt={`Screenshot ${link.username}`}
+                    />
+                  ) : (
+                    <Text type="secondary">Tidak ada screenshot</Text>
+                  )}
+                  <div>
+                    <Text strong>{SOCIAL_PLATFORM_LABELS[link.platform] ?? link.platform}</Text>
+                    <br />
+                    <Text>{link.username || '—'}</Text>
+                  </div>
+                </Space>
               ))}
             </Space>
           </Descriptions.Item>
