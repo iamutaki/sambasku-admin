@@ -1,11 +1,15 @@
 import { useEffect, useState } from 'react';
-import { BookOutlined, SearchOutlined } from '@ant-design/icons';
-import { Alert, App as AntdApp, Button, Empty, Input, List, Modal, Space, Tag, Typography } from 'antd';
+import { BookOutlined, LoadingOutlined } from '@ant-design/icons';
+import { Alert, Empty, Flex, Input, List, Modal, Space, Spin, Tag, Typography, Button } from 'antd';
 import { normalizeError } from '@/shared/api/error';
+import { useDebouncedValue } from '@/shared/hooks/use-debounced-value';
 import { useLookupLemmaDefinition } from '../application/use-lookup-lemma-definition';
 import type { LemmaDefinitionSuggestion } from '../domain/lemma-definition';
 
 const { Text, Paragraph } = Typography;
+
+/** Debounce lookup KBBI - selaras mobile (400 ms). */
+const KBBI_DEBOUNCE_MS = 400;
 
 export interface KbbiDefinitionPickerModalProps {
   open: boolean;
@@ -17,7 +21,8 @@ export interface KbbiDefinitionPickerModalProps {
 
 /**
  * Modal lookup KBBI via API kita → pilih satu suggestion untuk isi field
- * definisi (dan hint kelas kata di parent).
+ * definisi (dan hint kelas kata di parent). Cari otomatis via debounce
+ * (tanpa tombol Cari).
  */
 export function KbbiDefinitionPickerModal({
   open,
@@ -25,33 +30,33 @@ export function KbbiDefinitionPickerModal({
   onClose,
   onSelect,
 }: KbbiDefinitionPickerModalProps) {
-  const { message } = AntdApp.useApp();
   const lookup = useLookupLemmaDefinition();
   const [lemma, setLemma] = useState(initialLemma);
+  const debouncedLemma = useDebouncedValue(lemma.trim(), KBBI_DEBOUNCE_MS);
 
   useEffect(() => {
     if (!open) return;
     setLemma(initialLemma);
     lookup.reset();
-    // Hanya reset saat modal dibuka / prefill berubah - jangan ikut lookup identity
+    // Hanya reset saat modal dibuka / prefill berubah
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, initialLemma]);
 
-  const handleSearch = () => {
-    const q = lemma.trim();
-    if (!q) {
-      message.warning('Isi lemma bahasa Indonesia dulu');
+  useEffect(() => {
+    if (!open) return;
+    if (!debouncedLemma) {
+      lookup.reset();
       return;
     }
-    lookup.mutate(q, {
-      onError: (err) => {
-        message.warning(normalizeError(err).message || 'Gagal mengambil definisi KBBI');
-      },
-    });
-  };
+    lookup.mutate(debouncedLemma);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, debouncedLemma]);
 
   const result = lookup.data;
   const suggestions = result?.suggestions ?? [];
+  const isLoading = lookup.isPending;
+  const showIdleHint =
+    !debouncedLemma && !isLoading && !result && !lookup.isError;
 
   return (
     <Modal
@@ -69,33 +74,40 @@ export function KbbiDefinitionPickerModal({
     >
       <Space direction="vertical" size={12} style={{ width: '100%' }}>
         <Text type="secondary">
-          Cari lemma bahasa Indonesia. Pilih satu definisi untuk mengisi field pada form
-          (tetap bisa diedit setelahnya).
+          Ketik lemma bahasa Indonesia - hasil muncul otomatis. Pilih satu definisi
+          untuk mengisi field pada form (tetap bisa diedit setelahnya).
         </Text>
 
-        <Space.Compact style={{ width: '100%' }}>
-          <Input
-            value={lemma}
-            onChange={(e) => setLemma(e.target.value)}
-            placeholder="mis. makan, apel, rumah"
-            maxLength={100}
-            allowClear
-            onPressEnter={handleSearch}
-          />
-          <Button type="primary" icon={<SearchOutlined />} loading={lookup.isPending} onClick={handleSearch}>
-            Cari
-          </Button>
-        </Space.Compact>
+        <Input
+          value={lemma}
+          onChange={(e) => setLemma(e.target.value)}
+          placeholder="mis. makan, apel, rumah"
+          maxLength={100}
+          allowClear
+          prefix={<BookOutlined />}
+          suffix={isLoading ? <LoadingOutlined spin /> : null}
+        />
 
         {lookup.isError ? (
           <Alert type="warning" showIcon message={normalizeError(lookup.error).message} />
         ) : null}
 
-        {result && !result.found ? (
+        {isLoading ? (
+          <Flex vertical align="center" justify="center" gap={8} style={{ padding: '28px 0' }}>
+            <Spin size="large" />
+            <Text type="secondary">Mencari di KBBI…</Text>
+          </Flex>
+        ) : null}
+
+        {!isLoading && showIdleHint ? (
+          <Empty description="Ketik lemma untuk mencari di KBBI" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+        ) : null}
+
+        {!isLoading && result && !result.found ? (
           <Empty description={`Tidak ditemukan di KBBI untuk “${result.query}”`} />
         ) : null}
 
-        {suggestions.length > 0 ? (
+        {!isLoading && suggestions.length > 0 ? (
           <>
             <Text type="secondary" style={{ fontSize: 12 }}>
               {suggestions.length} definisi - gulir untuk melihat semua
@@ -104,7 +116,6 @@ export function KbbiDefinitionPickerModal({
               size="small"
               bordered
               dataSource={suggestions}
-              // Viewport-relative: aman untuk 100+ sense (overflow scroll, bukan stretch modal)
               style={{
                 maxHeight: 'min(55vh, 480px)',
                 overflow: 'auto',
@@ -150,7 +161,7 @@ export function KbbiDefinitionPickerModal({
           </>
         ) : null}
 
-        {result?.cache_hit ? (
+        {!isLoading && result?.cache_hit ? (
           <Text type="secondary" style={{ fontSize: 12 }}>
             Hasil dari cache server
           </Text>

@@ -367,6 +367,11 @@ export function MeaningFields({
                             <Form.Item
                               name={[tf.name, 'translation_text']}
                               label="Padanan Indonesia"
+                              extra={
+                                tf.name === 0
+                                  ? 'Tekan icon buku untuk mencari definisi di KBBI'
+                                  : undefined
+                              }
                               rules={[{ required: true, message: 'Padanan wajib diisi' }]}
                             >
                               <Input
