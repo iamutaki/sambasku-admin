@@ -3,6 +3,7 @@ import { createColumnHelper, getCoreRowModel, useReactTable } from '@tanstack/re
 import { FilterOutlined, ReloadOutlined } from '@ant-design/icons';
 import { Alert, Button, DatePicker, Flex, Input, Result, Select, Tag, Typography } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
+import { formatDateTimeSeconds } from '@/shared/utils/format-datetime';
 import { DataTable } from '@/shared/components/data-table';
 import { PageHeader } from '@/shared/components/page-header';
 import { useAuth } from '@/shared/auth/use-auth';
@@ -69,7 +70,7 @@ export function AuditLogsPage() {
       columnHelper.accessor('created_at', {
         header: 'Waktu',
         size: 180,
-        cell: (info) => dayjs(info.getValue()).format('DD MMM YYYY HH:mm:ss'),
+        cell: (info) => formatDateTimeSeconds(info.getValue()),
       }),
       columnHelper.accessor('action', {
         header: 'Aksi',

@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
-import { BookOutlined, DeleteOutlined, PlusOutlined } from '@ant-design/icons';
-import { App as AntdApp, Button, Card, Col, Divider, Form, Input, InputNumber, Row, Segmented, Select, Space, Switch, Typography } from 'antd';
+import { BookOutlined, CheckOutlined, DeleteOutlined, PlusOutlined } from '@ant-design/icons';
+import type { FormInstance } from 'antd/es/form';
+import { App as AntdApp, Button, Card, Col, Divider, Form, Input, InputNumber, Row, Segmented, Select, Space, Switch, Tooltip, Typography, theme } from 'antd';
 import { AFFIX_TYPES, AFFIX_TYPE_LABELS, EXAMPLE_SOURCE_TYPES, EXAMPLE_SOURCE_LABELS, RELATION_TYPES, RELATION_TYPE_LABELS, TRANSLATION_TYPES, TRANSLATION_TYPE_LABELS, VARIANT_TYPES, VARIANT_TYPE_LABELS, type CreateWordMeaningFormValue, type RelationType, type WordClassOption } from '../domain/create-word';
 import { WORD_TYPES, WORD_TYPE_LABELS } from '../domain/word';
 import type { DefaultLanguageIds } from '../application/create-word-utils';
@@ -9,6 +10,140 @@ import { WordSearchSelect } from './word-search-select';
 import { KbbiDefinitionPickerModal } from './kbbi-definition-picker-modal';
 
 const { Text } = Typography;
+
+type MeaningCompletenessMode = 'both' | 'definition_only' | 'padanan_only';
+
+function syncMeaningCompleteness(form: FormInstance, absolutePath: (string | number)[]) {
+  const hasDef = form.getFieldValue([...absolutePath, 'is_have_definition']) === true;
+  const hasPadanan = form.getFieldValue([...absolutePath, 'is_have_translation']) === true;
+  const mode: MeaningCompletenessMode | undefined =
+    hasDef && hasPadanan
+      ? 'both'
+      : hasDef
+        ? 'definition_only'
+        : hasPadanan
+          ? 'padanan_only'
+          : undefined;
+  form.setFieldValue([...absolutePath, 'meaning_completeness'], mode);
+}
+
+function setHaveDefinition(
+  form: FormInstance,
+  absolutePath: (string | number)[],
+  next: boolean,
+) {
+  form.setFieldValue([...absolutePath, 'is_have_definition'], next);
+  // Pastikan flag pasangan explicit false (utils: undefined = punya definisi).
+  if (form.getFieldValue([...absolutePath, 'is_have_translation']) == null) {
+    form.setFieldValue([...absolutePath, 'is_have_translation'], false);
+  }
+  if (!next) {
+    form.setFieldValue([...absolutePath, 'definition'], '-');
+  } else if (
+    (form.getFieldValue([...absolutePath, 'definition']) as string | undefined)?.trim() === '-'
+  ) {
+    form.setFieldValue([...absolutePath, 'definition'], '');
+  }
+  syncMeaningCompleteness(form, absolutePath);
+}
+
+function setHavePadanan(
+  form: FormInstance,
+  absolutePath: (string | number)[],
+  defaultLanguageIds: DefaultLanguageIds,
+  next: boolean,
+) {
+  form.setFieldValue([...absolutePath, 'is_have_translation'], next);
+  if (form.getFieldValue([...absolutePath, 'is_have_definition']) == null) {
+    form.setFieldValue([...absolutePath, 'is_have_definition'], false);
+  }
+  if (!next) {
+    form.setFieldValue([...absolutePath, 'translations'], []);
+  } else if (!(form.getFieldValue([...absolutePath, 'translations']) as unknown[])?.length) {
+    form.setFieldValue([...absolutePath, 'translations'], [
+      { language_id: defaultLanguageIds.targetId, translation_type: 'direct' },
+    ]);
+  }
+  syncMeaningCompleteness(form, absolutePath);
+}
+
+/** Opsi checklist: kotak kiri + label, lebar penuh (bukan radio). */
+function KnowledgeToggleChip({
+  label,
+  selected,
+  onClick,
+}: {
+  label: string;
+  selected: boolean;
+  onClick: () => void;
+}) {
+  const { token } = theme.useToken();
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={selected}
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 10,
+        width: '100%',
+        height: 44,
+        padding: '0 14px',
+        margin: 0,
+        cursor: 'pointer',
+        borderRadius: token.borderRadiusLG ?? 8,
+        border: selected
+          ? `1.5px solid ${token.colorPrimary}`
+          : `1px solid ${token.colorBorder}`,
+        background: selected ? token.colorPrimaryBg : token.colorBgContainer,
+        color: selected ? token.colorPrimary : token.colorText,
+        fontWeight: selected ? 600 : 500,
+        fontSize: token.fontSize,
+        lineHeight: 1.2,
+        textAlign: 'left',
+        transition: 'border-color 0.15s ease, background 0.15s ease, color 0.15s ease',
+      }}
+    >
+      <span
+        aria-hidden
+        style={{
+          width: 16,
+          height: 16,
+          flexShrink: 0,
+          borderRadius: 4,
+          border: selected
+            ? `1.5px solid ${token.colorPrimary}`
+            : `1.5px solid ${token.colorTextQuaternary}`,
+          background: selected ? token.colorPrimary : token.colorBgContainer,
+          color: token.colorPrimaryForeground ?? '#fff',
+          display: 'inline-flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        {selected ? <CheckOutlined style={{ fontSize: 10 }} /> : null}
+      </span>
+      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+        {label}
+      </span>
+    </button>
+  );
+}
+
+function knowledgeHint(wantDefinition: boolean, wantPadanan: boolean): string {
+  if (!wantDefinition && !wantPadanan) {
+    return 'Centang Definisi dan/atau Padanan. Form makna muncul setelah itu.';
+  }
+  if (wantDefinition && wantPadanan) {
+    return 'Isi padanan kata dan uraian definisi.';
+  }
+  if (wantDefinition) {
+    return 'Isi uraian makna. Padanan bisa dilengkapi nanti.';
+  }
+  return 'Isi padanan kata saja. Definisi bisa dilengkapi nanti.';
+}
 
 // ------- Opsi dropdown bersama (dipakai form buat & koreksi) -------
 export const wordTypeOptions = WORD_TYPES.map((t) => ({ value: t, label: WORD_TYPE_LABELS[t] }));
@@ -123,139 +258,241 @@ export function MeaningFields({
         </Form.Item>
       ) : null}
 
-      {/* Urutan UX (selaras mobile + 12-api): Terjemahan (+ KBBI) → Kelas kata → Definisi */}
-      <Divider titlePlacement="start" plain>
-        Terjemahan
-      </Divider>
-      <Form.List
-        name={[...name, 'translations']}
-        rules={
-          translationsRequired
-            ? [
-                {
-                  validator: (_, value) =>
-                    Array.isArray(value) && value.length > 0
-                      ? Promise.resolve()
-                      : Promise.reject(new Error('Minimal 1 terjemahan per makna')),
-                },
-              ]
-            : []
-        }
-      >
-        {(transFields, { add: addTranslation, remove: removeTranslation }) => (
-          <Space direction="vertical" size={8} style={{ width: '100%' }}>
-            {transFields.map((tf) => (
-              <Row key={tf.key} gutter={12} align="top">
-                <Col flex="auto">
-                  <Form.Item name={[tf.name, 'language_id']} noStyle rules={[{ required: true, message: 'Wajib' }]}>
-                    <Input type="hidden" />
-                  </Form.Item>
-                  <Form.Item
-                    name={[tf.name, 'translation_text']}
-                    label={
-                      tf.name === 0 ? (
-                        <Space size={8}>
-                          <span>Terjemahan Indonesia</span>
-                          <Button
-                            type="link"
-                            size="small"
-                            icon={<BookOutlined />}
-                            onClick={(e) => {
-                              e.preventDefault();
-                              setKbbiOpen(true);
-                            }}
-                            style={{ padding: 0, height: 'auto' }}
-                          >
-                            Ambil dari KBBI
-                          </Button>
-                        </Space>
-                      ) : (
-                        'Terjemahan Indonesia'
-                      )
-                    }
-                    rules={[{ required: true, message: 'Terjemahan wajib diisi' }]}
-                  >
-                    <Input placeholder="Padanan dalam bahasa Indonesia" />
-                  </Form.Item>
-                </Col>
-                <Col flex="140px">
-                  <Form.Item name={[tf.name, 'translation_type']} label="Tipe" initialValue="direct">
-                    <Select options={translationTypeOptions} />
-                  </Form.Item>
-                </Col>
-                <Col flex="32px">
-                  <Form.Item label=" ">
-                    <Button
-                      type="text"
-                      danger
-                      icon={<DeleteOutlined />}
-                      disabled={transFields.length <= 1}
-                      onClick={() => removeTranslation(tf.name)}
-                    />
-                  </Form.Item>
-                </Col>
+      {/* Selaras mobile: dua toggle independen (Definisi / Padanan). */}
+      {translationsRequired ? (
+        <>
+          <Divider titlePlacement="start" plain>
+            Apa yang diketahui
+          </Divider>
+          <Form.Item name={[...name, 'meaning_completeness']} hidden>
+            <Input />
+          </Form.Item>
+          <Form.Item name={[...name, 'is_have_definition']} hidden>
+            <Input />
+          </Form.Item>
+          <Form.Item name={[...name, 'is_have_translation']} hidden>
+            <Input />
+          </Form.Item>
+          <Form.Item noStyle shouldUpdate>
+            {() => {
+              const wantDefinition =
+                form.getFieldValue([...absolutePath, 'is_have_definition']) === true;
+              const wantPadanan =
+                form.getFieldValue([...absolutePath, 'is_have_translation']) === true;
+              return (
+                <Space direction="vertical" size={8} style={{ width: '100%', marginBottom: 12 }}>
+                  <Row gutter={8}>
+                    <Col span={12}>
+                      <KnowledgeToggleChip
+                        label="Definisi"
+                        selected={wantDefinition}
+                        onClick={() => setHaveDefinition(form, absolutePath, !wantDefinition)}
+                      />
+                    </Col>
+                    <Col span={12}>
+                      <KnowledgeToggleChip
+                        label="Padanan"
+                        selected={wantPadanan}
+                        onClick={() =>
+                          setHavePadanan(form, absolutePath, defaultLanguageIds, !wantPadanan)
+                        }
+                      />
+                    </Col>
+                  </Row>
+                  <Typography.Text type="secondary">
+                    {knowledgeHint(wantDefinition, wantPadanan)}
+                  </Typography.Text>
+                </Space>
+              );
+            }}
+          </Form.Item>
+        </>
+      ) : (
+        <Divider titlePlacement="start" plain>
+          Padanan kata Indonesia
+        </Divider>
+      )}
+
+      <Form.Item noStyle shouldUpdate>
+        {() => {
+          const wantDefinition =
+            form.getFieldValue([...absolutePath, 'is_have_definition']) === true;
+          const wantPadanan =
+            form.getFieldValue([...absolutePath, 'is_have_translation']) === true;
+          const modePicked = wantDefinition || wantPadanan;
+          if (translationsRequired && !modePicked) {
+            return null;
+          }
+          const hasPadanan = !translationsRequired || wantPadanan;
+          const hasDef = !translationsRequired || wantDefinition;
+
+          return (
+            <>
+              {!hasPadanan ? (
+                <Typography.Text type="secondary" style={{ display: 'block', marginBottom: 12 }}>
+                  Tanpa padanan - definisi uraian sudah cukup. Bisa dilengkapi nanti.
+                </Typography.Text>
+              ) : (
+                <Form.List
+                  name={[...name, 'translations']}
+                  rules={
+                    translationsRequired
+                      ? [
+                          {
+                            validator: (_, value) => {
+                              if (form.getFieldValue([...absolutePath, 'is_have_translation']) === false) {
+                                return Promise.resolve();
+                              }
+                              return Array.isArray(value) && value.length > 0
+                                ? Promise.resolve()
+                                : Promise.reject(new Error('Minimal 1 padanan, atau pilih “Definisi”'));
+                            },
+                          },
+                        ]
+                      : []
+                  }
+                >
+                  {(transFields, { add: addTranslation, remove: removeTranslation }) => (
+                    <Space direction="vertical" size={8} style={{ width: '100%' }}>
+                      {transFields.map((tf) => (
+                        <Row key={tf.key} gutter={12} align="top">
+                          <Col flex="auto">
+                            <Form.Item
+                              name={[tf.name, 'language_id']}
+                              noStyle
+                              rules={[{ required: true, message: 'Wajib' }]}
+                            >
+                              <Input type="hidden" />
+                            </Form.Item>
+                            <Form.Item
+                              name={[tf.name, 'translation_text']}
+                              label="Padanan Indonesia"
+                              rules={[{ required: true, message: 'Padanan wajib diisi' }]}
+                            >
+                              <Input
+                                placeholder="Satu kata/frasa setara di Indonesia"
+                                suffix={
+                                  tf.name === 0 ? (
+                                    <Tooltip title="Ambil dari KBBI">
+                                      <Button
+                                        type="text"
+                                        size="small"
+                                        icon={<BookOutlined />}
+                                        aria-label="Ambil dari KBBI"
+                                        onClick={(e) => {
+                                          e.preventDefault();
+                                          setKbbiOpen(true);
+                                        }}
+                                      />
+                                    </Tooltip>
+                                  ) : undefined
+                                }
+                              />
+                            </Form.Item>
+                          </Col>
+                          <Col flex="140px">
+                            <Form.Item name={[tf.name, 'translation_type']} label="Tipe" initialValue="direct">
+                              <Select options={translationTypeOptions} />
+                            </Form.Item>
+                          </Col>
+                          <Col flex="32px">
+                            <Form.Item label=" ">
+                              <Button
+                                type="text"
+                                danger
+                                icon={<DeleteOutlined />}
+                                disabled={transFields.length <= 1 && translationsRequired}
+                                onClick={() => removeTranslation(tf.name)}
+                              />
+                            </Form.Item>
+                          </Col>
+                        </Row>
+                      ))}
+                      <Button
+                        type="dashed"
+                        block
+                        icon={<PlusOutlined />}
+                        onClick={() =>
+                          addTranslation(
+                            defaultLanguageIds.targetId
+                              ? { language_id: defaultLanguageIds.targetId, translation_type: 'direct' }
+                              : {},
+                          )
+                        }
+                      >
+                        Tambah Padanan
+                      </Button>
+                    </Space>
+                  )}
+                </Form.List>
+              )}
+
+              <Row gutter={16} style={{ marginTop: 8 }}>
+                {showMeaningPicker ? (
+                  <Col xs={24} md={14} lg={16}>
+                    <Form.Item name={[...name, 'word_class_id']} label="Kelas Kata (override)">
+                      <Select
+                        showSearch
+                        optionFilterProp="label"
+                        options={wordClassOptions}
+                        allowClear
+                        placeholder="Ikut induk (biarkan kosong)"
+                      />
+                    </Form.Item>
+                  </Col>
+                ) : (
+                  <Col xs={24} md={14} lg={16}>
+                    <Form.Item
+                      name={[...name, 'word_class_id']}
+                      label="Kelas Kata"
+                      rules={[{ required: true, message: 'Kelas kata wajib dipilih' }]}
+                    >
+                      <Select
+                        showSearch
+                        optionFilterProp="label"
+                        options={wordClassOptions}
+                        loading={wordClassLoading}
+                        placeholder="Pilih kelas kata (mis. Verba › Verba Transitif)"
+                      />
+                    </Form.Item>
+                  </Col>
+                )}
+                {showOrderIndex ? (
+                  <Col xs={24} md={6} lg={4}>
+                    <Form.Item
+                      name={[...name, 'order_index']}
+                      label="Urutan Tampil"
+                      initialValue={orderIndexInitial ?? 1}
+                    >
+                      <InputNumber min={1} style={{ width: '100%' }} />
+                    </Form.Item>
+                  </Col>
+                ) : null}
               </Row>
-            ))}
-            <Button
-              type="dashed"
-              block
-              icon={<PlusOutlined />}
-              onClick={() => addTranslation(defaultLanguageIds.targetId ? { language_id: defaultLanguageIds.targetId, translation_type: 'direct' } : {})}
-            >
-              Tambah Terjemahan
-            </Button>
-          </Space>
-        )}
-      </Form.List>
 
-      <Row gutter={16} style={{ marginTop: 8 }}>
-        {showMeaningPicker ? (
-          <Col xs={24} md={14} lg={16}>
-            <Form.Item name={[...name, 'word_class_id']} label="Kelas Kata (override)">
-              <Select
-                showSearch
-                optionFilterProp="label"
-                options={wordClassOptions}
-                allowClear
-                placeholder="Ikut induk (biarkan kosong)"
-              />
-            </Form.Item>
-          </Col>
-        ) : (
-          <Col xs={24} md={14} lg={16}>
-            <Form.Item
-              name={[...name, 'word_class_id']}
-              label="Kelas Kata"
-              rules={[{ required: true, message: 'Kelas kata wajib dipilih' }]}
-            >
-              <Select
-                showSearch
-                optionFilterProp="label"
-                options={wordClassOptions}
-                loading={wordClassLoading}
-                placeholder="Pilih kelas kata (mis. Verba › Verba Transitif)"
-              />
-            </Form.Item>
-          </Col>
-        )}
-        {showOrderIndex ? (
-          <Col xs={24} md={6} lg={4}>
-            <Form.Item name={[...name, 'order_index']} label="Urutan Tampil" initialValue={orderIndexInitial ?? 1}>
-              <InputNumber min={1} style={{ width: '100%' }} />
-            </Form.Item>
-          </Col>
-        ) : null}
-      </Row>
-
-      <Form.Item
-        name={[...name, 'definition']}
-        label={showMeaningPicker ? 'Definisi (override)' : 'Definisi Konseptual'}
-        rules={[{ required: !showMeaningPicker, message: 'Definisi wajib diisi' }]}
-      >
-        <Input.TextArea
-          rows={2}
-          placeholder={showMeaningPicker ? 'Biarkan kosong bila tetap memakai definisi induk' : 'Aktivitas memasukkan makanan ke mulut'}
-        />
+              {!hasDef ? (
+                <Typography.Text type="secondary" style={{ display: 'block', marginBottom: 12 }}>
+                  Tanpa definisi - isi padanan dulu. Definisi bisa dilengkapi nanti.
+                </Typography.Text>
+              ) : (
+                <Form.Item
+                  name={[...name, 'definition']}
+                  label={showMeaningPicker ? 'Definisi (override)' : 'Definisi Konseptual'}
+                  rules={[{ required: !showMeaningPicker, message: 'Definisi wajib diisi' }]}
+                >
+                  <Input.TextArea
+                    rows={2}
+                    placeholder={
+                      showMeaningPicker
+                        ? 'Biarkan kosong bila tetap memakai definisi induk'
+                        : 'Aktivitas memasukkan makanan ke mulut'
+                    }
+                  />
+                </Form.Item>
+              )}
+            </>
+          );
+        }}
       </Form.Item>
 
       <KbbiDefinitionPickerModal
@@ -263,6 +500,8 @@ export function MeaningFields({
         initialLemma={kbbiPrefill}
         onClose={() => setKbbiOpen(false)}
         onSelect={(suggestion) => {
+          setHaveDefinition(form, absolutePath, true);
+          setHavePadanan(form, absolutePath, defaultLanguageIds, true);
           form.setFieldValue([...absolutePath, 'definition'], suggestion.definition);
 
           const matchedId = matchWordClassId(
@@ -299,7 +538,7 @@ export function MeaningFields({
 
           const parts = ['Definisi'];
           if (matchedId) parts.push('kelas kata');
-          if (lemmaId) parts.push('terjemahan');
+          if (lemmaId) parts.push('padanan');
           message.success(`${parts.join(', ')} diisi dari KBBI - silakan review`);
         }}
       />

@@ -171,6 +171,8 @@ describe('buildCreateWordBody', () => {
           word_class_id: WORD_CLASS_ID,
           definition: 'Aktivitas makan',
           order_index: 1,
+          is_have_definition: true,
+          is_have_translation: true,
           translations: [{ language_id: INDONESIA_ID, translation_text: 'makan', translation_type: 'direct' }],
         },
       ],
@@ -178,6 +180,78 @@ describe('buildCreateWordBody', () => {
       related_words: [],
       status: 'draft',
     });
+  });
+
+  it('mengizinkan makna dengan definisi nyata tanpa padanan', () => {
+    const body = buildCreateWordBody(
+      formValues({
+        meanings: [
+          {
+            word_class_id: WORD_CLASS_ID,
+            definition: 'Uraian tanpa padanan tunggal',
+            is_have_translation: false,
+            translations: [],
+          },
+        ],
+      }),
+      'draft',
+    );
+    expect(body.meanings).toEqual([
+      {
+        word_class_id: WORD_CLASS_ID,
+        definition: 'Uraian tanpa padanan tunggal',
+        order_index: 1,
+        is_have_definition: true,
+        is_have_translation: false,
+        translations: [],
+      },
+    ]);
+  });
+
+  it('mengizinkan makna padanan saja (tanpa definisi)', () => {
+    const body = buildCreateWordBody(
+      formValues({
+        meanings: [
+          {
+            word_class_id: WORD_CLASS_ID,
+            definition: '-',
+            is_have_definition: false,
+            is_have_translation: true,
+            translations: [
+              { language_id: INDONESIA_ID, translation_text: 'makan', translation_type: 'direct' },
+            ],
+          },
+        ],
+      }),
+      'draft',
+    );
+    expect(body.meanings).toEqual([
+      {
+        word_class_id: WORD_CLASS_ID,
+        definition: '-',
+        order_index: 1,
+        is_have_definition: false,
+        is_have_translation: true,
+        translations: [{ language_id: INDONESIA_ID, translation_text: 'makan', translation_type: 'direct' }],
+      },
+    ]);
+  });
+
+  it('membuang makna definisi placeholder tanpa padanan', () => {
+    const body = buildCreateWordBody(
+      formValues({
+        meanings: [
+          {
+            word_class_id: WORD_CLASS_ID,
+            definition: '-',
+            is_have_translation: false,
+            translations: [],
+          },
+        ],
+      }),
+      'draft',
+    );
+    expect(body.meanings).toEqual([]);
   });
 
   it('membersihkan terjemahan/baris yang kosong dan membuang makna tanpa isi', () => {
@@ -390,6 +464,8 @@ describe('buildCreateWordBody - Form B (sinonim inline)', () => {
             word_class_id: WORD_CLASS_ID,
             definition: 'Belum makan',
             order_index: 1,
+            is_have_definition: true,
+            is_have_translation: true,
             translations: [{ language_id: INDONESIA_ID, translation_text: 'belum makan', translation_type: 'direct' }],
           },
         ],

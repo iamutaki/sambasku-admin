@@ -120,19 +120,13 @@ export function CreateWordPage() {
           word_class_id: undefined,
           definition: '',
           order_index: 1,
-          translations: [
-            {
-              language_id: defaultLanguageIds.targetId,
-              translation_text: isTranslationMiss ? (missParams.term ?? '') : '',
-              translation_type: 'direct',
-            },
-          ],
+          translations: [],
         },
       ],
     });
   }, [directionReady, defaultLanguageIds.sourceId, defaultLanguageIds.targetId, form, missParams]);
 
-  // Dialek default (is_default / umum) — sekali, hanya jika user belum pilih.
+  // Dialek default (is_default / umum) - sekali, hanya jika user belum pilih.
   const dialectSeeded = useRef(false);
   useEffect(() => {
     if (dialectSeeded.current || !dialectQuery.data?.length) return;
@@ -252,7 +246,7 @@ export function CreateWordPage() {
             <Alert
               type="info"
               showIcon
-              message={`Dari search miss: ${missParams.term ?? '-'} (${
+              message={`Dari pencarian: ${missParams.term ?? '-'} (${
                 missParams.direction === 'translation' ? 'Indonesia → Sambas' : 'Sambas → Indonesia'
               })`}
             />

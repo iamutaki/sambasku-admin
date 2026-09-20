@@ -29,8 +29,16 @@ export function wordDetailToFormValues(detail: WordDetail): CreateWordFormValues
     word_type: detail.word_type,
     meanings: detail.meanings.map((m) => ({
       word_class_id: m.word_class?.id ?? undefined,
-      definition: m.definition,
+      definition: m.definition === '-' ? '' : m.definition,
       order_index: m.order_index,
+      is_have_definition: m.definition.trim() !== '-',
+      is_have_translation: m.translations.length > 0,
+      meaning_completeness:
+        m.definition.trim() === '-'
+          ? ('padanan_only' as const)
+          : m.translations.length === 0
+            ? ('definition_only' as const)
+            : ('both' as const),
       translations: m.translations.map((t) => ({
         language_id: t.language_id,
         translation_text: t.translation_text,

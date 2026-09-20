@@ -18,7 +18,7 @@ import {
   Tooltip,
   Typography,
 } from 'antd';
-import dayjs from 'dayjs';
+import { formatDateTime } from '@/shared/utils/format-datetime';
 import { DataTable } from '@/shared/components/data-table';
 import { PageHeader } from '@/shared/components/page-header';
 import { useAuth } from '@/shared/auth/use-auth';
@@ -201,7 +201,7 @@ function VoteListTab() {
         header: 'Waktu',
         size: 180,
         meta: { responsive: ['md'] },
-        cell: (info) => dayjs(info.getValue()).format('DD MMM YYYY HH:mm'),
+        cell: (info) => formatDateTime(info.getValue()),
       }),
       voteColumnHelper.display({
         id: 'actions',

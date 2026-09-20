@@ -51,13 +51,13 @@ export function ResolveSearchMissModal({ open, miss, onClose }: ResolveSearchMis
       );
       onClose();
     } catch (err) {
-      message.warning(normalizeError(err).message || 'Gagal menyelesaikan search miss');
+      message.warning(normalizeError(err).message || 'Gagal menyelesaikan pencarian');
     }
   };
 
   return (
     <Modal
-      title={miss ? `Selesaikan: “${miss.term}”` : 'Selesaikan search miss'}
+      title={miss ? `Selesaikan: “${miss.term}”` : 'Selesaikan pencarian'}
       open={open}
       onCancel={onClose}
       onOk={() => void onOk()}

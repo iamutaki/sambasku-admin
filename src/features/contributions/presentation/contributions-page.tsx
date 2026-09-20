@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { createColumnHelper, getCoreRowModel, useReactTable } from '@tanstack/react-table';
 import { ReloadOutlined, ToolOutlined } from '@ant-design/icons';
 import { Alert, Button, Flex, Select, Tabs, Tag, Tooltip, Typography } from 'antd';
-import dayjs from 'dayjs';
+import { formatDateTime } from '@/shared/utils/format-datetime';
 import { useNavigate } from '@tanstack/react-router';
 import { DataTable } from '@/shared/components/data-table';
 import { PageHeader } from '@/shared/components/page-header';
@@ -78,13 +78,13 @@ export function ContributionsPage() {
         cell: (info) => {
           const term = info.row.original.search_miss_term;
           if (!info.row.original.search_miss_id || !term) return '-';
-          return <Tag color="purple">Search miss: {term}</Tag>;
+          return <Tag color="purple">Pencarian: {term}</Tag>;
         },
       }),
       columnHelper.accessor('created_at', {
         header: 'Dikirim',
         size: 200,
-        cell: (info) => dayjs(info.getValue()).format('DD MMM YYYY HH:mm'),
+        cell: (info) => formatDateTime(info.getValue()),
       }),
       columnHelper.display({
         id: 'actions',

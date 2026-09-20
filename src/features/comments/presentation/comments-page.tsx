@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { createColumnHelper, getCoreRowModel, useReactTable } from '@tanstack/react-table';
 import { CheckOutlined, CloseOutlined, DeleteOutlined, ReloadOutlined } from '@ant-design/icons';
 import { Alert, App as AntdApp, Button, Flex, Popconfirm, Tabs, Tag, Tooltip, Typography } from 'antd';
-import dayjs from 'dayjs';
+import { formatDateTime } from '@/shared/utils/format-datetime';
 import { useNavigate } from '@tanstack/react-router';
 import { DataTable } from '@/shared/components/data-table';
 import { PageHeader } from '@/shared/components/page-header';
@@ -122,7 +122,7 @@ export function CommentsPage() {
         header: 'Dikirim',
         size: 160,
         meta: { responsive: ['lg'] },
-        cell: (info) => dayjs(info.getValue()).format('DD MMM YYYY HH:mm'),
+        cell: (info) => formatDateTime(info.getValue()),
       }),
       columnHelper.display({
         id: 'reviewed_at',
@@ -131,7 +131,7 @@ export function CommentsPage() {
         meta: { responsive: ['xl'] },
         cell: ({ row }) =>
           row.original.reviewed_at ? (
-            dayjs(row.original.reviewed_at).format('DD MMM YYYY HH:mm')
+            formatDateTime(row.original.reviewed_at)
           ) : (
             <Typography.Text type="secondary">Belum</Typography.Text>
           ),

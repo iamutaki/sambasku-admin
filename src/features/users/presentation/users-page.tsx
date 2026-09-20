@@ -17,7 +17,7 @@ import {
   Tooltip,
   Typography,
 } from 'antd';
-import dayjs from 'dayjs';
+import { formatDateTime } from '@/shared/utils/format-datetime';
 import { DataTable } from '@/shared/components/data-table';
 import { PageHeader } from '@/shared/components/page-header';
 import { normalizeError } from '@/shared/api/error';
@@ -134,7 +134,7 @@ export function UsersPage() {
         header: 'Bergabung',
         size: 180,
         meta: { responsive: ['md'] },
-        cell: (info) => dayjs(info.getValue()).format('DD MMM YYYY, HH:mm'),
+        cell: (info) => formatDateTime(info.getValue()),
       }),
       columnHelper.display({
         id: 'actions',

@@ -8,7 +8,7 @@ import {
 } from '../domain/create-word';
 import { Alert, App as AntdApp, Button, Card, Descriptions, Flex, Image, Skeleton, Space, Switch, Tag, Tooltip, Typography } from 'antd';
 import { EditOutlined, RollbackOutlined } from '@ant-design/icons';
-import dayjs from 'dayjs';
+import { formatDateTime } from '@/shared/utils/format-datetime';
 import { useNavigate, useParams } from '@tanstack/react-router';
 import { PageHeader } from '@/shared/components/page-header';
 import { useAuth } from '@/shared/auth/use-auth';
@@ -275,12 +275,12 @@ function WordDetailContent({
     {
       key: 'created',
       label: 'Dibuat',
-      children: dayjs(detail.created_at).format('DD MMM YYYY HH:mm'),
+      children: formatDateTime(detail.created_at),
     },
     {
       key: 'updated',
       label: 'Diperbarui',
-      children: detail.updated_at ? dayjs(detail.updated_at).format('DD MMM YYYY HH:mm') : '-',
+      children: detail.updated_at ? formatDateTime(detail.updated_at) : '-',
     },
   ];
 
@@ -326,7 +326,13 @@ function WordDetailContent({
                 </Space>
                 {meaning.order_index ? <Text type="secondary">Urutan {meaning.order_index}</Text> : null}
               </Flex>
-              <Paragraph style={{ marginBottom: 4 }}>{meaning.definition}</Paragraph>
+              <Paragraph style={{ marginBottom: 4 }}>
+                {meaning.definition === '-' ? (
+                  <Tag>Belum ada definisi</Tag>
+                ) : (
+                  meaning.definition
+                )}
+              </Paragraph>
 
               {meaning.translations.length ? (
                 <Space direction="vertical" size={0}>
@@ -341,7 +347,9 @@ function WordDetailContent({
                     </Text>
                   ))}
                 </Space>
-              ) : null}
+              ) : (
+                <Tag>Belum ada padanan</Tag>
+              )}
 
               {meaning.examples.length ? (
                 <Space direction="vertical" size={0} style={{ marginTop: 4 }}>

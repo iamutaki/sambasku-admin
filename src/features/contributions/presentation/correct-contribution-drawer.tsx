@@ -170,7 +170,7 @@ function CorrectWordForm({ form }: { form: FormInstance<CorrectFormValues> }) {
   const sourceLanguageId = (form.getFieldValue('language_id') as string | undefined) ?? defaultLanguageIds.sourceId;
   const dialectQuery = useDialectOptions(sourceLanguageId);
 
-  // Kalau kontribusi belum punya dialect_id, isi default (umum) — user tetap bisa ganti.
+  // Kalau kontribusi belum punya dialect_id, isi default (umum) - user tetap bisa ganti.
   useEffect(() => {
     if (!dialectQuery.data?.length) return;
     const current = form.getFieldValue('dialect_id') as string | undefined;

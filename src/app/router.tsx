@@ -14,6 +14,8 @@ import { ContributionDetailPage } from '@/features/contributions/presentation/co
 import { CommentsPage } from '@/features/comments/presentation/comments-page';
 import { SearchMissesPage } from '@/features/search-miss/presentation/search-misses-page';
 import { VoteModerationPage } from '@/features/vote-moderation/presentation/vote-moderation-page';
+import { WordSuggestionsPage } from '@/features/word-suggestions/presentation/word-suggestions-page';
+import { WordSuggestionDetailPage } from '@/features/word-suggestions/presentation/word-suggestion-detail-page';
 import { AuditLogsPage } from '@/features/audit/presentation/audit-logs-page';
 import { UsersPage } from '@/features/users/presentation/users-page';
 import { ProfilePage } from '@/features/profile/presentation/pages/profile-page';
@@ -143,6 +145,18 @@ const voteModerationRoute = createRoute({
   component: VoteModerationPage,
 });
 
+const wordSuggestionsRoute = createRoute({
+  getParentRoute: () => consoleLayoutRoute,
+  path: '/word-suggestions',
+  component: WordSuggestionsPage,
+});
+
+const wordSuggestionDetailRoute = createRoute({
+  getParentRoute: () => consoleLayoutRoute,
+  path: '/word-suggestions/$id',
+  component: WordSuggestionDetailPage,
+});
+
 const auditLogsRoute = createRoute({
   getParentRoute: () => consoleLayoutRoute,
   path: '/audit-logs',
@@ -164,7 +178,7 @@ const profileRoute = createRoute({
 const routeTree = rootRoute.addChildren([
   indexRoute,
   baseLayoutRoute.addChildren([loginRoute]),
-  consoleLayoutRoute.addChildren([dashboardRoute, wordsRoute, createWordRoute, wordDetailRoute, editWordRoute, contributionsRoute, contributionDetailRoute, commentsRoute, searchMissesRoute, voteModerationRoute, auditLogsRoute, usersRoute, profileRoute]),
+  consoleLayoutRoute.addChildren([dashboardRoute, wordsRoute, createWordRoute, wordDetailRoute, editWordRoute, contributionsRoute, contributionDetailRoute, commentsRoute, searchMissesRoute, voteModerationRoute, wordSuggestionsRoute, wordSuggestionDetailRoute, auditLogsRoute, usersRoute, profileRoute]),
 ]);
 
 export const router = createRouter({

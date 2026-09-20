@@ -24,7 +24,7 @@ import {
   Tooltip,
   Typography,
 } from 'antd';
-import dayjs from 'dayjs';
+import { formatDateTime } from '@/shared/utils/format-datetime';
 import { useNavigate } from '@tanstack/react-router';
 import { DataTable } from '@/shared/components/data-table';
 import { PageHeader } from '@/shared/components/page-header';
@@ -93,8 +93,8 @@ export function SearchMissesPage() {
   const onDismiss = async (id: string, term: string) => {
     try {
       await dismissSearchMiss.mutateAsync(id, {
-        onSuccess: () => message.success(`Search miss "${term}" di-dismiss`),
-        onError: (err) => message.warning(normalizeError(err).message || 'Gagal dismiss search miss'),
+        onSuccess: () => message.success(`"${term}" dihapus dari antrian`),
+        onError: (err) => message.warning(normalizeError(err).message || 'Gagal menghapus dari antrian'),
       });
     } catch {
       // Handled di atas.
@@ -238,7 +238,7 @@ export function SearchMissesPage() {
         header: 'Dibuat',
         size: 180,
         meta: { responsive: ['md'] },
-        cell: (info) => dayjs(info.getValue()).format('DD MMM YYYY HH:mm'),
+        cell: (info) => formatDateTime(info.getValue()),
       }),
       columnHelper.display({
         id: 'actions',
@@ -267,8 +267,8 @@ export function SearchMissesPage() {
               ) : null}
               {canDismiss ? (
                 <Popconfirm
-                  title="Dismiss search miss ini?"
-                  description="Aksi tidak bisa dibatalkan. Search miss akan hilang dari daftar."
+                  title="Hapus dari antrian?"
+                  description="Aksi tidak bisa dibatalkan. Item ini akan hilang dari daftar."
                   okText="Dismiss"
                   okButtonProps={{ danger: true }}
                   cancelText="Batal"
@@ -315,7 +315,7 @@ export function SearchMissesPage() {
   return (
     <>
       <PageHeader
-        title="Search Miss"
+        title="Pencarian"
         subtitle="Antrean kata yang dicari user tapi belum ada di kamus. Buat kata baru, atau selesaikan ke kata existing (varian / sinonim / terjemahan)."
         extra={
           <Button icon={<ReloadOutlined />} onClick={() => refetch()}>

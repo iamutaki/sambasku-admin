@@ -1,6 +1,6 @@
 import { CheckOutlined, CloseOutlined } from '@ant-design/icons';
 import { Alert, App as AntdApp, Button, Divider, Flex, Skeleton, Space, Tag, Typography } from 'antd';
-import dayjs from 'dayjs';
+import { formatDateTime } from '@/shared/utils/format-datetime';
 import { normalizeError } from '@/shared/api/error';
 import {
   COMMENT_STATUS_LABELS,
@@ -65,7 +65,7 @@ export function WordComments({ wordId }: { wordId: string }) {
             <Flex justify="space-between" align="center" wrap gap={8}>
               <Space size={8} wrap>
                 <Text strong>{cm.username ?? 'pengguna terhapus'}</Text>
-                <Text type="secondary">{dayjs(cm.created_at).format('DD MMM YYYY HH:mm')}</Text>
+                <Text type="secondary">{formatDateTime(cm.created_at)}</Text>
                 <Tag color={COMMENT_STATUS_TAG_COLOR[cm.status]}>{COMMENT_STATUS_LABELS[cm.status]}</Tag>
               </Space>
               {cm.status === 'pending_review' ? (

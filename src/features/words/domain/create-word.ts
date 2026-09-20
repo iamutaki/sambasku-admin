@@ -111,6 +111,8 @@ export interface CreateWordRequestMeaning {
   word_class_id: string;
   definition: string;
   order_index: number;
+  is_have_definition?: boolean;
+  is_have_translation?: boolean;
   translations: CreateWordRequestTranslation[];
   examples?: CreateWordRequestExample[];
 }
@@ -237,6 +239,10 @@ export interface CreateWordMeaningFormValue {
   word_class_id?: string;
   definition?: string;
   order_index?: number;
+  /** both | definition_only | padanan_only - unset = belum dipilih di UI */
+  meaning_completeness?: 'both' | 'definition_only' | 'padanan_only';
+  is_have_definition?: boolean;
+  is_have_translation?: boolean;
   translations?: CreateWordTranslationFormValue[];
   examples?: CreateWordExampleFormValue[];
 }

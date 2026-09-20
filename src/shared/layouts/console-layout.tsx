@@ -5,8 +5,9 @@ import {
   BookOutlined,
   CommentOutlined,
   DashboardOutlined,
+  EditOutlined,
   InboxOutlined,
-  CaretUpOutlined,
+  LikeOutlined,
   LogoutOutlined,
   SearchOutlined,
   TranslationOutlined,
@@ -25,9 +26,10 @@ const { Sider, Header, Content } = Layout;
 const KAMUS_ROUTES = {
   '/words': { icon: <TranslationOutlined />, label: 'Kata' },
   '/contributions': { icon: <InboxOutlined />, label: 'Review' },
+  '/word-suggestions': { icon: <EditOutlined />, label: 'Usul Edit' },
   '/comments': { icon: <CommentOutlined />, label: 'Komentar' },
-  '/search-misses': { icon: <SearchOutlined />, label: 'Search Miss' },
-  '/vote-moderation': { icon: <CaretUpOutlined />, label: 'Vote' },
+  '/search-misses': { icon: <SearchOutlined />, label: 'Pencarian' },
+  '/vote-moderation': { icon: <LikeOutlined />, label: 'Vote' },
 } as const;
 
 type KamusRoute = keyof typeof KAMUS_ROUTES;
@@ -40,8 +42,9 @@ const BREADCRUMB_LABELS: Record<string, string> = {
   dashboard: 'Dashboard',
   words: 'Kata',
   contributions: 'Review',
+  'word-suggestions': 'Usul Edit',
   comments: 'Komentar',
-  'search-misses': 'Search Miss',
+  'search-misses': 'Pencarian',
   'vote-moderation': 'Vote',
   'audit-logs': 'Audit Log',
   users: 'Pengguna',
@@ -77,7 +80,9 @@ export function ConsoleLayout() {
     const canManageUsers = user?.role === 'root' || user?.role === 'admin';
 
     const kamusChildren = (Object.entries(KAMUS_ROUTES) as [KamusRoute, (typeof KAMUS_ROUTES)[KamusRoute]][])
-      .filter(([key]) => (key === '/vote-moderation' ? canModerateContent : true))
+      .filter(([key]) =>
+        key === '/vote-moderation' || key === '/word-suggestions' ? canModerateContent : true,
+      )
       .map(([key, { icon, label }]) => ({ key, icon, label }));
 
     const items: MenuProps['items'] = [

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate, useParams } from '@tanstack/react-router';
 import { CheckOutlined, CloseOutlined, EditOutlined, RollbackOutlined } from '@ant-design/icons';
 import { Alert, App as AntdApp, Button, Card, Descriptions, Flex, Form, Input, Modal, Skeleton, Space, Tag, Typography } from 'antd';
-import dayjs from 'dayjs';
+import { formatDateTime } from '@/shared/utils/format-datetime';
 import { PageHeader } from '@/shared/components/page-header';
 import {
   CONTRIBUTION_STATUS_LABELS,
@@ -142,12 +142,12 @@ export function ContributionDetailPage() {
               label: 'Status',
               children: <Tag color={STATUS_TAG_COLOR[detail.contribution.status]}>{CONTRIBUTION_STATUS_LABELS[detail.contribution.status]}</Tag>,
             },
-            { key: 'submitted', label: 'Dikirim', children: dayjs(detail.contribution.created_at).format('DD MMM YYYY HH:mm') },
+            { key: 'submitted', label: 'Dikirim', children: formatDateTime(detail.contribution.created_at) },
             ...(detail.contribution.search_miss_id
               ? [
                   {
                     key: 'search_miss',
-                    label: 'Search miss',
+                    label: 'Pencarian',
                     children: (
                       <Tag color="purple">
                         {detail.contribution.search_miss_term ?? detail.contribution.search_miss_id}
@@ -169,7 +169,7 @@ export function ContributionDetailPage() {
             <Space direction="vertical" size={4}>
               <Text>{detail.review.comment || 'Tanpa catatan.'}</Text>
               <Text type="secondary" style={{ fontSize: 12 }}>
-                {dayjs(detail.review.created_at).format('DD MMM YYYY HH:mm')}
+                {formatDateTime(detail.review.created_at)}
               </Text>
             </Space>
           </Card>

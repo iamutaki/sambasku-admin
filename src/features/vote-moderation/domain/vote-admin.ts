@@ -13,7 +13,7 @@ export interface AdminVoteListItem {
   voterEmail: string;
   targetType: AdminVoteTargetType;
   targetId: string;
-  /** Body komentar / lemma / dll — dari API target_preview */
+  /** Body komentar / lemma / dll - dari API target_preview */
   targetPreview: string | null;
   value: 1 | -1;
   createdAt: string;

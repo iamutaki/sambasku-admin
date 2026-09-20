@@ -66,6 +66,9 @@ describe('wordDetailToFormValues', () => {
           word_class_id: WC_ID,
           definition: 'Aktivitas makan',
           order_index: 1,
+          is_have_definition: true,
+          is_have_translation: true,
+          meaning_completeness: 'both',
           translations: [{ language_id: IDN_ID, translation_text: 'makan', translation_type: 'direct' }],
           examples: [
             {
@@ -160,6 +163,8 @@ describe('buildUpdateWordBody', () => {
           word_class_id: WC_ID,
           definition: 'Aktivitas makan',
           order_index: 1,
+          is_have_definition: true,
+          is_have_translation: true,
           translations: [{ language_id: IDN_ID, translation_text: 'makan', translation_type: 'direct' }],
           examples: [
             {
