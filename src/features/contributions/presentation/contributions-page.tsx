@@ -49,10 +49,22 @@ export function ContributionsPage() {
 
   const columns = useMemo(
     () => [
+      columnHelper.accessor('word_lemma', {
+        header: 'Lemma',
+        size: 180,
+        cell: (info) => {
+          const lemma = info.getValue();
+          return lemma ? (
+            <Typography.Text strong>{lemma}</Typography.Text>
+          ) : (
+            <Typography.Text type="secondary">—</Typography.Text>
+          );
+        },
+      }),
       columnHelper.accessor('contributor_username', {
         header: 'Kontributor',
-        size: 180,
-        cell: (info) => <Typography.Text strong>{info.getValue()}</Typography.Text>,
+        size: 160,
+        cell: (info) => <Typography.Text>{info.getValue()}</Typography.Text>,
       }),
       columnHelper.accessor('entity_type', {
         header: 'Jenis Konten',

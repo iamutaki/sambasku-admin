@@ -9,6 +9,7 @@ import {
   InboxOutlined,
   LikeOutlined,
   LogoutOutlined,
+  SafetyCertificateOutlined,
   SearchOutlined,
   TranslationOutlined,
   UserOutlined,
@@ -33,7 +34,7 @@ const KAMUS_ROUTES = {
 } as const;
 
 type KamusRoute = keyof typeof KAMUS_ROUTES;
-type TopRoute = '/dashboard' | '/users' | '/audit-logs';
+type TopRoute = '/dashboard' | '/users' | '/audit-logs' | '/verifier-applications';
 type MenuRoute = KamusRoute | TopRoute;
 
 const KAMUS_GROUP_KEY = 'kamus';
@@ -48,6 +49,7 @@ const BREADCRUMB_LABELS: Record<string, string> = {
   'vote-moderation': 'Vote',
   'audit-logs': 'Audit Log',
   users: 'Pengguna',
+  'verifier-applications': 'Pengajuan verifikator',
   profile: 'Profil',
 };
 
@@ -96,6 +98,11 @@ export function ConsoleLayout() {
     ];
     if (canManageUsers) {
       items.push({ key: '/users', icon: <UserOutlined />, label: 'Pengguna' });
+      items.push({
+        key: '/verifier-applications',
+        icon: <SafetyCertificateOutlined />,
+        label: 'Pengajuan verifikator',
+      });
     }
     items.push({ key: '/audit-logs', icon: <AuditOutlined />, label: 'Audit Log' });
     return items;
@@ -116,7 +123,9 @@ export function ConsoleLayout() {
               : undefined
         : segments[0] === 'contributions' && segments[1]
           ? 'Detail Kontribusi'
-          : undefined;
+          : segments[0] === 'verifier-applications' && segments[1]
+            ? 'Detail pengajuan'
+            : undefined;
     if (subLabel) {
       items.push({ title: subLabel });
     }

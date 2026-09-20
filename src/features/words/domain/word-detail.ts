@@ -72,6 +72,8 @@ export interface WordDetail {
   status: WordStatus;
   is_verified: boolean;
   is_corrected: boolean;
+  verified_by: { username: string; role: string } | null;
+  verified_at: string | null;
   created_at: string;
   updated_at: string | null;
   meanings: WordDetailMeaning[];

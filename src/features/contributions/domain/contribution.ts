@@ -33,6 +33,8 @@ export interface ContributionListItem {
   action: string;
   status: ContributionStatus;
   created_at: string;
+  /** Lemma kata terkait — word = lemma sendiri; anak = lemma parent. */
+  word_lemma?: string | null;
   search_miss_id?: string | null;
   search_miss_term?: string | null;
   search_miss_direction?: 'lemma' | 'translation' | null;

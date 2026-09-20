@@ -6,7 +6,7 @@ import {
   TRANSLATION_TYPE_LABELS,
   VARIANT_TYPE_LABELS,
 } from '../domain/create-word';
-import { Alert, App as AntdApp, Button, Card, Descriptions, Flex, Image, Skeleton, Space, Switch, Tag, Tooltip, Typography } from 'antd';
+import { Alert, App as AntdApp, Button, Card, Descriptions, Flex, Image, Modal, Skeleton, Space, Switch, Tag, Tooltip, Typography } from 'antd';
 import { EditOutlined, RollbackOutlined } from '@ant-design/icons';
 import { formatDateTime } from '@/shared/utils/format-datetime';
 import { useNavigate, useParams } from '@tanstack/react-router';
@@ -251,6 +251,7 @@ function WordDetailContent({
   dialectName: (dialectId: string | null | undefined) => string;
   translationLanguageName: (languageId: string) => string;
 }) {
+  const [verifierOpen, setVerifierOpen] = useState(false);
   const basics = [
     {
       key: 'language',
@@ -267,7 +268,13 @@ function WordDetailContent({
       label: 'Tanda',
       children: (
         <Space size={4} wrap>
-          {detail.is_verified ? <Tag color="cyan">Terverifikasi</Tag> : <Tag>Belum diverifikasi</Tag>}
+          {detail.is_verified ? (
+            <Tag color="cyan" style={{ cursor: 'pointer' }} onClick={() => setVerifierOpen(true)}>
+              Terverifikasi
+            </Tag>
+          ) : (
+            <Tag>Belum diverifikasi</Tag>
+          )}
           {detail.is_corrected ? <Tag color="blue">Sudah dikoreksi</Tag> : null}
         </Space>
       ),
@@ -286,6 +293,23 @@ function WordDetailContent({
 
   return (
     <Space direction="vertical" size={20} style={{ width: '100%' }}>
+      <Modal
+        title="Verifikator"
+        open={verifierOpen}
+        onCancel={() => setVerifierOpen(false)}
+        footer={null}
+      >
+        {detail.verified_by ? (
+          <Space direction="vertical" size={4}>
+            <Text>Diverifikasi oleh {detail.verified_by.username}</Text>
+            {detail.verified_at ? (
+              <Text type="secondary">{formatDateTime(detail.verified_at)}</Text>
+            ) : null}
+          </Space>
+        ) : (
+          <Text>Verifikator tidak diketahui</Text>
+        )}
+      </Modal>
       {/* 1. Informasi dasar */}
       <Descriptions size="small" column={{ xs: 1, md: 2 }} bordered items={basics} />
 

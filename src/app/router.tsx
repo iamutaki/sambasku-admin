@@ -18,6 +18,8 @@ import { WordSuggestionsPage } from '@/features/word-suggestions/presentation/wo
 import { WordSuggestionDetailPage } from '@/features/word-suggestions/presentation/word-suggestion-detail-page';
 import { AuditLogsPage } from '@/features/audit/presentation/audit-logs-page';
 import { UsersPage } from '@/features/users/presentation/users-page';
+import { VerifierApplicationsPage } from '@/features/verifier-applications/presentation/verifier-applications-page';
+import { VerifierApplicationDetailPage } from '@/features/verifier-applications/presentation/verifier-application-detail-page';
 import { ProfilePage } from '@/features/profile/presentation/pages/profile-page';
 import { NotFoundPage } from '@/shared/layouts/not-found-page';
 
@@ -169,6 +171,18 @@ const usersRoute = createRoute({
   component: UsersPage,
 });
 
+const verifierApplicationsRoute = createRoute({
+  getParentRoute: () => consoleLayoutRoute,
+  path: '/verifier-applications',
+  component: VerifierApplicationsPage,
+});
+
+const verifierApplicationDetailRoute = createRoute({
+  getParentRoute: () => consoleLayoutRoute,
+  path: '/verifier-applications/$id',
+  component: VerifierApplicationDetailPage,
+});
+
 const profileRoute = createRoute({
   getParentRoute: () => consoleLayoutRoute,
   path: '/profile',
@@ -178,7 +192,7 @@ const profileRoute = createRoute({
 const routeTree = rootRoute.addChildren([
   indexRoute,
   baseLayoutRoute.addChildren([loginRoute]),
-  consoleLayoutRoute.addChildren([dashboardRoute, wordsRoute, createWordRoute, wordDetailRoute, editWordRoute, contributionsRoute, contributionDetailRoute, commentsRoute, searchMissesRoute, voteModerationRoute, wordSuggestionsRoute, wordSuggestionDetailRoute, auditLogsRoute, usersRoute, profileRoute]),
+  consoleLayoutRoute.addChildren([dashboardRoute, wordsRoute, createWordRoute, wordDetailRoute, editWordRoute, contributionsRoute, contributionDetailRoute, commentsRoute, searchMissesRoute, voteModerationRoute, wordSuggestionsRoute, wordSuggestionDetailRoute, auditLogsRoute, usersRoute, verifierApplicationsRoute, verifierApplicationDetailRoute, profileRoute]),
 ]);
 
 export const router = createRouter({
