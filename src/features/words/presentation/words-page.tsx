@@ -262,7 +262,16 @@ export function WordsPage() {
         title="Kata"
         subtitle="Kamus kosakata - list, cari, dan kelola entri. Tab Tidak tayang untuk draft / ditarik."
         extra={
-          <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate({ to: '/words/new' })}>
+          <Button
+            type="primary"
+            icon={<PlusOutlined />}
+            onClick={() =>
+              navigate({
+                to: '/words/new',
+                search: { from_miss: undefined, term: undefined, direction: undefined },
+              })
+            }
+          >
             Tambah Kata
           </Button>
         }

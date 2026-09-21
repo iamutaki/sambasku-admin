@@ -265,7 +265,9 @@ function CorrectWordForm({ form }: { form: FormInstance<CorrectFormValues> }) {
                   >
                     <MeaningFields
                       name={[field.name]}
+                      absolutePath={['meanings', field.name]}
                       wordClassOptions={wordClassOptions}
+                      wordClasses={wordClassQuery.data ?? []}
                       wordClassLoading={wordClassQuery.isLoading}
                       defaultLanguageIds={defaultLanguageIds}
                       showOrderIndex

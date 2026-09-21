@@ -117,7 +117,7 @@ function KnowledgeToggleChip({
             ? `1.5px solid ${token.colorPrimary}`
             : `1.5px solid ${token.colorTextQuaternary}`,
           background: selected ? token.colorPrimary : token.colorBgContainer,
-          color: token.colorPrimaryForeground ?? '#fff',
+          color: token.colorTextLightSolid,
           display: 'inline-flex',
           alignItems: 'center',
           justifyContent: 'center',
