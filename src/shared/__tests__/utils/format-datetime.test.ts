@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatDateTime, formatDateTimeSeconds } from '@/shared/utils/format-datetime';
+import { formatDateTime, formatDateTimeSeconds, formatDate } from '@/shared/utils/format-datetime';
 
 describe('formatDateTime', () => {
   it('format baku Indonesia tanpa detik', () => {
@@ -23,5 +23,17 @@ describe('formatDateTime', () => {
 describe('formatDateTimeSeconds', () => {
   it('menyertakan detik', () => {
     expect(formatDateTimeSeconds('2026-11-17T21:00:05')).toBe('17 Nov 2026 21:00:05');
+  });
+});
+
+describe('formatDate', () => {
+  it('YYYY-MM-DD tanpa geser zona', () => {
+    expect(formatDate('2026-09-21')).toBe('21 Sep 2026');
+    expect(formatDate('2026-08-02')).toBe('2 Agu 2026');
+  });
+
+  it('null/invalid → strip', () => {
+    expect(formatDate(null)).toBe('-');
+    expect(formatDate('bukan-tanggal')).toBe('-');
   });
 });

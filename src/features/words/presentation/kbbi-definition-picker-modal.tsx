@@ -20,6 +20,134 @@ export interface KbbiDefinitionPickerModalProps {
 }
 
 /**
+ * Isi modal. Anak `destroyOnHidden` supaya lemma + hasil lookup ter-reset
+ * saat dibuka ulang, tanpa setState di effect.
+ */
+function KbbiPickerBody({
+  initialLemma,
+  onClose,
+  onSelect,
+}: {
+  initialLemma: string;
+  onClose: () => void;
+  onSelect: (suggestion: LemmaDefinitionSuggestion) => void;
+}) {
+  const lookup = useLookupLemmaDefinition();
+  const [lemma, setLemma] = useState(initialLemma);
+  const debouncedLemma = useDebouncedValue(lemma.trim(), KBBI_DEBOUNCE_MS);
+
+  useEffect(() => {
+    if (!debouncedLemma) return;
+    lookup.mutate(debouncedLemma);
+    // lookup.mutate identity berubah tiap render; trigger hanya lemma.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debouncedLemma]);
+
+  const result = debouncedLemma ? lookup.data : undefined;
+  const suggestions = result?.suggestions ?? [];
+  const isLoading = lookup.isPending;
+  const showIdleHint = !debouncedLemma && !isLoading;
+
+  return (
+    <Space direction="vertical" size={12} style={{ width: '100%' }}>
+      <Text type="secondary">
+        Ketik lemma bahasa Indonesia - hasil muncul otomatis. Pilih satu definisi
+        untuk mengisi field pada form (tetap bisa diedit setelahnya).
+      </Text>
+
+      <Input
+        value={lemma}
+        onChange={(e) => setLemma(e.target.value)}
+        placeholder="mis. makan, apel, rumah"
+        maxLength={100}
+        allowClear
+        prefix={<BookOutlined />}
+        suffix={isLoading ? <LoadingOutlined spin /> : null}
+      />
+
+      {lookup.isError ? (
+        <Alert type="warning" showIcon message={normalizeError(lookup.error).message} />
+      ) : null}
+
+      {isLoading ? (
+        <Flex vertical align="center" justify="center" gap={8} style={{ padding: '28px 0' }}>
+          <Spin size="large" />
+          <Text type="secondary">Mencari di KBBI…</Text>
+        </Flex>
+      ) : null}
+
+      {!isLoading && showIdleHint ? (
+        <Empty description="Ketik lemma untuk mencari di KBBI" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+      ) : null}
+
+      {!isLoading && result && !result.found ? (
+        <Empty description={`Tidak ditemukan di KBBI untuk “${result.query}”`} />
+      ) : null}
+
+      {!isLoading && suggestions.length > 0 ? (
+        <>
+          <Text type="secondary" style={{ fontSize: 12 }}>
+            {suggestions.length} definisi - gulir untuk melihat semua
+          </Text>
+          <List
+            size="small"
+            bordered
+            dataSource={suggestions}
+            style={{
+              maxHeight: 'min(55vh, 480px)',
+              overflow: 'auto',
+              overscrollBehavior: 'contain',
+            }}
+            renderItem={(item) => (
+              <List.Item
+                actions={[
+                  <Button
+                    key="pick"
+                    type="link"
+                    onClick={() => {
+                      onSelect(item);
+                      onClose();
+                    }}
+                  >
+                    Pakai
+                  </Button>,
+                ]}
+              >
+                <List.Item.Meta
+                  title={
+                    <Space wrap size={4}>
+                      <Text strong ellipsis>
+                        {item.lemma} · makna {item.homonym_index}.{item.sense_index}
+                      </Text>
+                      {item.word_class_label ? <Tag>{item.word_class_label}</Tag> : null}
+                      {item.word_class_code ? <Tag color="blue">{item.word_class_code}</Tag> : null}
+                    </Space>
+                  }
+                  description={
+                    <Paragraph
+                      style={{ marginBottom: 0 }}
+                      ellipsis={{ rows: 3, expandable: true, symbol: 'lainnya' }}
+                    >
+                      {item.definition}
+                    </Paragraph>
+                  }
+                />
+              </List.Item>
+            )}
+          />
+        </>
+      ) : null}
+
+      {!isLoading && result?.cache_hit ? (
+        <Text type="secondary" style={{ fontSize: 12 }}>
+          Hasil dari cache server
+        </Text>
+      ) : null}
+    </Space>
+  );
+}
+
+/**
  * Modal lookup KBBI via API kita → pilih satu suggestion untuk isi field
  * definisi (dan hint kelas kata di parent). Cari otomatis via debounce
  * (tanpa tombol Cari).
@@ -30,34 +158,6 @@ export function KbbiDefinitionPickerModal({
   onClose,
   onSelect,
 }: KbbiDefinitionPickerModalProps) {
-  const lookup = useLookupLemmaDefinition();
-  const [lemma, setLemma] = useState(initialLemma);
-  const debouncedLemma = useDebouncedValue(lemma.trim(), KBBI_DEBOUNCE_MS);
-
-  useEffect(() => {
-    if (!open) return;
-    setLemma(initialLemma);
-    lookup.reset();
-    // Hanya reset saat modal dibuka / prefill berubah
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, initialLemma]);
-
-  useEffect(() => {
-    if (!open) return;
-    if (!debouncedLemma) {
-      lookup.reset();
-      return;
-    }
-    lookup.mutate(debouncedLemma);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, debouncedLemma]);
-
-  const result = lookup.data;
-  const suggestions = result?.suggestions ?? [];
-  const isLoading = lookup.isPending;
-  const showIdleHint =
-    !debouncedLemma && !isLoading && !result && !lookup.isError;
-
   return (
     <Modal
       title={
@@ -72,101 +172,12 @@ export function KbbiDefinitionPickerModal({
       width={640}
       destroyOnHidden
     >
-      <Space direction="vertical" size={12} style={{ width: '100%' }}>
-        <Text type="secondary">
-          Ketik lemma bahasa Indonesia - hasil muncul otomatis. Pilih satu definisi
-          untuk mengisi field pada form (tetap bisa diedit setelahnya).
-        </Text>
-
-        <Input
-          value={lemma}
-          onChange={(e) => setLemma(e.target.value)}
-          placeholder="mis. makan, apel, rumah"
-          maxLength={100}
-          allowClear
-          prefix={<BookOutlined />}
-          suffix={isLoading ? <LoadingOutlined spin /> : null}
-        />
-
-        {lookup.isError ? (
-          <Alert type="warning" showIcon message={normalizeError(lookup.error).message} />
-        ) : null}
-
-        {isLoading ? (
-          <Flex vertical align="center" justify="center" gap={8} style={{ padding: '28px 0' }}>
-            <Spin size="large" />
-            <Text type="secondary">Mencari di KBBI…</Text>
-          </Flex>
-        ) : null}
-
-        {!isLoading && showIdleHint ? (
-          <Empty description="Ketik lemma untuk mencari di KBBI" image={Empty.PRESENTED_IMAGE_SIMPLE} />
-        ) : null}
-
-        {!isLoading && result && !result.found ? (
-          <Empty description={`Tidak ditemukan di KBBI untuk “${result.query}”`} />
-        ) : null}
-
-        {!isLoading && suggestions.length > 0 ? (
-          <>
-            <Text type="secondary" style={{ fontSize: 12 }}>
-              {suggestions.length} definisi - gulir untuk melihat semua
-            </Text>
-            <List
-              size="small"
-              bordered
-              dataSource={suggestions}
-              style={{
-                maxHeight: 'min(55vh, 480px)',
-                overflow: 'auto',
-                overscrollBehavior: 'contain',
-              }}
-              renderItem={(item) => (
-                <List.Item
-                  actions={[
-                    <Button
-                      key="pick"
-                      type="link"
-                      onClick={() => {
-                        onSelect(item);
-                        onClose();
-                      }}
-                    >
-                      Pakai
-                    </Button>,
-                  ]}
-                >
-                  <List.Item.Meta
-                    title={
-                      <Space wrap size={4}>
-                        <Text strong ellipsis>
-                          {item.lemma} · makna {item.homonym_index}.{item.sense_index}
-                        </Text>
-                        {item.word_class_label ? <Tag>{item.word_class_label}</Tag> : null}
-                        {item.word_class_code ? <Tag color="blue">{item.word_class_code}</Tag> : null}
-                      </Space>
-                    }
-                    description={
-                      <Paragraph
-                        style={{ marginBottom: 0 }}
-                        ellipsis={{ rows: 3, expandable: true, symbol: 'lainnya' }}
-                      >
-                        {item.definition}
-                      </Paragraph>
-                    }
-                  />
-                </List.Item>
-              )}
-            />
-          </>
-        ) : null}
-
-        {!isLoading && result?.cache_hit ? (
-          <Text type="secondary" style={{ fontSize: 12 }}>
-            Hasil dari cache server
-          </Text>
-        ) : null}
-      </Space>
+      <KbbiPickerBody
+        key={initialLemma}
+        initialLemma={initialLemma}
+        onClose={onClose}
+        onSelect={onSelect}
+      />
     </Modal>
   );
 }

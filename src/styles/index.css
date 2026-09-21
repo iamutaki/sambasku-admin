@@ -244,6 +244,28 @@ body {
   line-height: 1.2;
 }
 
+.dashboard__wotd {
+  margin: 0;
+}
+
+.dashboard__wotd .ant-card-body {
+  padding: 12px 14px;
+}
+
+.dashboard__wotd-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.dashboard__wotd-lemma {
+  margin: 6px 0 4px !important;
+}
+
+.dashboard__wotd-sense {
+  margin-bottom: 8px !important;
+}
+
 @media (max-width: 560px) {
   .dashboard__strip {
     flex-direction: column;

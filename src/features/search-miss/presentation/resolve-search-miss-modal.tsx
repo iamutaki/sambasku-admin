@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Alert, App as AntdApp, Form, Modal, Radio, Typography } from 'antd';
 import { WordSearchSelect } from '@/features/words/presentation/word-search-select';
 import { normalizeError } from '@/shared/api/error';
@@ -13,6 +13,15 @@ export interface ResolveSearchMissModalProps {
   onClose: () => void;
 }
 
+function defaultAction(direction: SearchMissListItem['direction']): ResolveSearchMissAction {
+  return direction === 'lemma' ? 'variant' : 'translation';
+}
+
+function sessionKeyOf(open: boolean, miss: SearchMissListItem | null): string {
+  if (!open || !miss) return 'closed';
+  return `${miss.id}:open`;
+}
+
 /**
  * Modal selesaikan search-miss ke kata existing:
  * lemma → varian penulisan | sinonim; translation → terjemahan.
@@ -22,14 +31,18 @@ export function ResolveSearchMissModal({ open, miss, onClose }: ResolveSearchMis
   const resolveMiss = useResolveSearchMiss();
   const [wordId, setWordId] = useState<string | undefined>();
   const [action, setAction] = useState<ResolveSearchMissAction>('variant');
+  const nextSession = sessionKeyOf(open, miss);
+  const [sessionKey, setSessionKey] = useState(nextSession);
+
+  // Reset form saat modal dibuka / miss berganti. Tanpa effect: sesuaikan
+  // state selama render ketika kunci sesi berubah (docs React).
+  if (sessionKey !== nextSession) {
+    setSessionKey(nextSession);
+    setWordId(undefined);
+    setAction(miss ? defaultAction(miss.direction) : 'variant');
+  }
 
   const isLemma = miss?.direction === 'lemma';
-
-  useEffect(() => {
-    if (!open || !miss) return;
-    setWordId(undefined);
-    setAction(miss.direction === 'lemma' ? 'variant' : 'translation');
-  }, [open, miss]);
 
   const onOk = async () => {
     if (!miss) return;

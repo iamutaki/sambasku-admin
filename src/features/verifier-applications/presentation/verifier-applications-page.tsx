@@ -6,6 +6,7 @@ import { formatDateTime } from '@/shared/utils/format-datetime';
 import { useNavigate } from '@tanstack/react-router';
 import { DataTable } from '@/shared/components/data-table';
 import { PageHeader } from '@/shared/components/page-header';
+import { UserInfoLink } from '@/shared/components/user-info-modal';
 import { useAuth } from '@/shared/auth/use-auth';
 import { useVerifierApplicationList } from '../application/use-verifier-application-list';
 import {
@@ -46,7 +47,7 @@ export function VerifierApplicationsPage() {
       columnHelper.accessor('username', {
         header: 'Username',
         size: 180,
-        cell: (info) => <Typography.Text strong>{info.getValue() || '—'}</Typography.Text>,
+        cell: (info) => <UserInfoLink username={info.getValue()} />,
       }),
       columnHelper.accessor('phone', {
         header: 'HP',

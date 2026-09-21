@@ -20,6 +20,7 @@ import {
 import { formatDateTime } from '@/shared/utils/format-datetime';
 import { PageHeader } from '@/shared/components/page-header';
 import { PageLoading } from '@/shared/components/page-loading';
+import { UserInfoLink } from '@/shared/components/user-info-modal';
 import { useAuth } from '@/shared/auth/use-auth';
 import { useVerifierApplicationDetail } from '../application/use-verifier-application-detail';
 import {
@@ -29,6 +30,7 @@ import {
 import {
   SOCIAL_PLATFORM_LABELS,
   VERIFIER_APPLICATION_STATUS_LABELS,
+  verifierReviewerCardTitle,
 } from '../domain/verifier-application';
 
 const { Text } = Typography;
@@ -101,7 +103,7 @@ export function VerifierApplicationDetailPage() {
     <>
       <PageHeader
         title="Review pengajuan"
-        subtitle={detail.username ?? detail.user_id}
+        subtitle={<UserInfoLink username={detail.username} />}
         extra={
           <Button icon={<RollbackOutlined />} onClick={() => navigate({ to: '/verifier-applications' })}>
             Kembali
@@ -116,9 +118,8 @@ export function VerifierApplicationDetailPage() {
               {VERIFIER_APPLICATION_STATUS_LABELS[detail.status]}
             </Tag>
           </Descriptions.Item>
-          <Descriptions.Item label="Username">{detail.username ?? '—'}</Descriptions.Item>
-          <Descriptions.Item label="User ID">
-            <Typography.Text copyable>{detail.user_id}</Typography.Text>
+          <Descriptions.Item label="Username">
+            <UserInfoLink username={detail.username} />
           </Descriptions.Item>
           <Descriptions.Item label="Nomor HP">{detail.phone}</Descriptions.Item>
           <Descriptions.Item label="Alamat">
@@ -142,21 +143,24 @@ export function VerifierApplicationDetailPage() {
                   <div>
                     <Text strong>{SOCIAL_PLATFORM_LABELS[link.platform] ?? link.platform}</Text>
                     <br />
-                    <Text>{link.username || '—'}</Text>
+                    <Text>{link.username || '-'}</Text>
                   </div>
                 </Space>
               ))}
             </Space>
           </Descriptions.Item>
           <Descriptions.Item label="Diajukan">{formatDateTime(detail.created_at)}</Descriptions.Item>
-          {detail.reviewed_at ? (
-            <Descriptions.Item label="Direview">{formatDateTime(detail.reviewed_at)}</Descriptions.Item>
-          ) : null}
         </Descriptions>
 
-        {detail.status === 'rejected' && detail.admin_comment ? (
-          <Card size="small" title="Catatan penolakan">
-            <Text>{detail.admin_comment}</Text>
+        {detail.reviewed_at ? (
+          <Card size="small" title={verifierReviewerCardTitle(detail.status)}>
+            <Space direction="vertical" size={4}>
+              <UserInfoLink username={detail.reviewed_by_username} />
+              <Text type="secondary" style={{ fontSize: 12 }}>
+                {formatDateTime(detail.reviewed_at)}
+              </Text>
+              {detail.admin_comment ? <Text>{detail.admin_comment}</Text> : null}
+            </Space>
           </Card>
         ) : null}
 

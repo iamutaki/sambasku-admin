@@ -7,6 +7,12 @@ export const VERIFIER_APPLICATION_STATUS_LABELS: Record<VerifierApplicationStatu
   rejected: 'Ditolak',
 };
 
+export function verifierReviewerCardTitle(status: VerifierApplicationStatus): string {
+  if (status === 'approved') return 'Disetujui oleh';
+  if (status === 'rejected') return 'Ditolak oleh';
+  return 'Direview oleh';
+}
+
 export const SOCIAL_PLATFORM_LABELS: Record<string, string> = {
   instagram: 'Instagram',
   facebook: 'Facebook',
@@ -41,6 +47,7 @@ export interface VerifierApplicationDetail extends VerifierApplicationListItem {
   social_links: VerifierApplicationSocialLink[];
   admin_comment: string | null;
   reviewed_by: string | null;
+  reviewed_by_username: string | null;
   reviewed_at: string | null;
   updated_at: string | null;
 }

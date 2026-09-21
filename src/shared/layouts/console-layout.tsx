@@ -143,14 +143,17 @@ export function ConsoleLayout() {
 
   // Controlled openKeys: route di bawah Kamus → parent tetap expand;
   // user boleh collapse manual, tapi navigasi ke child me-expand lagi.
+  // Sesuaikan saat render (bukan effect) supaya tidak cascade commit.
   const [openKeys, setOpenKeys] = useState<string[]>(() =>
     kamusActive ? [KAMUS_GROUP_KEY] : [],
   );
-
-  useEffect(() => {
-    if (!kamusActive) return;
-    setOpenKeys((prev) => (prev.includes(KAMUS_GROUP_KEY) ? prev : [...prev, KAMUS_GROUP_KEY]));
-  }, [kamusActive, currentMenuKey]);
+  const [expandedForMenuKey, setExpandedForMenuKey] = useState(currentMenuKey);
+  if (kamusActive && expandedForMenuKey !== currentMenuKey) {
+    setExpandedForMenuKey(currentMenuKey);
+    if (!openKeys.includes(KAMUS_GROUP_KEY)) {
+      setOpenKeys([...openKeys, KAMUS_GROUP_KEY]);
+    }
+  }
 
   return (
     <Layout className="console-layout">

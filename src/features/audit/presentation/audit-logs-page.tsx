@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { createColumnHelper, getCoreRowModel, useReactTable } from '@tanstack/react-table';
 import { FilterOutlined, ReloadOutlined } from '@ant-design/icons';
 import { Alert, Button, DatePicker, Flex, Input, Result, Select, Tag, Typography } from 'antd';
-import dayjs, { type Dayjs } from 'dayjs';
+import type { Dayjs } from 'dayjs';
 import { formatDateTimeSeconds } from '@/shared/utils/format-datetime';
 import { DataTable } from '@/shared/components/data-table';
 import { PageHeader } from '@/shared/components/page-header';
