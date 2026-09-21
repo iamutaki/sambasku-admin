@@ -17,6 +17,7 @@ import { VoteModerationPage } from '@/features/vote-moderation/presentation/vote
 import { WordSuggestionsPage } from '@/features/word-suggestions/presentation/word-suggestions-page';
 import { WordSuggestionDetailPage } from '@/features/word-suggestions/presentation/word-suggestion-detail-page';
 import { AuditLogsPage } from '@/features/audit/presentation/audit-logs-page';
+import { BugReportsPage } from '@/features/bug-reports/presentation/bug-reports-page';
 import { UsersPage } from '@/features/users/presentation/users-page';
 import { VerifierApplicationsPage } from '@/features/verifier-applications/presentation/verifier-applications-page';
 import { VerifierApplicationDetailPage } from '@/features/verifier-applications/presentation/verifier-application-detail-page';
@@ -165,6 +166,12 @@ const auditLogsRoute = createRoute({
   component: AuditLogsPage,
 });
 
+const bugReportsRoute = createRoute({
+  getParentRoute: () => consoleLayoutRoute,
+  path: '/bug-reports',
+  component: BugReportsPage,
+});
+
 const usersRoute = createRoute({
   getParentRoute: () => consoleLayoutRoute,
   path: '/users',
@@ -192,7 +199,7 @@ const profileRoute = createRoute({
 const routeTree = rootRoute.addChildren([
   indexRoute,
   baseLayoutRoute.addChildren([loginRoute]),
-  consoleLayoutRoute.addChildren([dashboardRoute, wordsRoute, createWordRoute, wordDetailRoute, editWordRoute, contributionsRoute, contributionDetailRoute, commentsRoute, searchMissesRoute, voteModerationRoute, wordSuggestionsRoute, wordSuggestionDetailRoute, auditLogsRoute, usersRoute, verifierApplicationsRoute, verifierApplicationDetailRoute, profileRoute]),
+  consoleLayoutRoute.addChildren([dashboardRoute, wordsRoute, createWordRoute, wordDetailRoute, editWordRoute, contributionsRoute, contributionDetailRoute, commentsRoute, searchMissesRoute, voteModerationRoute, wordSuggestionsRoute, wordSuggestionDetailRoute, auditLogsRoute, bugReportsRoute, usersRoute, verifierApplicationsRoute, verifierApplicationDetailRoute, profileRoute]),
 ]);
 
 export const router = createRouter({

@@ -6,6 +6,7 @@ import {
   CommentOutlined,
   DashboardOutlined,
   EditOutlined,
+  FlagOutlined,
   InboxOutlined,
   LikeOutlined,
   LogoutOutlined,
@@ -34,7 +35,7 @@ const KAMUS_ROUTES = {
 } as const;
 
 type KamusRoute = keyof typeof KAMUS_ROUTES;
-type TopRoute = '/dashboard' | '/users' | '/audit-logs' | '/verifier-applications';
+type TopRoute = '/dashboard' | '/users' | '/audit-logs' | '/bug-reports' | '/verifier-applications';
 type MenuRoute = KamusRoute | TopRoute;
 
 const KAMUS_GROUP_KEY = 'kamus';
@@ -48,6 +49,7 @@ const BREADCRUMB_LABELS: Record<string, string> = {
   'search-misses': 'Pencarian',
   'vote-moderation': 'Vote',
   'audit-logs': 'Audit Log',
+  'bug-reports': 'Laporan Masalah',
   users: 'Pengguna',
   'verifier-applications': 'Pengajuan verifikator',
   profile: 'Profil',
@@ -103,6 +105,7 @@ export function ConsoleLayout() {
         icon: <SafetyCertificateOutlined />,
         label: 'Pengajuan verifikator',
       });
+      items.push({ key: '/bug-reports', icon: <FlagOutlined />, label: 'Laporan Masalah' });
     }
     items.push({ key: '/audit-logs', icon: <AuditOutlined />, label: 'Audit Log' });
     return items;
