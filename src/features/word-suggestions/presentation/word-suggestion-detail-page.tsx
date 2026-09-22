@@ -158,11 +158,13 @@ export function WordSuggestionDetailPage() {
         {diff.images && (
           <>
             {diff.images.added.length > 0 && (
-              <Flex gap={8} wrap="wrap" style={{ marginBottom: 8 }}>
-                {diff.images.added.map((img, i) => (
-                  <Image key={i} src={img.url} width={72} height={72} style={{ objectFit: 'cover' }} />
-                ))}
-              </Flex>
+              <Image.PreviewGroup>
+                <Flex gap={8} wrap="wrap" style={{ marginBottom: 8 }}>
+                  {diff.images.added.map((img, i) => (
+                    <Image key={i} src={img.url} width={72} height={72} style={{ objectFit: 'cover' }} />
+                  ))}
+                </Flex>
+              </Image.PreviewGroup>
             )}
             {diff.images.removed.length > 0 && (
               <Typography.Paragraph type="secondary">

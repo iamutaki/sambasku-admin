@@ -20,6 +20,7 @@ import {
   theme,
 } from 'antd';
 import { useNavigate, useParams } from '@tanstack/react-router';
+import { useQueryClient } from '@tanstack/react-query';
 import { PageHeader } from '@/shared/components/page-header';
 import { PageLoading } from '@/shared/components/page-loading';
 import { ApiError } from '@/shared/api/error';
@@ -35,6 +36,8 @@ import { WORD_STATUS_LABELS } from '../domain/word';
 import {
   MeaningFields,
   RelatedWordItem,
+  WordExampleAudiosSection,
+  WordLemmaAudiosSection,
   WordVariantsField,
   buildRelationOptions,
   buildWordClassOptions,
@@ -58,6 +61,7 @@ const { Text } = Typography;
  */
 export function EditWordPage() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { message } = AntdApp.useApp();
   const { user } = useAuth();
   const { token: { colorFillAlter } } = theme.useToken();
@@ -133,6 +137,28 @@ export function EditWordPage() {
   );
 
   const relationOptions = useMemo(() => buildRelationOptions(wordType), [wordType]);
+
+  const dialectOptions = useMemo(
+    () => (dialectQuery.data ?? []).map((d) => ({ value: d.id, label: d.name })),
+    [dialectQuery.data],
+  );
+
+  const dialectName = (dialectId: string | null | undefined) => {
+    if (!dialectId) return '-';
+    return dialectOptions.find((d) => d.value === dialectId)?.label ?? dialectId;
+  };
+
+  const defaultDialectId = useMemo(
+    () =>
+      (form.getFieldValue('dialect_id') as string | undefined) ??
+      pickDefaultDialectId(dialectQuery.data ?? []) ??
+      null,
+    [dialectQuery.data, form, detail],
+  );
+
+  const refreshAudios = () => {
+    void queryClient.invalidateQueries({ queryKey: ['words', 'detail', id] });
+  };
 
   const handleSubmitError = (err: unknown) => {
     if (err instanceof ApiError) {
@@ -429,9 +455,9 @@ export function EditWordPage() {
               },
               {
                 key: 'pronunciation',
-                label: '6. Pengucapan (opsional)',
+                label: '6. Pengucapan & Audio (opsional)',
                 children: (
-                  <>
+                  <Space direction="vertical" size={16} style={{ width: '100%' }}>
                     <Row gutter={16}>
                       <Col xs={24} md={6} lg={4}>
                         <Form.Item name={['pronunciation', 'notation']} label="Notasi" initialValue="ipa">
@@ -444,8 +470,43 @@ export function EditWordPage() {
                         </Form.Item>
                       </Col>
                     </Row>
-                    <Text type="secondary">Fitur audio pengucapan (rekaman penutur asli) menyusul.</Text>
-                  </>
+                    <div>
+                      <Text strong style={{ display: 'block', marginBottom: 8 }}>
+                        Audio pelafalan lemma (kata)
+                      </Text>
+                      <WordLemmaAudiosSection
+                        wordId={id}
+                        lemma={detail?.lemma ?? ''}
+                        audios={detail?.audios ?? []}
+                        dialectLabel={dialectName}
+                        dialectOptions={dialectOptions}
+                        defaultDialectId={defaultDialectId}
+                        onUploaded={refreshAudios}
+                      />
+                    </div>
+                    <div>
+                      <Text strong style={{ display: 'block', marginBottom: 8 }}>
+                        Audio pelafalan contoh kalimat
+                      </Text>
+                      <WordExampleAudiosSection
+                        wordId={id}
+                        lemma={detail?.lemma ?? ''}
+                        examples={(detail?.meanings ?? []).flatMap((m) =>
+                          m.examples.map((e) => ({
+                            id: e.id,
+                            source_sentence: e.source_sentence,
+                            target_sentence: e.target_sentence,
+                            audios: e.audios,
+                          })),
+                        )}
+                        audios={detail?.audios ?? []}
+                        dialectLabel={dialectName}
+                        dialectOptions={dialectOptions}
+                        defaultDialectId={defaultDialectId}
+                        onUploaded={refreshAudios}
+                      />
+                    </div>
+                  </Space>
                 ),
               },
               {

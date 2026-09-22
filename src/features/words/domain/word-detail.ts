@@ -22,6 +22,19 @@ export interface WordDetailMeaningTranslation {
   translation_type: string;
 }
 
+export interface WordDetailAudio {
+  id: string;
+  url: string;
+  dialect_id: string | null;
+  speaker_name: string | null;
+  duration_ms: number | null;
+  is_primary: boolean;
+  mime_type: string;
+  file_size?: number | null;
+  status?: string;
+  example_id?: string | null;
+}
+
 export interface WordDetailMeaningExample {
   id: string;
   source_language_id: string;
@@ -29,6 +42,7 @@ export interface WordDetailMeaningExample {
   target_language_id: string | null;
   target_sentence: string | null;
   source_type: string | null;
+  audios?: WordDetailAudio[];
 }
 
 export interface WordDetailMeaning {
@@ -41,7 +55,8 @@ export interface WordDetailMeaning {
     parent_id: string | null;
   } | null;
   inherited_from_meaning_id: string | null;
-  definition: string;
+  /** Null bila API mengirim definisi kosong; UI menampilkan "Belum ada definisi". */
+  definition: string | null;
   order_index: number;
   translations: WordDetailMeaningTranslation[];
   examples: WordDetailMeaningExample[];
@@ -77,9 +92,13 @@ export interface WordDetail {
   verified_at: string | null;
   created_at: string;
   updated_at: string | null;
+  takedown_reason_code?: string | null;
+  takedown_note?: string | null;
+  taken_down_at?: string | null;
   meanings: WordDetailMeaning[];
   categories: { id: string; name: string }[];
   pronunciations: { id: string; notation: string; value: string; dialect_id: string | null }[];
+  audios: WordDetailAudio[];
   images: { id: string; url: string; provider_file_id: string; alt_text: string | null; is_primary: boolean }[];
   related_words: WordDetailRelation[];
   appears_in: WordDetailRelation[];

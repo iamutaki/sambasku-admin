@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { createColumnHelper, getCoreRowModel, useReactTable } from '@tanstack/react-table';
 import { CheckOutlined, CloseOutlined, ReloadOutlined } from '@ant-design/icons';
-import { Alert, App as AntdApp, Button, Flex, Input, Modal, Space, Tabs, Tag, Tooltip, Typography } from 'antd';
+import { Alert, App as AntdApp, Button, Flex, Image, Input, Modal, Space, Tabs, Tag, Tooltip, Typography } from 'antd';
 import { formatDateTime } from '@/shared/utils/format-datetime';
 import { DataTable } from '@/shared/components/data-table';
 import { PageHeader } from '@/shared/components/page-header';
@@ -109,19 +109,20 @@ export function BugReportsPage() {
           const images = info.getValue();
           if (!images.length) return <Typography.Text type="secondary">-</Typography.Text>;
           return (
-            <Space size={4} wrap>
-              {images.map((img) => (
-                <a key={img.provider_file_id} href={img.url} target="_blank" rel="noreferrer">
-                  <img
+            <Image.PreviewGroup>
+              <Space size={4} wrap>
+                {images.map((img) => (
+                  <Image
+                    key={img.provider_file_id}
                     src={img.url}
                     alt=""
                     width={36}
                     height={36}
-                    style={{ objectFit: 'cover', borderRadius: 4, display: 'block' }}
+                    style={{ objectFit: 'cover', borderRadius: 4 }}
                   />
-                </a>
-              ))}
-            </Space>
+                ))}
+              </Space>
+            </Image.PreviewGroup>
           );
         },
       }),

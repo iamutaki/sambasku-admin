@@ -126,28 +126,30 @@ export function VerifierApplicationDetailPage() {
             <Text style={{ whiteSpace: 'pre-wrap' }}>{detail.address}</Text>
           </Descriptions.Item>
           <Descriptions.Item label="Media sosial">
-            <Space direction="vertical" size={12}>
-              {detail.social_links.map((link) => (
-                <Space key={`${link.platform}-${link.username}`} align="start" size={12}>
-                  {link.screenshot?.url ? (
-                    <Image
-                      src={link.screenshot.url}
-                      width={72}
-                      height={72}
-                      style={{ objectFit: 'cover', borderRadius: 6 }}
-                      alt={`Screenshot ${link.username}`}
-                    />
-                  ) : (
-                    <Text type="secondary">Tidak ada screenshot</Text>
-                  )}
-                  <div>
-                    <Text strong>{SOCIAL_PLATFORM_LABELS[link.platform] ?? link.platform}</Text>
-                    <br />
-                    <Text>{link.username || '-'}</Text>
-                  </div>
-                </Space>
-              ))}
-            </Space>
+            <Image.PreviewGroup>
+              <Space direction="vertical" size={12}>
+                {detail.social_links.map((link) => (
+                  <Space key={`${link.platform}-${link.username}`} align="start" size={12}>
+                    {link.screenshot?.url ? (
+                      <Image
+                        src={link.screenshot.url}
+                        width={72}
+                        height={72}
+                        style={{ objectFit: 'cover', borderRadius: 6 }}
+                        alt={`Screenshot ${link.username}`}
+                      />
+                    ) : (
+                      <Text type="secondary">Tidak ada screenshot</Text>
+                    )}
+                    <div>
+                      <Text strong>{SOCIAL_PLATFORM_LABELS[link.platform] ?? link.platform}</Text>
+                      <br />
+                      <Text>{link.username || '-'}</Text>
+                    </div>
+                  </Space>
+                ))}
+              </Space>
+            </Image.PreviewGroup>
           </Descriptions.Item>
           <Descriptions.Item label="Diajukan">{formatDateTime(detail.created_at)}</Descriptions.Item>
         </Descriptions>

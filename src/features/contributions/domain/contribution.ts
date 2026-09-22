@@ -3,7 +3,7 @@ import type { WordType } from '@/features/words/domain/word';
 export const CONTRIBUTION_STATUSES = ['pending', 'approved', 'rejected', 'corrected'] as const;
 export type ContributionStatus = (typeof CONTRIBUTION_STATUSES)[number];
 
-export const ENTITY_TYPES = ['word', 'pronunciation', 'word_image', 'example'] as const;
+export const ENTITY_TYPES = ['word', 'pronunciation', 'word_image', 'word_audio', 'example'] as const;
 export type EntityType = (typeof ENTITY_TYPES)[number];
 
 export const CONTRIBUTION_STATUS_LABELS: Record<ContributionStatus, string> = {
@@ -17,6 +17,7 @@ export const ENTITY_TYPE_LABELS: Record<EntityType, string> = {
   word: 'Kata',
   pronunciation: 'Pengucapan',
   word_image: 'Gambar',
+  word_audio: 'Audio Pelafalan',
   example: 'Contoh Kalimat',
 };
 
@@ -54,6 +55,7 @@ export interface ListContributionsParams {
 //  - 'word'          → detail kata semua status (anak pending ikut terlihat)
 //  - 'pronunciation' → row + referensi parent (field editable di data.*)
  //  - 'word_image'    → row + referensi parent
+//  - 'word_audio'    → row + referensi parent
 //  - 'example'       → row + referensi parent
 //
 // CATATAN drifting kontrak: docs/json menuliskan bentuk datar snake_case,
@@ -171,6 +173,18 @@ export interface WordImageChildData {
   is_primary: boolean;
 }
 
+export interface WordAudioChildData {
+  word_id: string;
+  example_id: string | null;
+  url: string;
+  speaker_name: string | null;
+  dialect_id: string | null;
+  is_primary: boolean;
+  duration_ms: number | null;
+  mime_type: string | null;
+  file_size: number | null;
+}
+
 export interface ExampleChildData {
   source_sentence: string;
   target_sentence: string | null;
@@ -204,7 +218,9 @@ export type ContributionDetailView =
       contribution: ContributionListItem;
       review: ContributionReview | null;
       entityType: Exclude<EntityType, 'word'>;
-      child: ChildEntityView<PronunciationChildData | WordImageChildData | ExampleChildData>;
+      child: ChildEntityView<
+        PronunciationChildData | WordImageChildData | WordAudioChildData | ExampleChildData
+      >;
       /** payload entity mentah - dipakai prefill form koreksi (tetap tersimpan) */
       rawEntity: unknown;
     };

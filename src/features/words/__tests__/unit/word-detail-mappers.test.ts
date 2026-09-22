@@ -47,6 +47,7 @@ function wordDetail(overrides: Partial<WordDetail> = {}): WordDetail {
     ],
     categories: [{ id: 'cat1', name: 'Makanan' }],
     pronunciations: [{ id: 'p1', notation: 'ipa', value: '/makatn/', dialect_id: null }],
+    audios: [],
     images: [],
     related_words: [{ word_id: 'w2', lemma: 'ngamakn', relation_type: 'synonym' }],
     appears_in: [],

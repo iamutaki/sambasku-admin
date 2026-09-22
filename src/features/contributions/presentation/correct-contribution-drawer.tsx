@@ -88,12 +88,10 @@ export function CorrectContributionDrawer({ detail, open, zIndex, onCancel }: Co
         if (Object.keys(fieldErrors).length > 0) {
           type CorrectFieldName = Parameters<typeof form.setFields>[0][number]['name'];
           form.setFields(
-            Object.entries(fieldErrors).map(([field, msg]) => {
-              // validator kata menamai path `word.meanings.0.…`; form kata
-              // menyimpan di `meanings.0.…` (tanpa prefix word).
-              const path = field.startsWith('word.') ? field.slice('word.'.length) : field;
-              return { name: fieldToNamePath(path) as unknown as CorrectFieldName, errors: [msg] };
-            }),
+            Object.entries(fieldErrors).map(([field, msg]) => ({
+              name: fieldToNamePath(field) as unknown as CorrectFieldName,
+              errors: [msg],
+            })),
           );
           return;
         }
@@ -135,6 +133,8 @@ export function CorrectContributionDrawer({ detail, open, zIndex, onCancel }: Co
           <CorrectPronunciationForm form={form} />
         ) : entityType === 'word_image' ? (
           <CorrectWordImageForm form={form} />
+        ) : entityType === 'word_audio' ? (
+          <CorrectWordAudioForm form={form} />
         ) : (
           <CorrectExampleForm form={form} />
         )}
@@ -405,7 +405,6 @@ function CorrectWordForm({ form }: { form: FormInstance<CorrectFormValues> }) {
                       </Form.Item>
                     </Col>
                   </Row>
-                  <Text type="secondary">Fitur audio pengucapan (rekaman penutur asli) menyusul.</Text>
                 </>
               ),
             },
@@ -416,11 +415,22 @@ function CorrectWordForm({ form }: { form: FormInstance<CorrectFormValues> }) {
   );
 }
 
+/** Dialek form anak: bahasa sumber (Sambas). Seed dialek hanya milik SBS. */
+function useSourceDialectOptions() {
+  const languagesQuery = useLanguageOptions();
+  const sourceLanguageId = useMemo(
+    () => pickDefaultLanguageIds(languagesQuery.data ?? []).sourceId,
+    [languagesQuery.data],
+  );
+  return useDialectOptions(sourceLanguageId);
+}
+
 // ---------------------------------------------------------------------------
-// Form koreksi entity ANAK (pronunciation / word_image / example)
+// Form koreksi entity ANAK (pronunciation / word_image / word_audio / example)
 // ---------------------------------------------------------------------------
 
 function CorrectPronunciationForm({ form }: { form: FormInstance<CorrectFormValues> }) {
+  const dialectQuery = useSourceDialectOptions();
   return (
     <Form form={form} layout="vertical" requiredMark>
       <Form.Item name="value" label="Teks Pengucapan" rules={[{ required: true, message: 'Teks pengucapan wajib diisi' }]}>
@@ -433,8 +443,13 @@ function CorrectPronunciationForm({ form }: { form: FormInstance<CorrectFormValu
           </Form.Item>
         </Col>
         <Col xs={24} md={16}>
-          <Form.Item name="dialect_id" label="Dialek (id)">
-            <Input placeholder="ID dialek goal, biarkan kosong bila umum / tidak ada" allowClear />
+          <Form.Item name="dialect_id" label="Dialek">
+            <Select
+              options={(dialectQuery.data ?? []).map((d) => ({ value: d.id, label: d.name }))}
+              loading={dialectQuery.isFetching}
+              placeholder="Umum / tidak ada"
+              allowClear
+            />
           </Form.Item>
         </Col>
       </Row>
@@ -446,6 +461,29 @@ function CorrectPronunciationForm({ form }: { form: FormInstance<CorrectFormValu
       </Form.Item>
       <Form.Item name="notes" label="Catatan">
         <Input.TextArea rows={2} placeholder="Opsional" />
+      </Form.Item>
+    </Form>
+  );
+}
+
+function CorrectWordAudioForm({ form }: { form: FormInstance<CorrectFormValues> }) {
+  const isPrimary = Form.useWatch('is_primary', form) ?? false;
+  const dialectQuery = useSourceDialectOptions();
+  return (
+    <Form form={form} layout="vertical" requiredMark>
+      <Form.Item name="speaker_name" label="Nama Penutur">
+        <Input placeholder="mis. Pak Samsul" allowClear />
+      </Form.Item>
+      <Form.Item name="dialect_id" label="Dialek">
+        <Select
+          options={(dialectQuery.data ?? []).map((d) => ({ value: d.id, label: d.name }))}
+          loading={dialectQuery.isFetching}
+          placeholder="Umum / tidak ada"
+          allowClear
+        />
+      </Form.Item>
+      <Form.Item name="is_primary" label="Rekaman Utama" valuePropName="checked">
+        <Switch checked={isPrimary} />
       </Form.Item>
     </Form>
   );

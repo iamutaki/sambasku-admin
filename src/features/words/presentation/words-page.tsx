@@ -141,6 +141,13 @@ export function WordsPage() {
         cell: (info) => {
           const row = info.row.original;
           const checked = row.status === 'published';
+          if (row.status === 'taken_down') {
+            return (
+              <Tooltip title="Entri ditarik. Pulihkan dari halaman detail.">
+                <Switch checked={false} disabled size="small" />
+              </Tooltip>
+            );
+          }
           if (!canVerify) {
             return <Switch checked={checked} disabled size="small" />;
           }

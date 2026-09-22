@@ -1,13 +1,54 @@
-import { useMemo, useState } from 'react';
-import { BookOutlined, CheckOutlined, DeleteOutlined, PlusOutlined } from '@ant-design/icons';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  AudioOutlined,
+  BookOutlined,
+  CheckOutlined,
+  DeleteOutlined,
+  PlusOutlined,
+  StopOutlined,
+} from '@ant-design/icons';
 import type { FormInstance } from 'antd/es/form';
-import { App as AntdApp, Button, Card, Col, Divider, Form, Input, InputNumber, Row, Segmented, Select, Space, Switch, Tooltip, Typography, theme } from 'antd';
+import {
+  App as AntdApp,
+  Alert,
+  Button,
+  Card,
+  Col,
+  Divider,
+  Flex,
+  Form,
+  Input,
+  InputNumber,
+  Row,
+  Segmented,
+  Select,
+  Space,
+  Switch,
+  Tag,
+  Tooltip,
+  Typography,
+  Upload,
+  theme,
+} from 'antd';
+import type { UploadProps } from 'antd';
 import { AFFIX_TYPES, AFFIX_TYPE_LABELS, EXAMPLE_SOURCE_TYPES, EXAMPLE_SOURCE_LABELS, RELATION_TYPES, RELATION_TYPE_LABELS, TRANSLATION_TYPES, TRANSLATION_TYPE_LABELS, VARIANT_TYPES, VARIANT_TYPE_LABELS, type CreateWordMeaningFormValue, type RelationType, type WordClassOption } from '../domain/create-word';
 import { WORD_TYPES, WORD_TYPE_LABELS } from '../domain/word';
 import type { DefaultLanguageIds } from '../application/create-word-utils';
 import { matchWordClassId } from '../application/match-word-class';
 import { WordSearchSelect } from './word-search-select';
 import { KbbiDefinitionPickerModal } from './kbbi-definition-picker-modal';
+import {
+  formatRecordingClock,
+  MAX_RECORDING_SECONDS,
+  useAudioRecorder,
+} from '../application/use-audio-recorder';
+import { useUploadPronunciationAudio } from '../application/use-upload-pronunciation-audio';
+import { validatePronunciationAudioFile } from '../infrastructure/pronunciation-audio-api';
+import type { WordDetailAudio } from '../domain/word-detail';
+import { mergeAudiosForExamples } from '../application/example-audios';
+import { useAuth } from '@/shared/auth/use-auth';
+import { AudioTrimEditor } from './audio-trim-editor';
+import type { TrimAudioResult } from '../application/trim-audio';
 
 const { Text } = Typography;
 
@@ -134,15 +175,15 @@ function KnowledgeToggleChip({
 
 function knowledgeHint(wantDefinition: boolean, wantPadanan: boolean): string {
   if (!wantDefinition && !wantPadanan) {
-    return 'Centang Definisi dan/atau Padanan. Form makna muncul setelah itu.';
+    return 'Centang Definisi dan/atau Terjemahan. Form makna muncul setelah itu.';
   }
   if (wantDefinition && wantPadanan) {
-    return 'Isi padanan kata dan uraian definisi.';
+    return 'Isi terjemahan dan uraian definisi.';
   }
   if (wantDefinition) {
-    return 'Isi uraian makna. Padanan bisa dilengkapi nanti.';
+    return 'Isi uraian makna. Terjemahan bisa dilengkapi nanti.';
   }
-  return 'Isi padanan kata saja. Definisi bisa dilengkapi nanti.';
+  return 'Isi terjemahan saja. Definisi bisa dilengkapi nanti.';
 }
 
 // ------- Opsi dropdown bersama (dipakai form buat & koreksi) -------
@@ -222,6 +263,24 @@ export interface MeaningFieldsProps {
   orderIndexInitial?: number;
   /** terjemahan minimal 1 (makna penuh) vs opsional (override - ikut induk) */
   translationsRequired?: boolean;
+  /**
+   * Create-only: izinkan rekam audio per contoh (draft lokal).
+   * Diunggah berurutan setelah POST create (GET detail → example_id).
+   */
+  enablePendingExampleAudio?: boolean;
+  pendingExampleAudios?: Record<string, PendingPronunciationAudio | null>;
+  onPendingExampleAudioChange?: (
+    key: string,
+    meta: { meaningIndex: number; exampleIndex: number; sourceSentence: string },
+    next: PendingPronunciationAudio | null,
+  ) => void;
+  dialectOptionsForExampleAudio?: { value: string; label: string }[];
+  defaultDialectIdForExampleAudio?: string | null;
+}
+
+/** Key draft audio contoh di form create: maknaIndex:contohIndex */
+export function pendingExampleAudioKey(meaningIndex: number, exampleIndex: number): string {
+  return `${meaningIndex}:${exampleIndex}`;
 }
 
 export function MeaningFields({
@@ -236,10 +295,20 @@ export function MeaningFields({
   showOrderIndex = false,
   orderIndexInitial,
   translationsRequired = true,
+  enablePendingExampleAudio = false,
+  pendingExampleAudios = {},
+  onPendingExampleAudioChange,
+  dialectOptionsForExampleAudio = [],
+  defaultDialectIdForExampleAudio = null,
 }: MeaningFieldsProps) {
   const form = Form.useFormInstance();
   const { message } = AntdApp.useApp();
   const [kbbiOpen, setKbbiOpen] = useState(false);
+
+  const meaningIndex =
+    typeof absolutePath[absolutePath.length - 1] === 'number'
+      ? (absolutePath[absolutePath.length - 1] as number)
+      : -1;
 
   const translations = Form.useWatch([...absolutePath, 'translations'], form) as
     | Array<{ translation_text?: string }>
@@ -258,7 +327,7 @@ export function MeaningFields({
         </Form.Item>
       ) : null}
 
-      {/* Selaras mobile: dua toggle independen (Definisi / Padanan). */}
+      {/* Selaras mobile: dua toggle independen (Terjemahan / Definisi). */}
       {translationsRequired ? (
         <>
           <Divider titlePlacement="start" plain>
@@ -284,18 +353,18 @@ export function MeaningFields({
                   <Row gutter={8}>
                     <Col span={12}>
                       <KnowledgeToggleChip
-                        label="Definisi"
-                        selected={wantDefinition}
-                        onClick={() => setHaveDefinition(form, absolutePath, !wantDefinition)}
-                      />
-                    </Col>
-                    <Col span={12}>
-                      <KnowledgeToggleChip
-                        label="Padanan"
+                        label="Terjemahan"
                         selected={wantPadanan}
                         onClick={() =>
                           setHavePadanan(form, absolutePath, defaultLanguageIds, !wantPadanan)
                         }
+                      />
+                    </Col>
+                    <Col span={12}>
+                      <KnowledgeToggleChip
+                        label="Definisi"
+                        selected={wantDefinition}
+                        onClick={() => setHaveDefinition(form, absolutePath, !wantDefinition)}
                       />
                     </Col>
                   </Row>
@@ -309,7 +378,7 @@ export function MeaningFields({
         </>
       ) : (
         <Divider titlePlacement="start" plain>
-          Padanan kata Indonesia
+          Terjemahan kata Indonesia
         </Divider>
       )}
 
@@ -330,7 +399,7 @@ export function MeaningFields({
             <>
               {!hasPadanan ? (
                 <Typography.Text type="secondary" style={{ display: 'block', marginBottom: 12 }}>
-                  Tanpa padanan - definisi uraian sudah cukup. Bisa dilengkapi nanti.
+                  Tanpa terjemahan - definisi uraian sudah cukup. Bisa dilengkapi nanti.
                 </Typography.Text>
               ) : (
                 <Form.List
@@ -345,7 +414,7 @@ export function MeaningFields({
                               }
                               return Array.isArray(value) && value.length > 0
                                 ? Promise.resolve()
-                                : Promise.reject(new Error('Minimal 1 padanan, atau pilih “Definisi”'));
+                                : Promise.reject(new Error('Minimal 1 terjemahan, atau pilih “Definisi”'));
                             },
                           },
                         ]
@@ -366,13 +435,13 @@ export function MeaningFields({
                             </Form.Item>
                             <Form.Item
                               name={[tf.name, 'translation_text']}
-                              label="Padanan Indonesia"
+                              label="Terjemahan Indonesia"
                               extra={
                                 tf.name === 0
                                   ? 'Tekan icon buku untuk mencari definisi di KBBI'
                                   : undefined
                               }
-                              rules={[{ required: true, message: 'Padanan wajib diisi' }]}
+                              rules={[{ required: true, message: 'Terjemahan wajib diisi' }]}
                             >
                               <Input
                                 placeholder="Satu kata/frasa setara di Indonesia"
@@ -425,7 +494,7 @@ export function MeaningFields({
                           )
                         }
                       >
-                        Tambah Padanan
+                        Tambah Terjemahan
                       </Button>
                     </Space>
                   )}
@@ -477,7 +546,7 @@ export function MeaningFields({
 
               {!hasDef ? (
                 <Typography.Text type="secondary" style={{ display: 'block', marginBottom: 12 }}>
-                  Tanpa definisi - isi padanan dulu. Definisi bisa dilengkapi nanti.
+                  Tanpa definisi - isi terjemahan dulu. Definisi bisa dilengkapi nanti.
                 </Typography.Text>
               ) : (
                 <Form.Item
@@ -543,7 +612,7 @@ export function MeaningFields({
 
           const parts = ['Definisi'];
           if (matchedId) parts.push('kelas kata');
-          if (lemmaId) parts.push('padanan');
+          if (lemmaId) parts.push('terjemahan');
           message.success(`${parts.join(', ')} diisi dari KBBI - silakan review`);
         }}
       />
@@ -551,42 +620,100 @@ export function MeaningFields({
       <Divider titlePlacement="start" plain>
         Contoh Kalimat (opsional)
       </Divider>
+      <Alert
+        type="info"
+        showIcon
+        style={{ marginBottom: 12 }}
+        message={
+          enablePendingExampleAudio
+            ? 'Audio contoh bisa direkam sekarang'
+            : 'Audio contoh direkam setelah kata tersimpan'
+        }
+        description={
+          enablePendingExampleAudio
+            ? 'Rekam per contoh di bawah. Setelah kata disimpan, API mengunggah audio berurutan (create → ambil ID contoh → upload).'
+            : 'Isi teks contoh di sini, lalu simpan. Rekam audio ada di halaman Detail / Edit (bagian Audio contoh kalimat).'
+        }
+      />
       <Form.List name={[...name, 'examples']}>
         {(exampleFields, { add: addExample, remove: removeExample }) => (
           <Space direction="vertical" size={8} style={{ width: '100%' }}>
             {exampleFields.map((ef) => (
-              <Row key={ef.key} gutter={12} align="top" wrap>
-                <Col flex="auto">
-                  <Form.Item name={[ef.name, 'source_language_id']} noStyle rules={[{ required: true, message: 'Wajib' }]}>
-                    <Input type="hidden" />
-                  </Form.Item>
-                  <Form.Item name={[ef.name, 'target_language_id']} noStyle>
-                    <Input type="hidden" />
-                  </Form.Item>
-                  <Form.Item
-                    name={[ef.name, 'source_sentence']}
-                    label="Kalimat Sambas"
-                    rules={[{ required: true, message: 'Contoh wajib diisi' }]}
-                  >
-                    <Input.TextArea rows={1} autoSize placeholder="Kami udah makatn tadi." />
-                  </Form.Item>
-                </Col>
-                <Col flex="140px">
-                  <Form.Item name={[ef.name, 'source_type']} label="Sumber" initialValue="native_speaker">
-                    <Select options={exampleSourceOptions} />
-                  </Form.Item>
-                </Col>
-                <Col flex="32px">
-                  <Form.Item label=" ">
-                    <Button type="text" danger icon={<DeleteOutlined />} onClick={() => removeExample(ef.name)} />
-                  </Form.Item>
-                </Col>
-                <Col flex="auto">
-                  <Form.Item name={[ef.name, 'target_sentence']} label="Terjemahan Kalimat">
-                    <Input.TextArea rows={1} autoSize placeholder="Kami sudah makan tadi." />
-                  </Form.Item>
-                </Col>
-              </Row>
+              <div key={ef.key}>
+                <Row gutter={12} align="top" wrap>
+                  <Col flex="auto">
+                    <Form.Item name={[ef.name, 'source_language_id']} noStyle rules={[{ required: true, message: 'Wajib' }]}>
+                      <Input type="hidden" />
+                    </Form.Item>
+                    <Form.Item name={[ef.name, 'target_language_id']} noStyle>
+                      <Input type="hidden" />
+                    </Form.Item>
+                    <Form.Item
+                      name={[ef.name, 'source_sentence']}
+                      label="Kalimat Sambas"
+                      rules={[{ required: true, message: 'Contoh wajib diisi' }]}
+                    >
+                      <Input.TextArea rows={1} autoSize placeholder="Kami udah makatn tadi." />
+                    </Form.Item>
+                  </Col>
+                  <Col flex="140px">
+                    <Form.Item name={[ef.name, 'source_type']} label="Sumber" initialValue="native_speaker">
+                      <Select options={exampleSourceOptions} />
+                    </Form.Item>
+                  </Col>
+                  <Col flex="32px">
+                    <Form.Item label=" ">
+                      <Button
+                        type="text"
+                        danger
+                        icon={<DeleteOutlined />}
+                        onClick={() => {
+                          if (enablePendingExampleAudio && meaningIndex >= 0) {
+                            const key = pendingExampleAudioKey(meaningIndex, ef.name);
+                            onPendingExampleAudioChange?.(
+                              key,
+                              { meaningIndex, exampleIndex: ef.name, sourceSentence: '' },
+                              null,
+                            );
+                          }
+                          removeExample(ef.name);
+                        }}
+                      />
+                    </Form.Item>
+                  </Col>
+                  <Col flex="auto">
+                    <Form.Item name={[ef.name, 'target_sentence']} label="Terjemahan Kalimat">
+                      <Input.TextArea rows={1} autoSize placeholder="Kami sudah makan tadi." />
+                    </Form.Item>
+                  </Col>
+                </Row>
+                {enablePendingExampleAudio && meaningIndex >= 0 && onPendingExampleAudioChange ? (
+                  <div style={{ marginTop: 8, marginBottom: 8 }}>
+                    <Text type="secondary" style={{ display: 'block', marginBottom: 6 }}>
+                      Audio contoh (opsional) — diunggah otomatis setelah simpan
+                    </Text>
+                    <PendingPronunciationAudioField
+                      dialectOptions={dialectOptionsForExampleAudio}
+                      defaultDialectId={defaultDialectIdForExampleAudio}
+                      value={pendingExampleAudios[pendingExampleAudioKey(meaningIndex, ef.name)] ?? null}
+                      onChange={(next) => {
+                        const sentence = String(
+                          form.getFieldValue([...absolutePath, 'examples', ef.name, 'source_sentence']) ?? '',
+                        ).trim();
+                        onPendingExampleAudioChange(
+                          pendingExampleAudioKey(meaningIndex, ef.name),
+                          {
+                            meaningIndex,
+                            exampleIndex: ef.name,
+                            sourceSentence: sentence,
+                          },
+                          next,
+                        );
+                      }}
+                    />
+                  </div>
+                ) : null}
+              </div>
             ))}
             <Button
               type="dashed"
@@ -1005,5 +1132,678 @@ export function WordVariantsField() {
         </Space>
       )}
     </Form.List>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Audio pelafalan (word_audios) — upload multipart + daftar pemutar
+// ---------------------------------------------------------------------------
+
+/**
+ * Nama penutur awal = username akun yang sedang login.
+ * Setelah admin mengubah kolom, nilai sesi tidak menimpa lagi.
+ */
+function useSessionSpeakerName(existing?: string | null): [string, (next: string) => void] {
+  const { user } = useAuth();
+  const sessionName = user?.username?.trim() ?? '';
+  const [speakerName, setSpeakerName] = useState(existing?.trim() || sessionName);
+  const touched = useRef(Boolean(existing?.trim()));
+
+  useEffect(() => {
+    if (touched.current || speakerName.trim()) return;
+    if (sessionName) setSpeakerName(sessionName);
+  }, [sessionName, speakerName]);
+
+  const update = useCallback((next: string) => {
+    touched.current = true;
+    setSpeakerName(next);
+  }, []);
+
+  return [speakerName, update];
+}
+
+export function formatAudioFileSize(bytes: number | null | undefined): string {
+  if (bytes == null || bytes <= 0) return '-';
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+export function formatAudioDurationMs(ms: number | null | undefined): string {
+  if (ms == null || ms <= 0) return '-';
+  const sec = Math.round(ms / 1000);
+  if (sec < 60) return `${sec} dtk`;
+  const min = Math.floor(sec / 60);
+  const rem = sec % 60;
+  return rem ? `${min} m ${rem} dtk` : `${min} m`;
+}
+
+export interface WordAudioPlayerRowProps {
+  audio: WordDetailAudio;
+  parentLemma: string;
+  dialectLabel: string;
+  /** true = audio contoh kalimat (bukan lemma) */
+  isExample?: boolean;
+}
+
+export function WordAudioPlayerRow({
+  audio,
+  parentLemma,
+  dialectLabel,
+  isExample = false,
+}: WordAudioPlayerRowProps) {
+  return (
+    <Flex gap={12} wrap align="flex-start" style={{ width: '100%' }}>
+      <audio controls src={audio.url} preload="metadata" style={{ minWidth: 240, maxWidth: '100%' }} />
+      <Space direction="vertical" size={2} style={{ flex: 1, minWidth: 200 }}>
+        <Space size={4} wrap>
+          {audio.is_primary ? <Tag color="geekblue">Utama</Tag> : null}
+          {audio.status && audio.status !== 'published' ? <Tag>{audio.status}</Tag> : null}
+          {isExample ? <Tag>Contoh</Tag> : <Tag color="purple">Lemma</Tag>}
+        </Space>
+        <Text type="secondary">
+          Lemma: {parentLemma}
+          {' · '}
+          Dialek: {dialectLabel}
+        </Text>
+        <Text type="secondary">
+          Penutur: {audio.speaker_name?.trim() || '-'}
+          {' · '}
+          Durasi: {formatAudioDurationMs(audio.duration_ms)}
+          {' · '}
+          Ukuran: {formatAudioFileSize(audio.file_size ?? null)}
+        </Text>
+      </Space>
+    </Flex>
+  );
+}
+
+export interface PronunciationAudioUploadProps {
+  wordId: string;
+  /** Jika diisi, audio ditaut ke contoh kalimat (example_id). */
+  exampleId?: string;
+  dialectOptions: { value: string; label: string }[];
+  defaultDialectId?: string | null;
+  onUploaded?: () => void;
+  compact?: boolean;
+}
+
+/**
+ * Rekam mikrofon (MediaRecorder) atau pilih file → potong → upload multipart.
+ * Dipakai di detail, edit, dan inline contoh.
+ */
+export function PronunciationAudioUpload({
+  wordId,
+  exampleId,
+  dialectOptions,
+  defaultDialectId,
+  onUploaded,
+  compact = false,
+}: PronunciationAudioUploadProps) {
+  const { message } = AntdApp.useApp();
+  const uploadMutation = useUploadPronunciationAudio(wordId);
+  const recorder = useAudioRecorder();
+  const [speakerName, setSpeakerName] = useSessionSpeakerName();
+  const [dialectId, setDialectId] = useState<string | undefined>(
+    defaultDialectId ?? undefined,
+  );
+  /** File dipilih (bukan dari recorder) — masuk editor potong. */
+  const [pickedDraft, setPickedDraft] = useState<{
+    blob: Blob;
+    previewUrl: string;
+  } | null>(null);
+
+  const clearPickedDraft = () => {
+    if (pickedDraft?.previewUrl) URL.revokeObjectURL(pickedDraft.previewUrl);
+    setPickedDraft(null);
+  };
+
+  const uploadFile = async (file: File, durationMs?: number) => {
+    const err = validatePronunciationAudioFile(file);
+    if (err) {
+      message.warning(err);
+      return;
+    }
+    try {
+      await uploadMutation.mutateAsync({
+        file,
+        fields: {
+          ...(dialectId ? { dialect_id: dialectId } : {}),
+          ...(exampleId ? { example_id: exampleId } : {}),
+          ...(speakerName.trim() ? { speaker_name: speakerName.trim() } : {}),
+          ...(durationMs != null && durationMs > 0 ? { duration_ms: durationMs } : {}),
+        },
+      });
+      message.success(exampleId ? 'Audio contoh diunggah' : 'Audio pelafalan diunggah');
+      clearPickedDraft();
+      recorder.reset();
+      onUploaded?.();
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Gagal mengunggah audio';
+      message.error(msg);
+    }
+  };
+
+  const handleTrimConfirm = async (result: TrimAudioResult) => {
+    await uploadFile(result.file, result.durationMs);
+  };
+
+  const beforeUpload: UploadProps['beforeUpload'] = (file) => {
+    const err = validatePronunciationAudioFile(file as File);
+    if (err) {
+      message.warning(err);
+      return Upload.LIST_IGNORE;
+    }
+    return false;
+  };
+
+  const handleFileChange: UploadProps['onChange'] = (info) => {
+    const raw = info.file.originFileObj ?? (info.file as unknown as File);
+    if (!raw || !(raw instanceof File)) return;
+    clearPickedDraft();
+    recorder.reset();
+    const previewUrl = URL.createObjectURL(raw);
+    setPickedDraft({ blob: raw, previewUrl });
+  };
+
+  const trimSource =
+    pickedDraft ??
+    (recorder.state === 'preview' && recorder.blob && recorder.previewUrl
+      ? { blob: recorder.blob, previewUrl: recorder.previewUrl }
+      : null);
+
+  const editing = Boolean(trimSource);
+
+  return (
+    <Space direction="vertical" size={8} style={{ width: '100%' }}>
+      {!compact ? (
+        <Text type="secondary">
+          Rekam atau pilih file, lalu potong diam di awal/akhir sebelum unggah (maks.{' '}
+          {MAX_RECORDING_SECONDS} dtk rekaman / 5 MB). Kontributor masuk antrean review;
+          verifikator langsung tayang.
+        </Text>
+      ) : null}
+      <Row gutter={8} wrap>
+        <Col xs={24} md={10}>
+          <Input
+            placeholder="Nama penutur (opsional)"
+            value={speakerName}
+            onChange={(e) => setSpeakerName(e.target.value)}
+            maxLength={255}
+            allowClear
+            disabled={recorder.state === 'recording' || uploadMutation.isPending || editing}
+          />
+        </Col>
+        <Col xs={24} md={8}>
+          <Select
+            allowClear
+            placeholder="Dialek (opsional)"
+            options={dialectOptions}
+            value={dialectId}
+            onChange={(v) => setDialectId(v)}
+            style={{ width: '100%' }}
+            disabled={recorder.state === 'recording' || uploadMutation.isPending || editing}
+          />
+        </Col>
+      </Row>
+
+      {recorder.error ? <Alert type="warning" showIcon message={recorder.error} /> : null}
+
+      {recorder.state === 'recording' ? (
+        <Space wrap>
+          <Tag color="red">Merekam {formatRecordingClock(recorder.elapsedMs)}</Tag>
+          <Button danger icon={<StopOutlined />} onClick={() => recorder.stop()}>
+            Stop
+          </Button>
+        </Space>
+      ) : null}
+
+      {trimSource ? (
+        <AudioTrimEditor
+          source={trimSource.blob}
+          sourcePreviewUrl={trimSource.previewUrl}
+          disabled={uploadMutation.isPending}
+          confirmLabel={uploadMutation.isPending ? 'Mengunggah…' : 'Terapkan & unggah'}
+          onConfirm={(result) => void handleTrimConfirm(result)}
+          onCancel={() => {
+            clearPickedDraft();
+            recorder.reset();
+          }}
+          onRerecord={() => {
+            clearPickedDraft();
+            void recorder.start();
+          }}
+        />
+      ) : null}
+
+      {!editing && recorder.state === 'idle' ? (
+        <Space wrap>
+          <Button
+            type="primary"
+            icon={<AudioOutlined />}
+            onClick={() => void recorder.start()}
+            disabled={!recorder.supported || uploadMutation.isPending}
+          >
+            {exampleId ? 'Rekam audio contoh' : 'Rekam'}
+          </Button>
+          <Upload
+            accept=".mp3,.m4a,.wav,.ogg,.webm,audio/*"
+            showUploadList={false}
+            beforeUpload={beforeUpload}
+            onChange={handleFileChange}
+            disabled={uploadMutation.isPending}
+          >
+            <Button loading={uploadMutation.isPending}>Pilih file</Button>
+          </Upload>
+          {!recorder.supported ? (
+            <Text type="secondary">Rekaman tidak didukung di browser ini — pakai pilih file.</Text>
+          ) : null}
+        </Space>
+      ) : null}
+    </Space>
+  );
+}
+
+/** Draft audio di form create (belum ada wordId) — diunggah setelah kata tersimpan. */
+export interface PendingPronunciationAudio {
+  file: File;
+  durationMs: number;
+  speakerName?: string;
+  dialectId?: string;
+  previewUrl: string;
+}
+
+export interface PendingPronunciationAudioFieldProps {
+  dialectOptions: { value: string; label: string }[];
+  defaultDialectId?: string | null;
+  value: PendingPronunciationAudio | null;
+  onChange: (next: PendingPronunciationAudio | null) => void;
+}
+
+/**
+ * Section rekam/pilih audio untuk create kata — potong dulu, simpan lokal sampai submit.
+ */
+export function PendingPronunciationAudioField({
+  dialectOptions,
+  defaultDialectId,
+  value,
+  onChange,
+}: PendingPronunciationAudioFieldProps) {
+  const { message } = AntdApp.useApp();
+  const recorder = useAudioRecorder();
+  const [speakerName, setSpeakerName] = useSessionSpeakerName(value?.speakerName);
+  const [dialectId, setDialectId] = useState<string | undefined>(
+    value?.dialectId ?? defaultDialectId ?? undefined,
+  );
+  const [pickedDraft, setPickedDraft] = useState<{
+    blob: Blob;
+    previewUrl: string;
+  } | null>(null);
+
+  useEffect(() => {
+    if (!value) return;
+    if (value.speakerName) setSpeakerName(value.speakerName);
+    setDialectId(value.dialectId ?? undefined);
+  }, [value, setSpeakerName]);
+
+  const clearPickedDraft = () => {
+    if (pickedDraft?.previewUrl) URL.revokeObjectURL(pickedDraft.previewUrl);
+    setPickedDraft(null);
+  };
+
+  const clearPending = () => {
+    if (value?.previewUrl) URL.revokeObjectURL(value.previewUrl);
+    onChange(null);
+    clearPickedDraft();
+    recorder.reset();
+  };
+
+  const commitTrimmed = (result: TrimAudioResult) => {
+    const err = validatePronunciationAudioFile(result.file);
+    if (err) {
+      message.warning(err);
+      return;
+    }
+    if (value?.previewUrl) URL.revokeObjectURL(value.previewUrl);
+    const previewUrl = URL.createObjectURL(result.file);
+    clearPickedDraft();
+    recorder.reset();
+    onChange({
+      file: result.file,
+      durationMs: result.durationMs,
+      speakerName: speakerName.trim() || undefined,
+      dialectId,
+      previewUrl,
+    });
+  };
+
+  const beforeUpload: UploadProps['beforeUpload'] = (file) => {
+    const err = validatePronunciationAudioFile(file as File);
+    if (err) {
+      message.warning(err);
+      return Upload.LIST_IGNORE;
+    }
+    return false;
+  };
+
+  const handleFileChange: UploadProps['onChange'] = (info) => {
+    const raw = info.file.originFileObj ?? (info.file as unknown as File);
+    if (!raw || !(raw instanceof File)) return;
+    if (value?.previewUrl) URL.revokeObjectURL(value.previewUrl);
+    onChange(null);
+    clearPickedDraft();
+    recorder.reset();
+    setPickedDraft({ blob: raw, previewUrl: URL.createObjectURL(raw) });
+  };
+
+  const trimSource =
+    !value &&
+    (pickedDraft ??
+      (recorder.state === 'preview' && recorder.blob && recorder.previewUrl
+        ? { blob: recorder.blob, previewUrl: recorder.previewUrl }
+        : null));
+
+  return (
+    <Space direction="vertical" size={8} style={{ width: '100%' }}>
+      <Text type="secondary">
+        Rekam atau pilih file, potong diam di awal/akhir, lalu simpan kata — audio diunggah
+        otomatis setelah kata tersimpan (maks. {MAX_RECORDING_SECONDS} dtk / 5 MB).
+      </Text>
+      <Row gutter={8} wrap>
+        <Col xs={24} md={10}>
+          <Input
+            placeholder="Nama penutur (opsional)"
+            value={speakerName}
+            onChange={(e) => {
+              setSpeakerName(e.target.value);
+              if (value) {
+                onChange({ ...value, speakerName: e.target.value.trim() || undefined });
+              }
+            }}
+            maxLength={255}
+            allowClear
+            disabled={recorder.state === 'recording'}
+          />
+        </Col>
+        <Col xs={24} md={8}>
+          <Select
+            allowClear
+            placeholder="Dialek (opsional)"
+            options={dialectOptions}
+            value={dialectId}
+            onChange={(v) => {
+              setDialectId(v);
+              if (value) onChange({ ...value, dialectId: v });
+            }}
+            style={{ width: '100%' }}
+            disabled={recorder.state === 'recording'}
+          />
+        </Col>
+      </Row>
+
+      {recorder.error ? <Alert type="warning" showIcon message={recorder.error} /> : null}
+
+      {recorder.state === 'recording' ? (
+        <Space wrap>
+          <Tag color="red">Merekam {formatRecordingClock(recorder.elapsedMs)}</Tag>
+          <Button danger icon={<StopOutlined />} onClick={() => recorder.stop()}>
+            Stop
+          </Button>
+        </Space>
+      ) : null}
+
+      {value ? (
+        <Space direction="vertical" size={8} style={{ width: '100%' }}>
+          <audio
+            controls
+            src={value.previewUrl}
+            preload="metadata"
+            style={{ width: '100%', maxWidth: 420 }}
+          />
+          <Space wrap>
+            <Tag color="green">
+              Siap diunggah saat simpan ({formatRecordingClock(value.durationMs)})
+            </Tag>
+            <Button icon={<DeleteOutlined />} onClick={clearPending}>
+              Buang
+            </Button>
+            <Button
+              icon={<AudioOutlined />}
+              onClick={() => {
+                clearPending();
+                void recorder.start();
+              }}
+            >
+              Rekam ulang
+            </Button>
+          </Space>
+        </Space>
+      ) : null}
+
+      {trimSource ? (
+        <AudioTrimEditor
+          source={trimSource.blob}
+          sourcePreviewUrl={trimSource.previewUrl}
+          confirmLabel="Pakai potongan ini"
+          onConfirm={commitTrimmed}
+          onCancel={() => {
+            clearPickedDraft();
+            recorder.reset();
+          }}
+          onRerecord={() => {
+            clearPickedDraft();
+            void recorder.start();
+          }}
+        />
+      ) : null}
+
+      {!value && !trimSource && recorder.state === 'idle' ? (
+        <Space wrap>
+          <Button
+            type="primary"
+            icon={<AudioOutlined />}
+            onClick={() => void recorder.start()}
+            disabled={!recorder.supported}
+          >
+            Rekam
+          </Button>
+          <Upload
+            accept=".mp3,.m4a,.wav,.ogg,.webm,audio/*"
+            showUploadList={false}
+            beforeUpload={beforeUpload}
+            onChange={handleFileChange}
+          >
+            <Button>Pilih file</Button>
+          </Upload>
+        </Space>
+      ) : null}
+    </Space>
+  );
+}
+
+export interface WordLemmaAudiosSectionProps {
+  wordId: string;
+  lemma: string;
+  audios: WordDetailAudio[];
+  dialectLabel: (dialectId: string | null | undefined) => string;
+  dialectOptions: { value: string; label: string }[];
+  defaultDialectId?: string | null;
+  onUploaded?: () => void;
+}
+
+/** Daftar audio lemma + form rekam/unggah (halaman detail & edit kata). */
+export function WordLemmaAudiosSection({
+  wordId,
+  lemma,
+  audios,
+  dialectLabel,
+  dialectOptions,
+  defaultDialectId,
+  onUploaded,
+}: WordLemmaAudiosSectionProps) {
+  const lemmaAudios = audios.filter((a) => !a.example_id);
+
+  return (
+    <Space direction="vertical" size={12} style={{ width: '100%' }}>
+      {lemmaAudios.length ? (
+        <Space direction="vertical" size={12} style={{ width: '100%' }}>
+          {lemmaAudios.map((a) => (
+            <WordAudioPlayerRow
+              key={a.id}
+              audio={a}
+              parentLemma={lemma}
+              dialectLabel={dialectLabel(a.dialect_id)}
+            />
+          ))}
+        </Space>
+      ) : (
+        <Text type="secondary">Belum ada rekaman audio lemma.</Text>
+      )}
+      <Card size="small" title="Rekam / unggah audio pelafalan lemma">
+        <PronunciationAudioUpload
+          wordId={wordId}
+          dialectOptions={dialectOptions}
+          defaultDialectId={defaultDialectId}
+          onUploaded={onUploaded}
+        />
+      </Card>
+    </Space>
+  );
+}
+
+export interface ExampleAudiosInlineProps {
+  wordId: string;
+  lemma: string;
+  exampleId: string;
+  audios: WordDetailAudio[];
+  dialectLabel: (dialectId: string | null | undefined) => string;
+  dialectOptions: { value: string; label: string }[];
+  defaultDialectId?: string | null;
+  onUploaded?: () => void;
+}
+
+/**
+ * Audio + rekam untuk satu contoh kalimat (butuh example_id dari API).
+ */
+export function ExampleAudiosInline({
+  wordId,
+  lemma,
+  exampleId,
+  audios,
+  dialectLabel,
+  dialectOptions,
+  defaultDialectId,
+  onUploaded,
+}: ExampleAudiosInlineProps) {
+  const exampleAudios = audios.filter((a) => a.example_id === exampleId);
+
+  return (
+    <Card
+      size="small"
+      title="Rekam audio untuk contoh ini"
+      style={{ marginTop: 10 }}
+      styles={{ body: { paddingTop: 12 } }}
+    >
+      {exampleAudios.length ? (
+        <Space direction="vertical" size={8} style={{ width: '100%', marginBottom: 12 }}>
+          {exampleAudios.map((a) => (
+            <WordAudioPlayerRow
+              key={a.id}
+              audio={a}
+              parentLemma={lemma}
+              dialectLabel={dialectLabel(a.dialect_id)}
+              isExample
+            />
+          ))}
+        </Space>
+      ) : (
+        <Text type="secondary" style={{ display: 'block', marginBottom: 12 }}>
+          Belum ada audio. Tekan <Text strong>Rekam audio contoh</Text> di bawah.
+        </Text>
+      )}
+      <PronunciationAudioUpload
+        wordId={wordId}
+        exampleId={exampleId}
+        dialectOptions={dialectOptions}
+        defaultDialectId={defaultDialectId}
+        onUploaded={onUploaded}
+        compact
+      />
+    </Card>
+  );
+}
+
+export interface WordExampleAudiosSectionProps {
+  wordId: string;
+  lemma: string;
+  /** Daftar contoh dari detail (makna → examples), termasuk audio nested. */
+  examples: {
+    id: string;
+    source_sentence: string;
+    target_sentence?: string | null;
+    audios?: WordDetailAudio[];
+  }[];
+  audios: WordDetailAudio[];
+  dialectLabel: (dialectId: string | null | undefined) => string;
+  dialectOptions: { value: string; label: string }[];
+  defaultDialectId?: string | null;
+  onUploaded?: () => void;
+}
+
+/**
+ * Bagian khusus rekam audio SEMUA contoh kalimat (detail & edit).
+ * Create tidak bisa: example_id belum ada sampai kata disimpan.
+ */
+export function WordExampleAudiosSection({
+  wordId,
+  lemma,
+  examples,
+  audios,
+  dialectLabel,
+  dialectOptions,
+  defaultDialectId,
+  onUploaded,
+}: WordExampleAudiosSectionProps) {
+  const pool = mergeAudiosForExamples(audios, examples);
+
+  if (examples.length === 0) {
+    return (
+      <Alert
+        type="info"
+        showIcon
+        message="Belum ada contoh kalimat"
+        description="Tambah contoh di form Edit Kata (bagian Makna → Contoh Kalimat), simpan, lalu kembali ke sini untuk merekam audio per contoh."
+      />
+    );
+  }
+
+  return (
+    <Space direction="vertical" size={16} style={{ width: '100%' }}>
+      <Text type="secondary">
+        Setiap contoh punya tombol rekam sendiri. Audio contoh berbeda dari audio lemma
+        (pelafalan kata).
+      </Text>
+      {examples.map((e, index) => (
+        <div key={e.id}>
+          <Text strong style={{ display: 'block', marginBottom: 4 }}>
+            Contoh {index + 1}
+          </Text>
+          <Text italic>“{e.source_sentence}”</Text>
+          {e.target_sentence ? (
+            <Text type="secondary"> — {e.target_sentence}</Text>
+          ) : null}
+          <ExampleAudiosInline
+            wordId={wordId}
+            lemma={lemma}
+            exampleId={e.id}
+            audios={pool}
+            dialectLabel={dialectLabel}
+            dialectOptions={dialectOptions}
+            defaultDialectId={defaultDialectId}
+            onUploaded={onUploaded}
+          />
+        </div>
+      ))}
+    </Space>
   );
 }

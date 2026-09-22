@@ -12,8 +12,10 @@ import {
   LogoutOutlined,
   SafetyCertificateOutlined,
   SearchOutlined,
+  StopOutlined,
   TranslationOutlined,
   UserOutlined,
+  WarningOutlined,
 } from '@ant-design/icons';
 import { Avatar, Breadcrumb, Button, Dropdown, Layout, Menu, Space, Tag, Typography, theme } from 'antd';
 import type { MenuProps } from 'antd';
@@ -29,7 +31,9 @@ const KAMUS_ROUTES = {
   '/words': { icon: <TranslationOutlined />, label: 'Kata' },
   '/contributions': { icon: <InboxOutlined />, label: 'Review' },
   '/word-suggestions': { icon: <EditOutlined />, label: 'Usul Edit' },
+  '/word-reports': { icon: <WarningOutlined />, label: 'Laporan Entri' },
   '/comments': { icon: <CommentOutlined />, label: 'Komentar' },
+  '/comment-blocklist': { icon: <StopOutlined />, label: 'Blocklist' },
   '/search-misses': { icon: <SearchOutlined />, label: 'Pencarian' },
   '/vote-moderation': { icon: <LikeOutlined />, label: 'Vote' },
 } as const;
@@ -45,7 +49,9 @@ const BREADCRUMB_LABELS: Record<string, string> = {
   words: 'Kata',
   contributions: 'Review',
   'word-suggestions': 'Usul Edit',
+  'word-reports': 'Laporan Entri',
   comments: 'Komentar',
+  'comment-blocklist': 'Blocklist',
   'search-misses': 'Pencarian',
   'vote-moderation': 'Vote',
   'audit-logs': 'Audit Log',
@@ -85,7 +91,13 @@ export function ConsoleLayout() {
 
     const kamusChildren = (Object.entries(KAMUS_ROUTES) as [KamusRoute, (typeof KAMUS_ROUTES)[KamusRoute]][])
       .filter(([key]) =>
-        key === '/vote-moderation' || key === '/word-suggestions' ? canModerateContent : true,
+        key === '/word-reports'
+          ? canModerateContent || user?.role === 'editor'
+          : key === '/vote-moderation' || key === '/word-suggestions'
+            ? canModerateContent
+            : key === '/comment-blocklist'
+              ? canManageUsers
+              : true,
       )
       .map(([key, { icon, label }]) => ({ key, icon, label }));
 
@@ -162,8 +174,14 @@ export function ConsoleLayout() {
     <Layout className="console-layout">
       <Sider collapsible collapsedWidth={56} breakpoint="lg" width={220} theme="dark">
         <div className="console-layout__sider-brand">
-          <TranslationOutlined />
-          <span className="console-layout__sider-title">Sambasku</span>
+          <img
+            className="console-layout__sider-logo"
+            src="/logo_white.webp"
+            alt="SambasKu"
+            width={512}
+            height={678}
+            decoding="async"
+          />
         </div>
         <Menu
           theme="dark"

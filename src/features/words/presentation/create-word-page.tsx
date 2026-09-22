@@ -24,16 +24,22 @@ import { ApiError } from '@/shared/api/error';
 import { useAuth } from '@/shared/auth/use-auth';
 import { buildCreateWordBody, fieldToNamePath, hasUploadingImages, pickDefaultDialectId, pickDefaultLanguageIds } from '../application/create-word-utils';
 import { useCreateWord } from '../application/use-create-word';
+import {
+  uploadPendingAudiosAfterCreate,
+  type PendingExampleAudioDraft,
+} from '../application/upload-pending-audios-after-create';
 import { useCategoryOptions, useDialectOptions, useLanguageOptions, useWordClassOptions } from '../application/use-reference-data';
 import type { CreateWordFormValues } from '../domain/create-word';
 import { type WordStatus } from '../domain/word';
 import {
   MeaningFields,
+  PendingPronunciationAudioField,
   RelatedWordItem,
   WordVariantsField,
   buildRelationOptions,
   buildWordClassOptions,
   wordTypeOptions,
+  type PendingPronunciationAudio,
 } from './word-form-blocks';
 import { WordImagesField } from './word-images-field';
 
@@ -44,6 +50,7 @@ const inlineStatusLabels: Record<WordStatus, string> = {
   pending_review: 'Menunggu Review',
   published: 'Tayang',
   rejected: 'Ditolak',
+  taken_down: 'Ditarik',
 };
 
 type MissDirection = 'lemma' | 'translation';
@@ -74,6 +81,14 @@ export function CreateWordPage() {
   const [form] = Form.useForm<CreateWordFormValues>();
   const createMutation = useCreateWord();
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [pendingAudio, setPendingAudio] = useState<PendingPronunciationAudio | null>(null);
+  /** Draft audio per contoh — diunggah berurutan setelah create + GET detail. */
+  const [pendingExampleAudios, setPendingExampleAudios] = useState<
+    Record<string, PendingPronunciationAudio | null>
+  >({});
+  const pendingExampleMetaRef = useRef<
+    Record<string, { meaningIndex: number; exampleIndex: number; sourceSentence: string }>
+  >({});
   const missParams = useMemo(() => readMissSearchParams(), []);
 
   const wordType = Form.useWatch('word_type', form) ?? 'word';
@@ -157,6 +172,16 @@ export function CreateWordPage() {
   // has_component hanya sah untuk entri frasa (idiom/peribahasa/ungkapan).
   const relationOptions = useMemo(() => buildRelationOptions(wordType), [wordType]);
 
+  const dialectOptions = useMemo(
+    () => (dialectQuery.data ?? []).map((d) => ({ value: d.id, label: d.name })),
+    [dialectQuery.data],
+  );
+
+  const defaultDialectId = useMemo(
+    () => pickDefaultDialectId(dialectQuery.data ?? []) ?? null,
+    [dialectQuery.data],
+  );
+
   const handleSubmitError = (err: unknown) => {
     if (err instanceof ApiError) {
       const fieldErrors = err.fieldErrors();
@@ -200,34 +225,82 @@ export function CreateWordPage() {
         buildCreateWordBody(values, status, { searchMissId: missParams.fromMiss }),
         {
           onSuccess: (result) => {
-            const messages: Record<string, string> = {
-              draft: `Draft "${result.lemma}" disimpan`,
-              pending_review: `Kata "${result.lemma}" disimpan dan menunggu review`,
-              published: `Kata "${result.lemma}" berhasil dipublikasikan`,
-              rejected: `Kata "${result.lemma}" disimpan (ditolak)`,
-            };
-            message.success(messages[result.status] ?? `Kata "${result.lemma}" disimpan`);
-            result.warnings?.forEach((w) => message.warning(w.message));
+            void (async () => {
+              const messages: Record<string, string> = {
+                draft: `Draft "${result.lemma}" disimpan`,
+                pending_review: `Kata "${result.lemma}" disimpan dan menunggu review`,
+                published: `Kata "${result.lemma}" berhasil dipublikasikan`,
+                rejected: `Kata "${result.lemma}" disimpan (ditolak)`,
+              };
+              message.success(messages[result.status] ?? `Kata "${result.lemma}" disimpan`);
+              result.warnings?.forEach((w) => message.warning(w.message));
 
-            // 04-api-sinonim-inline.md - kata inline ikut dibuat dalam satu
-            // request. Tampilkan ringkasan per entitas (status = kebenaran
-            // akhir dari backend, approval gate per entitas).
-            const inlines = result.inline_created_words ?? [];
-            if (inlines.length > 0) {
-              message.info(
-                `${inlines.length} kata terkait ikut dibuat: ${inlines
-                  .map((i) => `${i.lemma} (${inlineStatusLabels[i.status] ?? i.status})`)
-                  .join(', ')}`,
-                6,
-              );
-              for (const inline of inlines) {
-                inline.warnings?.forEach((w) => message.warning(`${inline.lemma}: ${w.message}`));
+              // 04-api-sinonim-inline.md - kata inline ikut dibuat dalam satu
+              // request. Tampilkan ringkasan per entitas (status = kebenaran
+              // akhir dari backend, approval gate per entitas).
+              const inlines = result.inline_created_words ?? [];
+              if (inlines.length > 0) {
+                message.info(
+                  `${inlines.length} kata terkait ikut dibuat: ${inlines
+                    .map((i) => `${i.lemma} (${inlineStatusLabels[i.status] ?? i.status})`)
+                    .join(', ')}`,
+                  6,
+                );
+                for (const inline of inlines) {
+                  inline.warnings?.forEach((w) => message.warning(`${inline.lemma}: ${w.message}`));
+                }
               }
-            }
-            if (missParams.fromMiss) {
-              void queryClient.invalidateQueries({ queryKey: ['search-misses'] });
-            }
-            navigate({ to: '/words' });
+
+              // Sequence audio: lemma → GET detail → audio contoh (butuh example_id).
+              const exampleDrafts: PendingExampleAudioDraft[] = [];
+              for (const [key, audio] of Object.entries(pendingExampleAudios)) {
+                if (!audio) continue;
+                const meta = pendingExampleMetaRef.current[key];
+                if (!meta) continue;
+                const sentence =
+                  meta.sourceSentence.trim() ||
+                  String(
+                    (values.meanings?.[meta.meaningIndex] as { examples?: { source_sentence?: string }[] })
+                      ?.examples?.[meta.exampleIndex]?.source_sentence ?? '',
+                  ).trim();
+                if (!sentence) continue;
+                exampleDrafts.push({
+                  meaningIndex: meta.meaningIndex,
+                  exampleIndex: meta.exampleIndex,
+                  sourceSentence: sentence,
+                  audio,
+                });
+              }
+
+              if (pendingAudio || exampleDrafts.length > 0) {
+                const uploadResult = await uploadPendingAudiosAfterCreate({
+                  wordId: result.word_id,
+                  lemmaAudio: pendingAudio,
+                  exampleAudios: exampleDrafts,
+                });
+                if (uploadResult.lemmaOk) {
+                  message.success('Audio pelafalan lemma diunggah');
+                  setPendingAudio(null);
+                }
+                if (uploadResult.exampleOk > 0) {
+                  message.success(
+                    `${uploadResult.exampleOk} audio contoh diunggah`,
+                  );
+                  setPendingExampleAudios({});
+                  pendingExampleMetaRef.current = {};
+                }
+                for (const err of uploadResult.errors) {
+                  message.warning(
+                    `Kata tersimpan, tapi: ${err}. Unggah ulang di halaman detail bila perlu.`,
+                  );
+                }
+              }
+
+              if (missParams.fromMiss) {
+                void queryClient.invalidateQueries({ queryKey: ['search-misses'] });
+              }
+              navigate({ to: '/words' });
+            })();
           },
           onError: handleSubmitError,
         },
@@ -335,6 +408,20 @@ export function CreateWordPage() {
                         showOrderIndex
                         translationsRequired
                         orderIndexInitial={field.name + 1}
+                        enablePendingExampleAudio
+                        pendingExampleAudios={pendingExampleAudios}
+                        dialectOptionsForExampleAudio={dialectOptions}
+                        defaultDialectIdForExampleAudio={defaultDialectId}
+                        onPendingExampleAudioChange={(key, meta, next) => {
+                          pendingExampleMetaRef.current[key] = meta;
+                          if (!next) delete pendingExampleMetaRef.current[key];
+                          setPendingExampleAudios((prev) => {
+                            const copy = { ...prev };
+                            if (next) copy[key] = next;
+                            else delete copy[key];
+                            return copy;
+                          });
+                        }}
                       />
                     </Card>
                   ))}
@@ -419,7 +506,7 @@ export function CreateWordPage() {
                 key: 'pronunciation',
                 label: '6. Pengucapan (opsional)',
                 children: (
-                  <>
+                  <Space direction="vertical" size={16} style={{ width: '100%' }}>
                     <Row gutter={16}>
                       <Col xs={24} md={6} lg={4}>
                         <Form.Item name={['pronunciation', 'notation']} label="Notasi" initialValue="ipa">
@@ -432,8 +519,20 @@ export function CreateWordPage() {
                         </Form.Item>
                       </Col>
                     </Row>
-                    <Text type="secondary">Fitur audio pengucapan (rekaman penutur asli) menyusul.</Text>
-                  </>
+                    <div>
+                      <Text strong style={{ display: 'block', marginBottom: 8 }}>
+                        Audio pelafalan
+                      </Text>
+                      <PendingPronunciationAudioField
+                        dialectOptions={dialectOptions}
+                        defaultDialectId={
+                          (form.getFieldValue('dialect_id') as string | undefined) ?? defaultDialectId
+                        }
+                        value={pendingAudio}
+                        onChange={setPendingAudio}
+                      />
+                    </div>
+                  </Space>
                 ),
               },
               {

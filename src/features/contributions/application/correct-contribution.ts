@@ -12,6 +12,7 @@ import type {
   CorrectContributionRequest,
   CorrectExampleRequest,
   CorrectPronunciationRequest,
+  CorrectWordAudioRequest,
   CorrectWordImageRequest,
   CorrectWordRequest,
 } from '../domain/correct-contribution';
@@ -40,26 +41,40 @@ export function wordEntityToFormValues(view: WordEntityView): CreateWordFormValu
     lemma: view.lemma,
     ...(view.notes?.trim() ? { notes: view.notes } : {}),
     word_type: view.wordType,
-    meanings: view.meanings.map((m) => ({
-      word_class_id: m.wordClassId ?? undefined,
-      definition: m.definition,
-      order_index: m.orderIndex,
-      translations: m.translations.map((t) => ({
-        language_id: t.languageId,
-        translation_text: t.text,
-        translation_type: t.type as TranslationType,
-      })),
-      examples: m.examples.map((e) => ({
-        source_language_id: e.sourceLanguageId ?? undefined,
-        source_sentence: e.source,
-        target_language_id: e.targetLanguageId ?? undefined,
-        target_sentence: e.target ?? undefined,
-        source_type: (e.sourceType as ExampleSourceType) ?? undefined,
-      })),
-    })),
+    meanings: view.meanings.map((m) => {
+      const hasDefinition = m.definition.trim() !== '-';
+      const hasTranslation = m.translations.length > 0;
+      return {
+        word_class_id: m.wordClassId ?? undefined,
+        definition: m.definition === '-' ? '' : m.definition,
+        order_index: m.orderIndex,
+        // Tanpa flag ini MeaningFields menyembunyikan terjemahan, definisi,
+        // dan kelas kata (mode belum "dipilih").
+        is_have_definition: hasDefinition,
+        is_have_translation: hasTranslation,
+        meaning_completeness: !hasDefinition
+          ? ('padanan_only' as const)
+          : !hasTranslation
+            ? ('definition_only' as const)
+            : ('both' as const),
+        translations: m.translations.map((t) => ({
+          language_id: t.languageId,
+          translation_text: t.text,
+          translation_type: t.type as TranslationType,
+        })),
+        examples: m.examples.map((e) => ({
+          source_language_id: e.sourceLanguageId ?? undefined,
+          source_sentence: e.source,
+          target_language_id: e.targetLanguageId ?? undefined,
+          target_sentence: e.target ?? undefined,
+          source_type: (e.sourceType as ExampleSourceType) ?? undefined,
+        })),
+      };
+    }),
     category_ids: view.categories.map((c) => c.id),
     related_words: view.relatedWords.map((rel) => ({
       relation_type: rel.relationType as RelationType,
+      mode: 'link' as const,
       word_id: rel.wordId,
     })),
     variants: view.variants.map((v) => ({
@@ -92,6 +107,12 @@ export interface CorrectWordImageFormValues {
   is_primary: boolean;
 }
 
+export interface CorrectWordAudioFormValues {
+  speaker_name?: string | null;
+  dialect_id?: string | null;
+  is_primary: boolean;
+}
+
 export interface CorrectExampleFormValues {
   source_sentence?: string;
   target_sentence?: string | null;
@@ -103,6 +124,7 @@ export type CorrectFormValues =
   | CreateWordFormValues
   | CorrectPronunciationFormValues
   | CorrectWordImageFormValues
+  | CorrectWordAudioFormValues
   | CorrectExampleFormValues;
 
 // ---- Builder body ----
@@ -117,7 +139,7 @@ export function buildCorrectWordBody(
   void status;
   return {
     entity_type: 'word',
-    word,
+    ...word,
     ...extraFields(extra),
   };
 }
@@ -152,6 +174,19 @@ export function buildCorrectWordImageBody(
   };
 }
 
+export function buildCorrectWordAudioBody(
+  values: CorrectWordAudioFormValues,
+  extra: CorrectDecisionExtra,
+): CorrectWordAudioRequest {
+  return {
+    entity_type: 'word_audio',
+    is_primary: values.is_primary,
+    ...(values.dialect_id ? { dialect_id: values.dialect_id } : {}),
+    ...(values.speaker_name?.trim() ? { speaker_name: values.speaker_name.trim() } : {}),
+    ...extraFields(extra),
+  };
+}
+
 export function buildCorrectExampleBody(
   values: CorrectExampleFormValues,
   extra: CorrectDecisionExtra,
@@ -179,6 +214,8 @@ export function buildCorrectContribution(
       return buildCorrectPronunciationBody(values as CorrectPronunciationFormValues, extra);
     case 'word_image':
       return buildCorrectWordImageBody(values as CorrectWordImageFormValues, extra);
+    case 'word_audio':
+      return buildCorrectWordAudioBody(values as CorrectWordAudioFormValues, extra);
     case 'example':
       return buildCorrectExampleBody(values as CorrectExampleFormValues, extra);
   }
