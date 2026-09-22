@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import {
   AudioOutlined,
   BookOutlined,
@@ -1146,17 +1146,15 @@ export function WordVariantsField() {
 function useSessionSpeakerName(existing?: string | null): [string, (next: string) => void] {
   const { user } = useAuth();
   const sessionName = user?.username?.trim() ?? '';
-  const [speakerName, setSpeakerName] = useState(existing?.trim() || sessionName);
-  const touched = useRef(Boolean(existing?.trim()));
+  const [draft, setDraft] = useState(() => existing?.trim() ?? '');
+  const [touched, setTouched] = useState(() => Boolean(existing?.trim()));
 
-  useEffect(() => {
-    if (touched.current || speakerName.trim()) return;
-    if (sessionName) setSpeakerName(sessionName);
-  }, [sessionName, speakerName]);
+  // Belum diubah user → tampilkan session username (derive, bukan effect).
+  const speakerName = touched ? draft : draft || sessionName;
 
   const update = useCallback((next: string) => {
-    touched.current = true;
-    setSpeakerName(next);
+    setTouched(true);
+    setDraft(next);
   }, []);
 
   return [speakerName, update];
@@ -1439,12 +1437,16 @@ export function PendingPronunciationAudioField({
     blob: Blob;
     previewUrl: string;
   } | null>(null);
+  const [syncedValue, setSyncedValue] = useState(value);
 
-  useEffect(() => {
-    if (!value) return;
-    if (value.speakerName) setSpeakerName(value.speakerName);
-    setDialectId(value.dialectId ?? undefined);
-  }, [value, setSpeakerName]);
+  // Sinkronkan field lokal saat parent mengganti `value` (tanpa effect).
+  if (value !== syncedValue) {
+    setSyncedValue(value);
+    if (value) {
+      if (value.speakerName) setSpeakerName(value.speakerName);
+      setDialectId(value.dialectId ?? undefined);
+    }
+  }
 
   const clearPickedDraft = () => {
     if (pickedDraft?.previewUrl) URL.revokeObjectURL(pickedDraft.previewUrl);

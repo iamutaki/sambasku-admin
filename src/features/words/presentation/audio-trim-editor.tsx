@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { AudioOutlined, PauseCircleOutlined, PlayCircleOutlined, ScissorOutlined } from '@ant-design/icons';
 import { Alert, Button, Flex, Slider, Space, Spin, Typography } from 'antd';
 import {
@@ -53,26 +53,29 @@ export function AudioTrimEditor({
   const [clipPreviewUrl, setClipPreviewUrl] = useState<string | null>(null);
   const [clipBuilding, setClipBuilding] = useState(false);
   const bufferRef = useRef<AudioBuffer | null>(null);
+  const clipPreviewUrlRef = useRef<string | null>(null);
 
   /** Object URL lokal dari source — fallback jika parent tidak kirim previewUrl. */
-  const [localSourceUrl, setLocalSourceUrl] = useState<string | null>(null);
+  const localSourceUrl = useMemo(() => {
+    if (sourcePreviewUrl) return null;
+    return URL.createObjectURL(source);
+  }, [source, sourcePreviewUrl]);
   const fullPreviewUrl = sourcePreviewUrl || localSourceUrl;
 
   useEffect(() => {
-    if (sourcePreviewUrl) {
-      setLocalSourceUrl(null);
-      return;
-    }
-    const url = URL.createObjectURL(source);
-    setLocalSourceUrl(url);
-    return () => URL.revokeObjectURL(url);
-  }, [source, sourcePreviewUrl]);
+    return () => {
+      if (localSourceUrl) URL.revokeObjectURL(localSourceUrl);
+    };
+  }, [localSourceUrl]);
 
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
-    setError(null);
+    // Yield dulu supaya setState tidak sinkron di body effect (React Compiler).
     void (async () => {
+      await Promise.resolve();
+      if (cancelled) return;
+      setLoading(true);
+      setError(null);
       try {
         const buffer = await decodeAudioBlob(source);
         if (cancelled) return;
@@ -107,8 +110,8 @@ export function AudioTrimEditor({
   useEffect(() => {
     if (duration <= 0 || range[1] <= range[0]) return;
     let cancelled = false;
-    setClipBuilding(true);
     const timer = window.setTimeout(() => {
+      setClipBuilding(true);
       void (async () => {
         try {
           const result = await trimAudioBlob(source, range[0], range[1], 'preview-clip');
@@ -119,12 +122,14 @@ export function AudioTrimEditor({
           }
           setClipPreviewUrl((prev) => {
             if (prev) URL.revokeObjectURL(prev);
+            clipPreviewUrlRef.current = url;
             return url;
           });
         } catch {
           if (!cancelled) {
             setClipPreviewUrl((prev) => {
               if (prev) URL.revokeObjectURL(prev);
+              clipPreviewUrlRef.current = null;
               return null;
             });
           }
@@ -141,10 +146,10 @@ export function AudioTrimEditor({
 
   useEffect(() => {
     return () => {
-      setClipPreviewUrl((prev) => {
-        if (prev) URL.revokeObjectURL(prev);
-        return null;
-      });
+      if (clipPreviewUrlRef.current) {
+        URL.revokeObjectURL(clipPreviewUrlRef.current);
+        clipPreviewUrlRef.current = null;
+      }
     };
   }, []);
 
