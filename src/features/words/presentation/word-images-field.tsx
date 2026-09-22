@@ -5,6 +5,7 @@ import type { UploadFile, UploadProps } from 'antd';
 import { Form } from 'antd';
 import type { WordImageFormValue } from '../domain/create-word';
 import { useUploadWordImage } from '../application/use-upload-word-image';
+import { displayImageUrl } from '@/shared/utils/display-image-url';
 
 const { Text } = Typography;
 
@@ -106,7 +107,7 @@ export function WordImagesField() {
         type="warning"
         showIcon
         message="Penyimpanan gambar belum dikonfigurasi"
-        description="Isi IMAGEKIT_* di environment API untuk mengaktifkan upload gambar. Kata tetap bisa disimpan tanpa gambar."
+        description="Isi PUBLIC_IMAGE_GITHUB_* di environment API untuk mengaktifkan upload gambar. Kata tetap bisa disimpan tanpa gambar."
       />
     );
   }
@@ -135,7 +136,14 @@ export function WordImagesField() {
         <Card key={img.uid} size="small">
           <Space align="start" wrap>
             {img.url ? (
-              <Image src={img.url} alt={img.alt_text ?? img.fileName} width={72} height={72} style={{ objectFit: 'cover' }} />
+              <Image
+                src={displayImageUrl(img.url, { width: 160 }) ?? img.url}
+                alt={img.alt_text ?? img.fileName}
+                width={72}
+                height={72}
+                style={{ objectFit: 'cover' }}
+                fallback={img.url}
+              />
             ) : img.localUrl ? (
               <Image
                 src={img.localUrl}
