@@ -389,7 +389,7 @@ export function EditWordPage() {
                       )
                     }
                   >
-                    + Tambah Makna
+                    Tambah Makna
                   </Button>
                 </Space>
               )}

@@ -438,7 +438,7 @@ export function CreateWordPage() {
                       )
                     }
                   >
-                    + Tambah Makna
+                    Tambah Makna
                   </Button>
                 </Space>
               )}

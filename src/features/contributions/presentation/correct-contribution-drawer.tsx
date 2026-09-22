@@ -289,7 +289,7 @@ function CorrectWordForm({ form }: { form: FormInstance<CorrectFormValues> }) {
                     )
                   }
                 >
-                  + Tambah Makna
+                  Tambah Makna
                 </Button>
               </Space>
             )}

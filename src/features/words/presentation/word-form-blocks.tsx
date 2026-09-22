@@ -1003,7 +1003,7 @@ export function InlineWordEditor({
                   )
                 }
               >
-                + Tambah Makna
+                Tambah Makna
               </Button>
             </Space>
           )}
