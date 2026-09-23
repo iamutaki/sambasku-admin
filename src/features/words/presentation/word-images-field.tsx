@@ -74,7 +74,12 @@ export function WordImagesField() {
       const uploaded = await upload(raw, (percent) => patchFresh(raw.uid, form, { progress: percent }));
       // images di closure bisa basi kalau dua file selesai berdekatan -
       // patch by-uid dari nilai form TERKINI.
-      patchFresh(raw.uid, form, { status: 'done', url: uploaded.url, provider_file_id: uploaded.file_id });
+      patchFresh(raw.uid, form, {
+        status: 'done',
+        url: uploaded.url,
+        provider_file_id: uploaded.file_id,
+        sha: uploaded.sha,
+      });
       URL.revokeObjectURL(localUrl); // preview CDN (img.url) sudah menggantikan
       onSuccess?.(uploaded);
     } catch (err) {
@@ -93,7 +98,12 @@ export function WordImagesField() {
     patchFresh(img.uid, form, { status: 'uploading', progress: 0 });
     try {
       const uploaded = await upload(file, (percent) => patchFresh(img.uid, form, { progress: percent }));
-      patchFresh(img.uid, form, { status: 'done', url: uploaded.url, provider_file_id: uploaded.file_id });
+      patchFresh(img.uid, form, {
+        status: 'done',
+        url: uploaded.url,
+        provider_file_id: uploaded.file_id,
+        sha: uploaded.sha,
+      });
       if (img.localUrl) URL.revokeObjectURL(img.localUrl);
     } catch {
       patchFresh(img.uid, form, { status: 'error' });

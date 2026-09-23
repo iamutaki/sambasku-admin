@@ -307,6 +307,7 @@ export function buildImages(raw: WordImageFormValue[] | undefined): WordImageInp
     .map((img) => ({
       url: img.url as string,
       provider_file_id: img.provider_file_id as string,
+      ...(img.sha ? { sha: img.sha } : {}),
       ...(img.alt_text?.trim() ? { alt_text: img.alt_text.trim() } : {}),
       is_primary: img.is_primary ?? false,
     }));

@@ -82,6 +82,7 @@ export function wordDetailToFormValues(detail: WordDetail): CreateWordFormValues
       uid: i.id,
       url: i.url,
       provider_file_id: i.provider_file_id,
+      ...(i.sha ? { sha: i.sha } : {}),
       alt_text: i.alt_text ?? undefined,
       is_primary: i.is_primary,
       status: 'done' as const,

@@ -88,6 +88,7 @@ export interface WordDetail {
   is_verified: boolean;
   is_corrected: boolean;
   self_verified: boolean;
+  created_by: { username: string; role: string } | null;
   verified_by: { username: string; role: string } | null;
   verified_at: string | null;
   created_at: string;
@@ -99,7 +100,7 @@ export interface WordDetail {
   categories: { id: string; name: string }[];
   pronunciations: { id: string; notation: string; value: string; dialect_id: string | null }[];
   audios: WordDetailAudio[];
-  images: { id: string; url: string; provider_file_id: string; alt_text: string | null; is_primary: boolean }[];
+  images: { id: string; url: string; provider_file_id: string; sha?: string | null; alt_text: string | null; is_primary: boolean }[];
   related_words: WordDetailRelation[];
   appears_in: WordDetailRelation[];
   variants: WordDetailVariant[];

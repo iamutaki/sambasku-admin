@@ -6,6 +6,7 @@ export interface AdminUserListItem {
   email: string;
   role: AdminUserRole;
   isActive: boolean;
+  canContribute: boolean;
   createdAt: string;
   updatedAt: string | null;
 }

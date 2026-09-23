@@ -168,10 +168,11 @@ export interface CreateWordRequestVariant {
   affix_value?: string;
 }
 
-/** Satu gambar di images[] create/update (hasil direct-upload ke CDN). */
+/** Satu gambar di images[] create/update (hasil upload ke GitHub/CDN). */
 export interface WordImageInput {
   url: string;
   provider_file_id: string;
+  sha?: string;
   alt_text?: string;
   is_primary?: boolean;
 }
@@ -303,6 +304,7 @@ export interface WordImageFormValue {
   status?: WordImageUploadStatus;
   url?: string;
   provider_file_id?: string;
+  sha?: string;
   alt_text?: string;
   is_primary?: boolean;
   /** Blob URL preview file lokal - UI only (sebelum/Failed upload), tidak ikut submit. */

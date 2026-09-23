@@ -8,6 +8,7 @@ export function normalizeAdminUserListItem(wire: AdminUserWire): AdminUserListIt
     email: wire.email,
     role: wire.role as AdminUserRole,
     isActive: wire.is_active,
+    canContribute: wire.can_contribute ?? true,
     createdAt: wire.created_at,
     updatedAt: wire.updated_at,
   };

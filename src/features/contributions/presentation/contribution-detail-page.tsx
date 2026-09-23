@@ -14,6 +14,7 @@ import { useContributionDetail } from '../application/use-contribution-detail';
 import { useReviewContribution } from '../application/use-review-contribution';
 import { ContributionEntityView } from './contribution-entity-view';
 import { CorrectContributionDrawer } from './correct-contribution-drawer';
+import { useSetCanContribute } from '@/features/users/application/use-update-user-role';
 
 const { Text } = Typography;
 
@@ -39,6 +40,7 @@ export function ContributionDetailPage() {
 
   const detailQuery = useContributionDetail(id);
   const reviewMutation = useReviewContribution();
+  const pauseContribution = useSetCanContribute();
   const { message } = AntdApp.useApp();
 
   const [decision, setDecision] = useState<ReviewDecision | null>(null);
@@ -110,6 +112,21 @@ export function ContributionDetailPage() {
         subtitle={`Kontribusi oleh ${detail.contribution.contributor_username} · aksi ${detail.contribution.action}`}
         extra={
           <Space wrap>
+            {detail.contribution.contributor_username !== 'anonim' ? (
+              <Button
+                danger
+                loading={pauseContribution.isPending}
+                onClick={() =>
+                  pauseContribution.mutate({
+                    id: detail.contribution.user_id,
+                    canContribute: false,
+                    username: detail.contribution.contributor_username,
+                  })
+                }
+              >
+                Hentikan kontribusi
+              </Button>
+            ) : null}
             <Button icon={<RollbackOutlined />} onClick={() => navigate({ to: '/contributions' })}>
               Kembali ke Antrean
             </Button>

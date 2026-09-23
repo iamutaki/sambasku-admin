@@ -26,6 +26,7 @@ export function normalizeWordDetail(raw: unknown): WordDetail {
     is_verified: bool(word.is_verified),
     is_corrected: bool(word.is_corrected),
     self_verified: bool(word.self_verified),
+    created_by: verifier(word.created_by),
     verified_by: verifier(word.verified_by),
     verified_at: str(word.verified_at),
     created_at: strOr(word.created_at),
@@ -54,6 +55,7 @@ export function normalizeWordDetail(raw: unknown): WordDetail {
         id: strOr(image.id),
         url: strOr(image.url),
         provider_file_id: strOr(image.provider_file_id),
+        sha: str(image.sha),
         alt_text: str(image.alt_text),
         is_primary: bool(image.is_primary),
       };

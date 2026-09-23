@@ -9,6 +9,7 @@ import {
 import { Alert, App as AntdApp, Button, Descriptions, Flex, Image, Input, Modal, Select, Space, Switch, Tag, Tooltip, Typography } from 'antd';
 import { EditOutlined, ReloadOutlined, RollbackOutlined } from '@ant-design/icons';
 import { formatDateTime } from '@/shared/utils/format-datetime';
+import { displayImageUrl } from '@/shared/utils/display-image-url';
 import { useNavigate, useParams } from '@tanstack/react-router';
 import { useQueryClient } from '@tanstack/react-query';
 import { PageHeader } from '@/shared/components/page-header';
@@ -405,6 +406,24 @@ function WordDetailContent({
       children: formatDateTime(detail.created_at),
     },
     {
+      key: 'creator',
+      label: 'Kontributor',
+      children: detail.created_by ? (
+        detail.verified_by?.username === detail.created_by.username ? (
+          <Space size={6} wrap>
+            <span>Dibuat dan diverifikasi oleh {detail.created_by.username}</span>
+            {['admin', 'editor', 'root', 'reviewer'].includes(detail.verified_by?.role ?? '') ? (
+              <Tag color="cyan">Verifikator</Tag>
+            ) : null}
+          </Space>
+        ) : (
+          `Dibuat oleh ${detail.created_by.username}`
+        )
+      ) : (
+        '-'
+      ),
+    },
+    {
       key: 'updated',
       label: 'Diperbarui',
       children: detail.updated_at ? formatDateTime(detail.updated_at) : '-',
@@ -435,13 +454,27 @@ function WordDetailContent({
         onCancel={() => setVerifierOpen(false)}
         footer={null}
       >
-        {detail.verified_by ? (
+        {detail.created_by || detail.verified_by ? (
           <Space direction="vertical" size={4}>
-            <Text>
-              {detail.self_verified
-                ? `Dibuat dan diverifikasi oleh ${detail.verified_by.username}`
-                : `Diverifikasi oleh ${detail.verified_by.username}`}
-            </Text>
+            {detail.created_by &&
+            detail.verified_by &&
+            detail.created_by.username === detail.verified_by.username ? (
+              <Space size={6} wrap>
+                <Text>Dibuat dan diverifikasi oleh {detail.created_by.username}</Text>
+                {['admin', 'editor', 'root', 'reviewer'].includes(detail.verified_by.role) ? (
+                  <Tag color="cyan">Verifikator</Tag>
+                ) : null}
+              </Space>
+            ) : (
+              <>
+                {detail.created_by ? (
+                  <Text>Dibuat oleh {detail.created_by.username}</Text>
+                ) : null}
+                {detail.verified_by ? (
+                  <Text>Diverifikasi oleh {detail.verified_by.username}</Text>
+                ) : null}
+              </>
+            )}
             {detail.verified_at ? (
               <Text type="secondary">{formatDateTime(detail.verified_at)}</Text>
             ) : null}
@@ -708,7 +741,8 @@ function WordDetailContent({
               {(detail.images ?? []).map((img) => (
                 <Flex key={img.id} align="center" gap={8} wrap>
                   <Image
-                    src={img.url}
+                    src={displayImageUrl(img.url, { width: 800 }) ?? img.url}
+                    fallback={img.url}
                     alt={img.alt_text ?? detail.lemma}
                     height={48}
                     style={{ borderRadius: 6, objectFit: 'cover' }}

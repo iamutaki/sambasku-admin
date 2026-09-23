@@ -21,6 +21,7 @@ function wordDetail(overrides: Partial<WordDetail> = {}): WordDetail {
     is_verified: false,
     is_corrected: false,
     self_verified: false,
+    created_by: null,
     verified_by: null,
     verified_at: null,
     created_at: '2026-09-18T10:00:00Z',

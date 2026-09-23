@@ -8,6 +8,7 @@ export interface AdminUserWire {
   email: string;
   role: string;
   is_active: boolean;
+  can_contribute: boolean;
   created_at: string;
   updated_at: string | null;
 }
@@ -15,6 +16,7 @@ export interface AdminUserWire {
 export interface ListAdminUsersParams {
   q?: string;
   role?: AdminUserRole;
+  canContribute?: boolean;
   limit?: number;
   cursor?: string;
 }
@@ -27,6 +29,7 @@ export async function listAdminUsersRequest(
     params: {
       q: params.q || undefined,
       role: params.role || undefined,
+      can_contribute: params.canContribute === undefined ? undefined : String(params.canContribute),
       limit: params.limit ?? 20,
       cursor: params.cursor,
     },
@@ -45,4 +48,8 @@ export async function updateUserRoleRequest(
     data: { id: string; role: AdminUserRole };
   }>(`/admin/users/${id}/role`, { role }, { signal });
   return res.data.data;
+}
+
+export async function setCanContributeRequest(id: string, canContribute: boolean): Promise<void> {
+  await client.patch(`/admin/contribution-access/${id}`, { can_contribute: canContribute });
 }
