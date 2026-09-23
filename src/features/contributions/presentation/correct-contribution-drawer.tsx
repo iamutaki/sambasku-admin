@@ -206,7 +206,7 @@ function CorrectWordForm({ form }: { form: FormInstance<CorrectFormValues> }) {
                 label="Kata Sambas (Lemma)"
                 rules={[{ required: true, message: 'Kata wajib diisi' }, { whitespace: true, message: 'Kata tidak boleh hanya spasi' }]}
               >
-                <Input placeholder="mis. makatn" maxLength={255} allowClear />
+                <Input placeholder="mis. kata" maxLength={255} allowClear />
               </Form.Item>
             </Col>
             <Col xs={24} md={8}>
@@ -401,7 +401,7 @@ function CorrectWordForm({ form }: { form: FormInstance<CorrectFormValues> }) {
                     </Col>
                     <Col xs={24} md={18}>
                       <Form.Item name={['pronunciation', 'value']} label="Teks Pengucapan">
-                        <Input placeholder="/makatn/" />
+                        <Input placeholder="/kata/" />
                       </Form.Item>
                     </Col>
                   </Row>
@@ -434,7 +434,7 @@ function CorrectPronunciationForm({ form }: { form: FormInstance<CorrectFormValu
   return (
     <Form form={form} layout="vertical" requiredMark>
       <Form.Item name="value" label="Teks Pengucapan" rules={[{ required: true, message: 'Teks pengucapan wajib diisi' }]}>
-        <Input placeholder="/makatn/" maxLength={500} />
+        <Input placeholder="/kata/" maxLength={500} />
       </Form.Item>
       <Row gutter={12}>
         <Col xs={24} md={8}>
@@ -521,7 +521,7 @@ function CorrectExampleForm({ form }: { form: FormInstance<CorrectFormValues> })
         label="Kalimat"
         rules={[{ required: true, message: 'Kalimat wajib diisi' }]}
       >
-        <Input.TextArea rows={2} placeholder="Kami udah makatn tadi." />
+        <Input.TextArea rows={2} placeholder="Kalimat pemakaian kata ini." />
       </Form.Item>
       <Form.Item name="target_sentence" label="Terjemahan Kalimat">
         <Input.TextArea rows={2} placeholder="Kami sudah makan tadi." allowClear />

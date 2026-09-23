@@ -7,7 +7,7 @@ export type UserRole = (typeof ROLES)[number];
 export const ROLE_LABELS: Record<UserRole, string> = {
   root: 'Root',
   admin: 'Admin',
-  reviewer: 'Reviewer',
+  reviewer: 'Verifikator',
   editor: 'Editor',
   contributor: 'Kontributor',
 };

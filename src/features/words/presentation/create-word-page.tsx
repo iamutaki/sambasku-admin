@@ -211,9 +211,6 @@ export function CreateWordPage() {
     setSubmitError(null);
     try {
       await form.validateFields();
-      // `images` di-set via setFieldsValue tanpa Form.Item name (kelola
-      // manual di WordImagesField) - validateFields() menyaringnya keluar,
-      // jadi ambil nilai dari full store.
       const values = form.getFieldsValue(true) as CreateWordFormValues;
       // Gambar yang masih terunggah tidak akan terkirim (buildImages hanya
       // ambil yang selesai) - tahan submit supaya tidak ada yang hilang diam-diam.
@@ -340,7 +337,7 @@ export function CreateWordPage() {
                   label="Kata Sambas (Lemma)"
                   rules={[{ required: true, message: 'Kata wajib diisi' }, { whitespace: true, message: 'Kata tidak boleh hanya spasi' }]}
                 >
-                  <Input placeholder="mis. makatn" maxLength={255} allowClear />
+                  <Input placeholder="mis. kata" maxLength={255} allowClear />
                 </Form.Item>
               </Col>
               <Col xs={24} md={6} lg={4}>
@@ -515,7 +512,7 @@ export function CreateWordPage() {
                       </Col>
                       <Col xs={24} md={18} lg={20}>
                         <Form.Item name={['pronunciation', 'value']} label="Teks Pengucapan">
-                          <Input placeholder="/makatn/" />
+                          <Input placeholder="/kata/" />
                         </Form.Item>
                       </Col>
                     </Row>
@@ -538,7 +535,12 @@ export function CreateWordPage() {
               {
                 key: 'images',
                 label: '7. Gambar (opsional)',
-                children: <WordImagesField />,
+                forceRender: true,
+                children: (
+                  <Form.Item name="images" initialValue={[]} noStyle>
+                    <WordImagesField />
+                  </Form.Item>
+                ),
               },
             ]}
           />

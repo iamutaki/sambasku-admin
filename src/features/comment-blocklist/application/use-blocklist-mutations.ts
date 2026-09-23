@@ -1,10 +1,10 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { createBlocklistRequest, deleteBlocklistRequest } from '../infrastructure/blocklist-api';
+import { bulkCreateBlocklistRequest, deleteBlocklistRequest } from '../infrastructure/blocklist-api';
 
-export function useCreateBlocklistWord() {
+export function useBulkCreateBlocklistWords() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (word: string) => createBlocklistRequest(word),
+    mutationFn: (words: string[]) => bulkCreateBlocklistRequest(words),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['comment-blocklist'] }),
   });
 }

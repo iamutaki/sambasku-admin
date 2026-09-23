@@ -1,11 +1,9 @@
 import { useCallback, useMemo, useState } from 'react';
 import {
-  AudioOutlined,
   BookOutlined,
   CheckOutlined,
   DeleteOutlined,
   PlusOutlined,
-  StopOutlined,
 } from '@ant-design/icons';
 import type { FormInstance } from 'antd/es/form';
 import {
@@ -38,7 +36,6 @@ import { matchWordClassId } from '../application/match-word-class';
 import { WordSearchSelect } from './word-search-select';
 import { KbbiDefinitionPickerModal } from './kbbi-definition-picker-modal';
 import {
-  formatRecordingClock,
   MAX_RECORDING_SECONDS,
   useAudioRecorder,
 } from '../application/use-audio-recorder';
@@ -48,6 +45,13 @@ import type { WordDetailAudio } from '../domain/word-detail';
 import { mergeAudiosForExamples } from '../application/example-audios';
 import { useAuth } from '@/shared/auth/use-auth';
 import { AudioTrimEditor } from './audio-trim-editor';
+import {
+  AudioIdleCapture,
+  AudioMetaFields,
+  AudioReadyCard,
+  AudioRecordingPanel,
+  AudioStudioShell,
+} from './audio-capture-ui';
 import type { TrimAudioResult } from '../application/trim-audio';
 
 const { Text } = Typography;
@@ -653,7 +657,7 @@ export function MeaningFields({
                       label="Kalimat Sambas"
                       rules={[{ required: true, message: 'Contoh wajib diisi' }]}
                     >
-                      <Input.TextArea rows={1} autoSize placeholder="Kami udah makatn tadi." />
+                      <Input.TextArea rows={1} autoSize placeholder="Kalimat pemakaian kata ini." />
                     </Form.Item>
                   </Col>
                   <Col flex="140px">
@@ -1311,94 +1315,63 @@ export function PronunciationAudioUpload({
       : null);
 
   const editing = Boolean(trimSource);
+  const metaLocked = recorder.state === 'recording' || uploadMutation.isPending || editing;
 
   return (
-    <Space direction="vertical" size={8} style={{ width: '100%' }}>
-      {!compact ? (
-        <Text type="secondary">
-          Rekam atau pilih file, lalu potong diam di awal/akhir sebelum unggah (maks.{' '}
-          {MAX_RECORDING_SECONDS} dtk rekaman / 5 MB). Kontributor masuk antrean review;
-          verifikator langsung tayang.
-        </Text>
-      ) : null}
-      <Row gutter={8} wrap>
-        <Col xs={24} md={10}>
-          <Input
-            placeholder="Nama penutur (opsional)"
-            value={speakerName}
-            onChange={(e) => setSpeakerName(e.target.value)}
-            maxLength={255}
-            allowClear
-            disabled={recorder.state === 'recording' || uploadMutation.isPending || editing}
-          />
-        </Col>
-        <Col xs={24} md={8}>
-          <Select
-            allowClear
-            placeholder="Dialek (opsional)"
-            options={dialectOptions}
-            value={dialectId}
-            onChange={(v) => setDialectId(v)}
-            style={{ width: '100%' }}
-            disabled={recorder.state === 'recording' || uploadMutation.isPending || editing}
-          />
-        </Col>
-      </Row>
-
-      {recorder.error ? <Alert type="warning" showIcon message={recorder.error} /> : null}
-
-      {recorder.state === 'recording' ? (
-        <Space wrap>
-          <Tag color="red">Merekam {formatRecordingClock(recorder.elapsedMs)}</Tag>
-          <Button danger icon={<StopOutlined />} onClick={() => recorder.stop()}>
-            Stop
-          </Button>
-        </Space>
-      ) : null}
-
-      {trimSource ? (
-        <AudioTrimEditor
-          source={trimSource.blob}
-          sourcePreviewUrl={trimSource.previewUrl}
-          disabled={uploadMutation.isPending}
-          confirmLabel={uploadMutation.isPending ? 'Mengunggah…' : 'Terapkan & unggah'}
-          onConfirm={(result) => void handleTrimConfirm(result)}
-          onCancel={() => {
-            clearPickedDraft();
-            recorder.reset();
-          }}
-          onRerecord={() => {
-            clearPickedDraft();
-            void recorder.start();
-          }}
+    <AudioStudioShell
+      hint={
+        compact
+          ? undefined
+          : `Rekam atau pilih file, lalu potong diam di awal/akhir sebelum unggah (maks. ${MAX_RECORDING_SECONDS} dtk / 5 MB). Kontributor masuk antrean review; verifikator langsung tayang.`
+      }
+    >
+      <Space direction="vertical" size={12} style={{ width: '100%' }}>
+        <AudioMetaFields
+          speakerName={speakerName}
+          onSpeakerNameChange={setSpeakerName}
+          dialectId={dialectId}
+          onDialectIdChange={setDialectId}
+          dialectOptions={dialectOptions}
+          disabled={metaLocked}
         />
-      ) : null}
 
-      {!editing && recorder.state === 'idle' ? (
-        <Space wrap>
-          <Button
-            type="primary"
-            icon={<AudioOutlined />}
-            onClick={() => void recorder.start()}
-            disabled={!recorder.supported || uploadMutation.isPending}
-          >
-            {exampleId ? 'Rekam audio contoh' : 'Rekam'}
-          </Button>
-          <Upload
-            accept=".mp3,.m4a,.wav,.ogg,.webm,audio/*"
-            showUploadList={false}
-            beforeUpload={beforeUpload}
-            onChange={handleFileChange}
+        {recorder.error ? <Alert type="warning" showIcon message={recorder.error} /> : null}
+
+        {recorder.state === 'recording' ? (
+          <AudioRecordingPanel elapsedMs={recorder.elapsedMs} onStop={() => recorder.stop()} />
+        ) : null}
+
+        {trimSource ? (
+          <AudioTrimEditor
+            source={trimSource.blob}
+            sourcePreviewUrl={trimSource.previewUrl}
             disabled={uploadMutation.isPending}
-          >
-            <Button loading={uploadMutation.isPending}>Pilih file</Button>
-          </Upload>
-          {!recorder.supported ? (
-            <Text type="secondary">Rekaman tidak didukung di browser ini — pakai pilih file.</Text>
-          ) : null}
-        </Space>
-      ) : null}
-    </Space>
+            confirmLabel={uploadMutation.isPending ? 'Mengunggah…' : 'Terapkan & unggah'}
+            onConfirm={(result) => void handleTrimConfirm(result)}
+            onCancel={() => {
+              clearPickedDraft();
+              recorder.reset();
+            }}
+            onRerecord={() => {
+              clearPickedDraft();
+              void recorder.start();
+            }}
+          />
+        ) : null}
+
+        {!editing && recorder.state === 'idle' ? (
+          <AudioIdleCapture
+            recordLabel={exampleId ? 'Rekam audio contoh' : 'Rekam mikrofon'}
+            supported={recorder.supported}
+            disabled={uploadMutation.isPending}
+            loadingPick={uploadMutation.isPending}
+            onRecord={() => void recorder.start()}
+            beforeUpload={beforeUpload}
+            onFileChange={handleFileChange}
+          />
+        ) : null}
+      </Space>
+    </AudioStudioShell>
   );
 }
 
@@ -1506,120 +1479,71 @@ export function PendingPronunciationAudioField({
         : null));
 
   return (
-    <Space direction="vertical" size={8} style={{ width: '100%' }}>
-      <Text type="secondary">
-        Rekam atau pilih file, potong diam di awal/akhir, lalu simpan kata — audio diunggah
-        otomatis setelah kata tersimpan (maks. {MAX_RECORDING_SECONDS} dtk / 5 MB).
-      </Text>
-      <Row gutter={8} wrap>
-        <Col xs={24} md={10}>
-          <Input
-            placeholder="Nama penutur (opsional)"
-            value={speakerName}
-            onChange={(e) => {
-              setSpeakerName(e.target.value);
-              if (value) {
-                onChange({ ...value, speakerName: e.target.value.trim() || undefined });
-              }
-            }}
-            maxLength={255}
-            allowClear
-            disabled={recorder.state === 'recording'}
-          />
-        </Col>
-        <Col xs={24} md={8}>
-          <Select
-            allowClear
-            placeholder="Dialek (opsional)"
-            options={dialectOptions}
-            value={dialectId}
-            onChange={(v) => {
-              setDialectId(v);
-              if (value) onChange({ ...value, dialectId: v });
-            }}
-            style={{ width: '100%' }}
-            disabled={recorder.state === 'recording'}
-          />
-        </Col>
-      </Row>
-
-      {recorder.error ? <Alert type="warning" showIcon message={recorder.error} /> : null}
-
-      {recorder.state === 'recording' ? (
-        <Space wrap>
-          <Tag color="red">Merekam {formatRecordingClock(recorder.elapsedMs)}</Tag>
-          <Button danger icon={<StopOutlined />} onClick={() => recorder.stop()}>
-            Stop
-          </Button>
-        </Space>
-      ) : null}
-
-      {value ? (
-        <Space direction="vertical" size={8} style={{ width: '100%' }}>
-          <audio
-            controls
-            src={value.previewUrl}
-            preload="metadata"
-            style={{ width: '100%', maxWidth: 420 }}
-          />
-          <Space wrap>
-            <Tag color="green">
-              Siap diunggah saat simpan ({formatRecordingClock(value.durationMs)})
-            </Tag>
-            <Button icon={<DeleteOutlined />} onClick={clearPending}>
-              Buang
-            </Button>
-            <Button
-              icon={<AudioOutlined />}
-              onClick={() => {
-                clearPending();
-                void recorder.start();
-              }}
-            >
-              Rekam ulang
-            </Button>
-          </Space>
-        </Space>
-      ) : null}
-
-      {trimSource ? (
-        <AudioTrimEditor
-          source={trimSource.blob}
-          sourcePreviewUrl={trimSource.previewUrl}
-          confirmLabel="Pakai potongan ini"
-          onConfirm={commitTrimmed}
-          onCancel={() => {
-            clearPickedDraft();
-            recorder.reset();
+    <AudioStudioShell
+      hint={`Rekam atau pilih file, potong diam di awal/akhir, lalu simpan kata — audio diunggah otomatis setelah kata tersimpan (maks. ${MAX_RECORDING_SECONDS} dtk / 5 MB).`}
+    >
+      <Space direction="vertical" size={12} style={{ width: '100%' }}>
+        <AudioMetaFields
+          speakerName={speakerName}
+          onSpeakerNameChange={(next) => {
+            setSpeakerName(next);
+            if (value) onChange({ ...value, speakerName: next.trim() || undefined });
           }}
-          onRerecord={() => {
-            clearPickedDraft();
-            void recorder.start();
+          dialectId={dialectId}
+          onDialectIdChange={(v) => {
+            setDialectId(v);
+            if (value) onChange({ ...value, dialectId: v });
           }}
+          dialectOptions={dialectOptions}
+          disabled={recorder.state === 'recording'}
         />
-      ) : null}
 
-      {!value && !trimSource && recorder.state === 'idle' ? (
-        <Space wrap>
-          <Button
-            type="primary"
-            icon={<AudioOutlined />}
-            onClick={() => void recorder.start()}
-            disabled={!recorder.supported}
-          >
-            Rekam
-          </Button>
-          <Upload
-            accept=".mp3,.m4a,.wav,.ogg,.webm,audio/*"
-            showUploadList={false}
+        {recorder.error ? <Alert type="warning" showIcon message={recorder.error} /> : null}
+
+        {recorder.state === 'recording' ? (
+          <AudioRecordingPanel elapsedMs={recorder.elapsedMs} onStop={() => recorder.stop()} />
+        ) : null}
+
+        {value ? (
+          <AudioReadyCard
+            previewUrl={value.previewUrl}
+            durationMs={value.durationMs}
+            statusLabel="Siap diunggah saat simpan"
+            onDiscard={clearPending}
+            onRerecord={() => {
+              clearPending();
+              void recorder.start();
+            }}
+          />
+        ) : null}
+
+        {trimSource ? (
+          <AudioTrimEditor
+            source={trimSource.blob}
+            sourcePreviewUrl={trimSource.previewUrl}
+            confirmLabel="Pakai potongan ini"
+            onConfirm={commitTrimmed}
+            onCancel={() => {
+              clearPickedDraft();
+              recorder.reset();
+            }}
+            onRerecord={() => {
+              clearPickedDraft();
+              void recorder.start();
+            }}
+          />
+        ) : null}
+
+        {!value && !trimSource && recorder.state === 'idle' ? (
+          <AudioIdleCapture
+            supported={recorder.supported}
+            onRecord={() => void recorder.start()}
             beforeUpload={beforeUpload}
-            onChange={handleFileChange}
-          >
-            <Button>Pilih file</Button>
-          </Upload>
-        </Space>
-      ) : null}
-    </Space>
+            onFileChange={handleFileChange}
+          />
+        ) : null}
+      </Space>
+    </AudioStudioShell>
   );
 }
 

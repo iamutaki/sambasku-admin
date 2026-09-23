@@ -432,7 +432,7 @@ export function VoteModerationPage() {
       <Result
         status="403"
         title="403"
-        subTitle="Panel vote hanya untuk role reviewer, admin, dan root."
+        subTitle="Panel vote hanya untuk peran verifikator, admin, dan root."
       />
     );
   }

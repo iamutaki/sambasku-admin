@@ -257,7 +257,7 @@ export function UsersPage() {
     <>
       <PageHeader
         title={<Space size={8}><UserOutlined /> <span>Pengguna</span></Space>}
-        subtitle="Kelola akun dan peran (role) pengguna sistem. Hanya admin & root yang dapat akses halaman ini."
+        subtitle="Kelola akun dan peran pengguna. Hanya admin dan root yang dapat membuka halaman ini. Peran Verifikator memeriksa antrean. Admin, Editor, dan Root juga boleh memeriksa, dengan wewenang tambahan, dan jabatan mereka tetap Admin, Editor, atau Root."
       />
       <Tabs
         activeKey={userTab}

@@ -104,7 +104,7 @@ export function VerifierApplicationsPage() {
     <>
       <PageHeader
         title="Pengajuan verifikator"
-        subtitle="Antrean contributor yang mengajukan jadi reviewer."
+        subtitle="Antrean kontributor yang mengajukan jadi verifikator."
         extra={
           <Button icon={<ReloadOutlined />} onClick={() => refetch()}>
             Muat ulang

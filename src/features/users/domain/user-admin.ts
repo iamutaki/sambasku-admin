@@ -14,7 +14,7 @@ export interface AdminUserListItem {
 export const ROLE_LABELS: Record<AdminUserRole, string> = {
   root: 'Root',
   admin: 'Admin',
-  reviewer: 'Reviewer',
+  reviewer: 'Verifikator',
   editor: 'Editor',
   contributor: 'Kontributor',
 };

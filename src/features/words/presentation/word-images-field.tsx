@@ -1,8 +1,15 @@
-import { useRef } from 'react';
-import { FileImageOutlined, InboxOutlined, LoadingOutlined, RedoOutlined } from '@ant-design/icons';
-import { Alert, App as AntdApp, Button, Card, Image, Input, Progress, Space, Switch, Typography, Upload } from 'antd';
-import type { UploadFile, UploadProps } from 'antd';
-import { Form } from 'antd';
+import { useEffect, useRef, useState } from 'react';
+import {
+  CheckCircleOutlined,
+  CloseOutlined,
+  FileImageOutlined,
+  InboxOutlined,
+  LoadingOutlined,
+  PlusOutlined,
+  RedoOutlined,
+} from '@ant-design/icons';
+import { Alert, App as AntdApp, Button, Image, Input, Progress, Space, Switch, Tag, Typography, Upload } from 'antd';
+import type { UploadProps } from 'antd';
 import type { WordImageFormValue } from '../domain/create-word';
 import { useUploadWordImage } from '../application/use-upload-word-image';
 import { displayImageUrl } from '@/shared/utils/display-image-url';
@@ -13,41 +20,92 @@ const MAX_IMAGES = 10; // cermin validator API (images[] max 10)
 const MAX_SIZE_MB = 5;
 const ACCEPTED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 
+export interface WordImagesFieldProps {
+  /** Controlled by Form.Item name="images" */
+  value?: WordImageFormValue[];
+  onChange?: (next: WordImageFormValue[]) => void;
+}
+
 /**
- * Section "7. Gambar (opsional)" untuk form tambah & edit kata
- * (05-support-image). Daftar gambar hidup di form store (field `images`)
- * - sumber kebenaran untuk prefill edit dan body submit. Upload terjadi
- * saat file dipilih: token backend → POST langsung ke CDN ImageKit.
- * Menghapus dari daftar TIDAK menghapus file di CDN (orphan diterima -
- * bersih manual dari dashboard ImageKit; tidak ada delete API ter-wire).
+ * Section "7. Gambar (opsional)" untuk form tambah & edit kata.
+ * Preview pakai state lokal (langsung re-render saat file dipilih).
+ * Upload dijalankan manual dari beforeUpload (return false) — lebih andal
+ * daripada customRequest untuk daftar controlled.
  */
-export function WordImagesField() {
-  const form = Form.useFormInstance();
-  const images: WordImageFormValue[] = Form.useWatch('images', form) ?? [];
+export function WordImagesField({ value, onChange }: WordImagesFieldProps) {
+  const [images, setLocalImages] = useState<WordImageFormValue[]>(() => value ?? []);
+  const imagesRef = useRef(images);
+  imagesRef.current = images;
+
+  useEffect(() => {
+    if (value === undefined) return;
+    if (value === imagesRef.current) return;
+    if (sameImageList(value, imagesRef.current)) return;
+    setLocalImages(value);
+    imagesRef.current = value;
+  }, [value]);
+
   const { upload, unavailable } = useUploadWordImage();
   const { message } = AntdApp.useApp();
-  // File asli dipinggirkan agar tombol Ulangi bisa upload ulang (tidak
-  // disimpan di form store - File bukan data serializable).
   const fileByUid = useRef(new Map<string, File>());
 
-  const setImages = (next: WordImageFormValue[]) => form.setFieldsValue({ images: next });
-
-  const patch = (uid: string, changes: Partial<WordImageFormValue>) =>
-    setImages(images.map((img) => (img.uid === uid ? { ...img, ...changes } : img)));
-
-  /** EKSKLUSIF client-side - cermin superRefine API (400 kalau >1 dikirim). */
-  const setPrimary = (uid: string, value: boolean) =>
-    setImages(images.map((img) => (img.uid === uid ? { ...img, is_primary: value } : { ...img, is_primary: false })));
-
-  const remove = (uid: string) => {
-    const img = images.find((i) => i.uid === uid);
-    if (img?.localUrl) URL.revokeObjectURL(img.localUrl);
-    fileByUid.current.delete(uid);
-    setImages(images.filter((img) => img.uid !== uid));
+  const setImages = (next: WordImageFormValue[]) => {
+    imagesRef.current = next;
+    setLocalImages(next);
+    onChange?.(next);
   };
 
-  const beforeUpload: UploadProps['beforeUpload'] = (file: UploadFile) => {
-    const typed = file as unknown as File;
+  const patch = (uid: string, changes: Partial<WordImageFormValue>) =>
+    setImages(imagesRef.current.map((img) => (img.uid === uid ? { ...img, ...changes } : img)));
+
+  const setPrimary = (uid: string, primary: boolean) =>
+    setImages(
+      imagesRef.current.map((img) =>
+        img.uid === uid ? { ...img, is_primary: primary } : { ...img, is_primary: false },
+      ),
+    );
+
+  const remove = (uid: string) => {
+    const img = imagesRef.current.find((i) => i.uid === uid);
+    if (img?.localUrl) URL.revokeObjectURL(img.localUrl);
+    fileByUid.current.delete(uid);
+    setImages(imagesRef.current.filter((img) => img.uid !== uid));
+  };
+
+  const startUpload = async (file: File, uid: string) => {
+    fileByUid.current.set(uid, file);
+    const localUrl = URL.createObjectURL(file);
+
+    // Preview SEGERA — sebelum jaringan.
+    setImages([
+      ...imagesRef.current,
+      { uid, fileName: file.name, status: 'uploading', localUrl, progress: 0 },
+    ]);
+
+    try {
+      const uploaded = await upload(file, (percent) => patch(uid, { progress: percent }));
+      const oldLocal = imagesRef.current.find((i) => i.uid === uid)?.localUrl;
+      patch(uid, {
+        status: 'done',
+        url: uploaded.url,
+        provider_file_id: uploaded.file_id,
+        sha: uploaded.sha,
+        localUrl: undefined,
+      });
+      if (oldLocal) queueMicrotask(() => URL.revokeObjectURL(oldLocal));
+    } catch {
+      patch(uid, { status: 'error' });
+      message.error(`Gagal mengunggah ${file.name}`);
+    }
+  };
+
+  /**
+   * Tangkap file di sini, tampilkan preview, upload sendiri.
+   * `return false` mencegah Upload Ant Design mengirim XHR default /
+   * mengandalkan customRequest (yang sering tidak memicu update UI).
+   */
+  const beforeUpload: UploadProps['beforeUpload'] = (file) => {
+    const typed = file as File & { uid?: string };
     if (!ACCEPTED_TYPES.includes(typed.type)) {
       message.warning(`${typed.name}: hanya jpg/png/webp yang didukung`);
       return Upload.LIST_IGNORE;
@@ -56,37 +114,14 @@ export function WordImagesField() {
       message.warning(`${typed.name}: melebihi ${MAX_SIZE_MB}MB`);
       return Upload.LIST_IGNORE;
     }
-    if (images.length >= MAX_IMAGES) {
+    if (imagesRef.current.length >= MAX_IMAGES) {
       message.warning(`Maksimal ${MAX_IMAGES} gambar per kata`);
       return Upload.LIST_IGNORE;
     }
-    return true;
-  };
 
-  const customRequest: UploadProps['customRequest'] = async ({ file, onSuccess, onError }) => {
-    const raw = file as File & { uid: string };
-    fileByUid.current.set(raw.uid, raw);
-    // Preview instan dari file lokal (blob URL) - user langsung lihat
-    // gambar yang dipilih tanpa menunggu byte terkirim ke CDN.
-    const localUrl = URL.createObjectURL(raw);
-    setImages([...images, { uid: raw.uid, fileName: raw.name, status: 'uploading', localUrl, progress: 0 }]);
-    try {
-      const uploaded = await upload(raw, (percent) => patchFresh(raw.uid, form, { progress: percent }));
-      // images di closure bisa basi kalau dua file selesai berdekatan -
-      // patch by-uid dari nilai form TERKINI.
-      patchFresh(raw.uid, form, {
-        status: 'done',
-        url: uploaded.url,
-        provider_file_id: uploaded.file_id,
-        sha: uploaded.sha,
-      });
-      URL.revokeObjectURL(localUrl); // preview CDN (img.url) sudah menggantikan
-      onSuccess?.(uploaded);
-    } catch (err) {
-      patchFresh(raw.uid, form, { status: 'error' });
-      message.error(`Gagal mengunggah ${raw.name}`);
-      onError?.(err as Error);
-    }
+    const uid = typed.uid ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    void startUpload(typed, uid);
+    return false;
   };
 
   const retry = async (img: WordImageFormValue) => {
@@ -95,32 +130,120 @@ export function WordImagesField() {
       message.info('File tidak tersedia lagi - hapus baris ini lalu pilih ulang filenya');
       return;
     }
-    patchFresh(img.uid, form, { status: 'uploading', progress: 0 });
+    patch(img.uid, { status: 'uploading', progress: 0 });
     try {
-      const uploaded = await upload(file, (percent) => patchFresh(img.uid, form, { progress: percent }));
-      patchFresh(img.uid, form, {
+      const uploaded = await upload(file, (percent) => patch(img.uid, { progress: percent }));
+      const oldLocal = imagesRef.current.find((i) => i.uid === img.uid)?.localUrl;
+      patch(img.uid, {
         status: 'done',
         url: uploaded.url,
         provider_file_id: uploaded.file_id,
         sha: uploaded.sha,
+        localUrl: undefined,
       });
-      if (img.localUrl) URL.revokeObjectURL(img.localUrl);
+      if (oldLocal) queueMicrotask(() => URL.revokeObjectURL(oldLocal));
     } catch {
-      patchFresh(img.uid, form, { status: 'error' });
+      patch(img.uid, { status: 'error' });
       message.error(`Gagal mengunggah ${file.name}`);
     }
   };
 
-  if (unavailable) {
-    return (
-      <Alert
-        type="warning"
-        showIcon
-        message="Penyimpanan gambar belum dikonfigurasi"
-        description="Isi PUBLIC_IMAGE_GITHUB_* di environment API untuk mengaktifkan upload gambar. Kata tetap bisa disimpan tanpa gambar."
-      />
-    );
-  }
+  const atLimit = images.length >= MAX_IMAGES;
+  const uploadingCount = images.filter((i) => i.status === 'uploading').length;
+
+  const selectedPanel =
+    images.length > 0 ? (
+      <div
+        style={{
+          border: '1px solid rgba(0,0,0,0.1)',
+          borderRadius: 8,
+          padding: 12,
+          background: 'rgba(22, 119, 255, 0.04)',
+        }}
+      >
+        <Space style={{ width: '100%', justifyContent: 'space-between', marginBottom: 12 }} wrap>
+          <Space size={8} wrap>
+            <Text strong>{images.length} gambar dipilih</Text>
+            {uploadingCount > 0 ? (
+              <Tag icon={<LoadingOutlined />} color="processing">
+                {uploadingCount} sedang diunggah
+              </Tag>
+            ) : images.some((i) => i.status === 'error') ? (
+              <Tag color="error">Sebagian gagal</Tag>
+            ) : (
+              <Tag icon={<CheckCircleOutlined />} color="success">
+                Siap disimpan
+              </Tag>
+            )}
+          </Space>
+          <Text type="secondary">
+            {images.length}/{MAX_IMAGES}
+          </Text>
+        </Space>
+
+        <Space direction="vertical" size={12} style={{ width: '100%' }}>
+          {images.map((img) => (
+            <div
+              key={img.uid}
+              style={{
+                display: 'flex',
+                gap: 12,
+                alignItems: 'flex-start',
+                flexWrap: 'wrap',
+                padding: 10,
+                borderRadius: 8,
+                background: '#fff',
+                border: '1px solid rgba(0,0,0,0.06)',
+              }}
+            >
+              <ImageThumb img={img} onRemove={() => remove(img.uid)} />
+
+              <div style={{ minWidth: 220, flex: 1 }}>
+                <Text strong ellipsis style={{ display: 'block', maxWidth: 360 }}>
+                  {img.fileName ?? img.url}
+                </Text>
+                {img.status === 'uploading' ? (
+                  <Progress
+                    percent={img.progress ?? 0}
+                    size="small"
+                    status="active"
+                    style={{ maxWidth: 320, margin: '4px 0 0' }}
+                  />
+                ) : null}
+                {img.status === 'error' ? (
+                  <Space style={{ marginTop: 4 }}>
+                    <Text type="danger">Gagal mengunggah</Text>
+                    <Button size="small" icon={<RedoOutlined />} onClick={() => retry(img)}>
+                      Ulangi
+                    </Button>
+                  </Space>
+                ) : null}
+                {img.status === 'done' ? (
+                  <Space direction="vertical" size={4} style={{ width: '100%', marginTop: 6 }}>
+                    <Input
+                      placeholder="Teks alternatif / deskripsi singkat (opsional)"
+                      value={img.alt_text}
+                      maxLength={500}
+                      onChange={(e) => patch(img.uid, { alt_text: e.target.value })}
+                    />
+                    <Space>
+                      <Switch
+                        size="small"
+                        checkedChildren="Utama"
+                        unCheckedChildren="Utama"
+                        checked={img.is_primary ?? false}
+                        onChange={(v) => setPrimary(img.uid, v)}
+                      />
+                      <Text type="secondary">Hanya satu gambar utama per kata</Text>
+                    </Space>
+                  </Space>
+                ) : null}
+              </div>
+            </div>
+          ))}
+        </Space>
+      </div>
+    ) : null;
 
   return (
     <Space direction="vertical" size={12} style={{ width: '100%' }}>
@@ -129,109 +252,177 @@ export function WordImagesField() {
         saat file dipilih; teks alternatif &amp; penanda utama diisi setelah selesai.
       </Text>
 
-      <Upload.Dragger
-        multiple
-        showUploadList={false}
-        accept=".jpg,.jpeg,.png,.webp"
-        beforeUpload={beforeUpload}
-        customRequest={customRequest}
-        disabled={images.length >= MAX_IMAGES}
-      >
-        <p className="ant-upload-drag-icon"><InboxOutlined /></p>
-        <p className="ant-upload-text">Klik atau seret gambar ke sini</p>
-        <p className="ant-upload-hint">Gambar ilustrasi untuk entri kata ini</p>
-      </Upload.Dragger>
+      {unavailable ? (
+        <Alert
+          type="warning"
+          showIcon
+          message="Penyimpanan gambar belum dikonfigurasi"
+          description="Isi PUBLIC_IMAGE_GITHUB_* di environment API untuk mengaktifkan upload gambar. Kata tetap bisa disimpan tanpa gambar."
+        />
+      ) : null}
 
-      {images.map((img) => (
-        <Card key={img.uid} size="small">
-          <Space align="start" wrap>
-            {img.url ? (
-              <Image
-                src={displayImageUrl(img.url, { width: 160 }) ?? img.url}
-                alt={img.alt_text ?? img.fileName}
-                width={72}
-                height={72}
-                style={{ objectFit: 'cover' }}
-                fallback={img.url}
-              />
-            ) : img.localUrl ? (
-              <Image
-                src={img.localUrl}
-                alt={img.fileName}
-                width={72}
-                height={72}
-                preview={false}
-                style={{ objectFit: 'cover', opacity: img.status === 'uploading' ? 0.55 : 1 }}
-              />
-            ) : (
-              <div
-                style={{
-                  width: 72,
-                  height: 72,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  background: 'rgba(0,0,0,0.04)',
-                  borderRadius: 8,
-                }}
-              >
-                {img.status === 'error' ? <FileImageOutlined style={{ fontSize: 22, opacity: 0.4 }} /> : <LoadingOutlined style={{ fontSize: 22 }} />}
-              </div>
-            )}
+      {selectedPanel}
 
-            <div style={{ minWidth: 260, flex: 1 }}>
-              <Text strong ellipsis style={{ display: 'block', maxWidth: 360 }}>
-                {img.fileName ?? img.url}
-              </Text>
-              {img.status === 'uploading' ? (
-                <Progress percent={img.progress ?? 0} size="small" status="active" style={{ maxWidth: 320, margin: 0 }} />
-              ) : null}
-              {img.status === 'error' ? (
-                <Space>
-                  <Text type="danger">Gagal mengunggah</Text>
-                  <Button size="small" icon={<RedoOutlined />} onClick={() => retry(img)}>Ulangi</Button>
-                </Space>
-              ) : null}
-              {img.status === 'done' ? (
-                <Space direction="vertical" size={4} style={{ width: '100%', marginTop: 4 }}>
-                  <Input
-                    placeholder="Teks alternatif / deskripsi singkat (opsional)"
-                    value={img.alt_text}
-                    maxLength={500}
-                    onChange={(e) => patch(img.uid, { alt_text: e.target.value })}
-                  />
-                  <Space>
-                    <Switch
-                      size="small"
-                      checkedChildren="Utama"
-                      unCheckedChildren="Utama"
-                      checked={img.is_primary ?? false}
-                      onChange={(v) => setPrimary(img.uid, v)}
-                    />
-                    <Text type="secondary">Hanya satu gambar utama per kata</Text>
-                  </Space>
-                </Space>
-              ) : null}
-            </div>
+      {!unavailable && !atLimit ? (
+        <Upload.Dragger
+          multiple
+          showUploadList={false}
+          accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
+          beforeUpload={beforeUpload}
+        >
+          {images.length === 0 ? (
+            <>
+              <p className="ant-upload-drag-icon"><InboxOutlined /></p>
+              <p className="ant-upload-text">Klik atau seret gambar ke sini</p>
+              <p className="ant-upload-hint">Gambar ilustrasi untuk entri kata ini</p>
+            </>
+          ) : (
+            <>
+              <p className="ant-upload-drag-icon"><PlusOutlined /></p>
+              <p className="ant-upload-text">Tambah gambar lagi</p>
+              <p className="ant-upload-hint">
+                {images.length} sudah dipilih — sisa kuota {MAX_IMAGES - images.length}
+              </p>
+            </>
+          )}
+        </Upload.Dragger>
+      ) : null}
 
-            <Button type="text" danger onClick={() => remove(img.uid)}>
-              Hapus
-            </Button>
-          </Space>
-        </Card>
-      ))}
+      {!unavailable && atLimit ? (
+        <Alert
+          type="info"
+          showIcon
+          message={`Batas ${MAX_IMAGES} gambar tercapai. Hapus salah satu untuk menambah yang baru.`}
+        />
+      ) : null}
     </Space>
   );
 }
 
-/** patch by-uid membaca nilai form TERKINI (bukan closure yang bisa basi). */
-function patchFresh(
-  uid: string,
-  form: ReturnType<typeof Form.useFormInstance>,
-  changes: Partial<WordImageFormValue>,
-) {
-  const current = (form.getFieldValue('images') as WordImageFormValue[] | undefined) ?? [];
-  form.setFieldsValue({
-    images: current.map((img) => (img.uid === uid ? { ...img, ...changes } : img)),
+function ImageThumb({
+  img,
+  onRemove,
+}: {
+  img: WordImageFormValue;
+  onRemove: () => void;
+}) {
+  const size = 88;
+  const src = thumbSrc(img);
+  const uploading = img.status === 'uploading';
+  const errored = img.status === 'error';
+
+  return (
+    <div
+      style={{
+        position: 'relative',
+        width: size,
+        height: size,
+        borderRadius: 8,
+        overflow: 'hidden',
+        background: 'rgba(0,0,0,0.06)',
+        border: errored
+          ? '1px solid #ff4d4f'
+          : img.is_primary
+            ? '2px solid #1677ff'
+            : '1px solid rgba(0,0,0,0.08)',
+        flexShrink: 0,
+      }}
+    >
+      {src ? (
+        <Image
+          src={src}
+          alt={img.alt_text ?? img.fileName}
+          width={size}
+          height={size}
+          preview={Boolean(img.url)}
+          style={{ objectFit: 'cover', opacity: uploading ? 0.55 : 1 }}
+          fallback={img.url}
+        />
+      ) : (
+        <div
+          style={{
+            width: '100%',
+            height: '100%',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          {errored ? (
+            <FileImageOutlined style={{ fontSize: 22, opacity: 0.4 }} />
+          ) : (
+            <LoadingOutlined style={{ fontSize: 22 }} />
+          )}
+        </div>
+      )}
+
+      {uploading ? (
+        <div
+          style={{
+            position: 'absolute',
+            inset: 0,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: 'rgba(255,255,255,0.45)',
+          }}
+        >
+          <LoadingOutlined style={{ fontSize: 20 }} />
+        </div>
+      ) : null}
+
+      {img.is_primary && img.status === 'done' ? (
+        <Tag
+          color="blue"
+          style={{ position: 'absolute', left: 4, bottom: 4, margin: 0, lineHeight: '18px', paddingInline: 4 }}
+        >
+          Utama
+        </Tag>
+      ) : null}
+
+      <Button
+        type="primary"
+        danger
+        size="small"
+        icon={<CloseOutlined />}
+        onClick={(e) => {
+          e.stopPropagation();
+          onRemove();
+        }}
+        aria-label={`Hapus ${img.fileName ?? 'gambar'}`}
+        style={{
+          position: 'absolute',
+          top: 4,
+          right: 4,
+          width: 22,
+          height: 22,
+          minWidth: 22,
+          padding: 0,
+          borderRadius: '50%',
+        }}
+      />
+    </div>
+  );
+}
+
+function thumbSrc(img: WordImageFormValue): string | undefined {
+  if (img.localUrl) return img.localUrl;
+  if (img.url) return displayImageUrl(img.url, { width: 200 }) ?? img.url;
+  return undefined;
+}
+
+function sameImageList(a: WordImageFormValue[], b: WordImageFormValue[]): boolean {
+  if (a.length !== b.length) return false;
+  return a.every((img, i) => {
+    const other = b[i];
+    return (
+      img.uid === other?.uid &&
+      img.status === other.status &&
+      img.url === other.url &&
+      img.localUrl === other.localUrl &&
+      img.progress === other.progress &&
+      img.alt_text === other.alt_text &&
+      img.is_primary === other.is_primary
+    );
   });
 }

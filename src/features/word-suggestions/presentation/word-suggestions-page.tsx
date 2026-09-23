@@ -129,7 +129,7 @@ export function WordSuggestionsPage() {
 
   if (!canModerate) {
     return (
-      <Alert type="warning" showIcon message="Hanya reviewer/admin yang bisa membuka antrean ini." />
+      <Alert type="warning" showIcon message="Hanya verifikator dan admin yang bisa membuka antrean ini." />
     );
   }
 

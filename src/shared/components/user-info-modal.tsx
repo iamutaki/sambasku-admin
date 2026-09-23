@@ -7,7 +7,7 @@ import { formatDateTime } from '@/shared/utils/format-datetime';
 const ROLE_LABELS: Record<string, string> = {
   root: 'Root',
   admin: 'Admin',
-  reviewer: 'Reviewer',
+  reviewer: 'Verifikator',
   editor: 'Editor',
   contributor: 'Kontributor',
 };

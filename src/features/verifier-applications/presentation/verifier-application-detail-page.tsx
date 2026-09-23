@@ -71,7 +71,7 @@ export function VerifierApplicationDetailPage() {
         comment: comment.trim() || undefined,
       });
       message.success(
-        decision === 'approve' ? 'Pengajuan disetujui. Role pemohon menjadi reviewer.' : 'Pengajuan ditolak.',
+        decision === 'approve' ? 'Pengajuan disetujui. Peran pemohon menjadi verifikator.' : 'Pengajuan ditolak.',
       );
       closeDecision();
     } catch {
@@ -191,7 +191,7 @@ export function VerifierApplicationDetailPage() {
         onOk={submitDecision}
       >
         {decision === 'approve' ? (
-          <Text>Pemohon akan menjadi reviewer. Sesi lama mereka harus login ulang.</Text>
+          <Text>Pemohon akan menjadi verifikator. Sesi lama mereka harus login ulang.</Text>
         ) : (
           <Form layout="vertical">
             <Form.Item

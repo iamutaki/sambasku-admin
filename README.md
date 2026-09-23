@@ -1,15 +1,79 @@
-# sambasku-admin
+<p align="center">
+  <img src="logo.png" alt="SambasKu" width="320" />
+</p>
 
-Admin console Kamus Digital Sambas-Indonesia (React + Ant Design + TanStack).
+# SambasKu Admin
+
+Konsol admin **Kamus Digital Sambas-Indonesia**. Dipakai verifikator dan
+admin untuk mengelola kata, antrean kontribusi, moderasi, dan pengguna.
+
+## Stack
+
+| Layer | Pilihan |
+| --- | --- |
+| Framework | React 19 + Vite (SPA) |
+| UI | Ant Design 6, TanStack Router / Query / Table |
+| HTTP | Axios (`/api` di-proxy ke API staging saat `pnpm dev`) |
+| Deploy | Cloudflare Pages |
+
+Acuan tetap: `docs/admin/admin-base-stack.md` di repo
+[sambasku-docs](https://github.com/iamutaki/sambasku-docs).
+Kontrak API: envelope, cursor pagination, role matrix di `docs/api/*`.
+
+## Fitur utama
+
+| Area | Rute |
+| --- | --- |
+| Dashboard | `/dashboard` |
+| Kata (list, buat, edit, detail) | `/words`, `/words/new`, `/words/$id` |
+| Antrean kontribusi | `/contributions` |
+| Moderasi komentar + blocklist | `/comments`, `/comment-blocklist` |
+| Search miss | `/search-misses` |
+| Moderasi vote | `/vote-moderation` |
+| Usulan edit kata | `/word-suggestions` |
+| Laporan kata / bug | `/word-reports`, `/bug-reports` |
+| Pengguna + pengajuan verifikator | `/users`, `/verifier-applications` |
+| Audit log | `/audit-logs` |
+
+Auth: login email/password. Access token di memori; refresh token di
+cookie HttpOnly (`SameSite=Strict`) dari API.
+
+## Aset media
+
+| Jenis | Alur |
+| --- | --- |
+| Gambar kata / avatar | Multipart ke API → repo [sambasku-images](https://github.com/iamutaki/sambasku-images) (jsDelivr + wsrv) |
+| Audio pelafalan | Multipart ke API → repo [sambasku-pronunciation](https://github.com/iamutaki/sambasku-pronunciation) |
+| Bukti verifikator / lampiran bug | Token ImageKit (privat), bukan GitHub |
+
+## Struktur singkat
+
+```text
+src/
+├── app/                 # router, providers
+├── features/<fitur>/    # domain → application → infrastructure → presentation
+├── shared/              # api client, layouts, hooks, utils
+└── styles/
+```
+
+## Scripts
+
+| Perintah | Fungsi |
+| --- | --- |
+| `pnpm install` | Pasang dependensi |
+| `pnpm dev` | Vite (proxy `/api` → API staging) |
+| `pnpm build:staging` | Build mode staging |
+| `pnpm build` | Build mode production |
+| `pnpm lint` / `pnpm test` / `pnpm typecheck` | Quality gate |
 
 ## Deploy Staging
 
-Hosting: **Cloudflare Pages** - project `sambasku-admin-staging`, custom domain
-`https://console-sambasku-staging.iamutaki.com`.
+Hosting: **Cloudflare Pages** - project `sambasku-admin-staging`, custom
+domain `https://console-sambasku-staging.iamutaki.com`.
 
-Deploy **murni lewat CI/CD** (`.github/workflows/deploy-staging.yml`): push ke
-branch `staging` (atau jalankan manual dari tab Actions) → lint + test + build →
-`wrangler pages deploy dist`.
+Deploy **murni lewat CI/CD** (`.github/workflows/deploy-staging.yml`):
+push ke branch `staging` (atau jalankan manual dari tab Actions) →
+lint + test + build → `wrangler pages deploy dist`.
 
 ### Setup sekali
 
@@ -19,28 +83,20 @@ branch `staging` (atau jalankan manual dari tab Actions) → lint + test + build
 2. Push ke `staging` - job membuat project Pages otomatis, lalu deploy.
 3. Attach custom domain di dashboard Cloudflare:
    Workers & Pages → `sambasku-admin-staging` → Custom domains →
-   tambah `console-sambasku-staging.iamutaki.com` (DNS + sertifikat otomatis,
-   satu akun/zone).
+   tambah `console-sambasku-staging.iamutaki.com` (DNS + sertifikat
+   otomatis, satu akun/zone).
 4. Pastikan `CORS_ALLOWED_ORIGINS` API staging
    (`api/wrangler.toml` → `env.staging.vars`) memuat origin di atas.
 
 ### Kenapa custom domain wajib
 
-Cookie `refresh_token` API ber-`SameSite=Strict`. Admin dan API harus satu
-registrable domain (`iamutaki.com`) supaya cookie terkirim saat auto-refresh
-sesi. Domain `*.pages.dev` adalah situs berbeda → sesi "amnesia" ke halaman login.
+Cookie `refresh_token` API ber-`SameSite=Strict`. Admin dan API harus
+satu registrable domain (`iamutaki.com`) supaya cookie terkirim saat
+auto-refresh sesi. Domain `*.pages.dev` adalah situs berbeda → sesi
+"amnesia" ke halaman login.
 
 ### Routing SPA
 
-`public/_redirects` berisi `/* /index.html 200` - deep-link / refresh pada rute
-history-mode TanStack Router (`/dashboard`, `/words`, `/audit-logs`) tetap
-dilayani `index.html`, bukan 404.
-
-## Scripts
-
-| Perintah | Fungsi |
-| --- | --- |
-| `pnpm dev` | Vite dev server (proxy `/api` → API staging) |
-| `pnpm build:staging` | Build mode staging |
-| `pnpm build` | Build mode production |
-| `pnpm lint` / `pnpm test` / `pnpm typecheck` | Quality gate |
+`public/_redirects` berisi `/* /index.html 200` - deep-link / refresh
+pada rute history-mode TanStack Router tetap dilayani `index.html`,
+bukan 404.

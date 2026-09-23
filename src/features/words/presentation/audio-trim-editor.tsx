@@ -284,7 +284,16 @@ export function AudioTrimEditor({
 
   if (loading) {
     return (
-      <Flex align="center" gap={8}>
+      <Flex
+        align="center"
+        gap={8}
+        style={{
+          padding: 16,
+          borderRadius: 8,
+          background: 'rgba(0,0,0,0.02)',
+          border: '1px solid rgba(0,0,0,0.06)',
+        }}
+      >
         <Spin size="small" />
         <Text type="secondary">Menyiapkan editor potong…</Text>
       </Flex>
@@ -292,136 +301,148 @@ export function AudioTrimEditor({
   }
 
   return (
-    <Space direction="vertical" size={10} style={{ width: '100%' }}>
-      <Text strong>Potong rekaman sebelum unggah</Text>
-      <Text type="secondary" style={{ display: 'block' }}>
-        Geser rentang (bagian biru). Lalu tekan <Text strong>Preview potongan</Text> atau
-        pakai player di bawah untuk mendengar hasil crop saja — bukan seluruh rekaman
-        ({formatRecordingClock(selectionMs)} dari{' '}
-        {formatRecordingClock(Math.round(duration * 1000))}).
-      </Text>
+    <div
+      style={{
+        borderRadius: 8,
+        border: '1px solid rgba(0,0,0,0.08)',
+        background: '#fff',
+        padding: 14,
+      }}
+    >
+      <Space direction="vertical" size={10} style={{ width: '100%' }}>
+        <div>
+          <Text strong style={{ display: 'block' }}>
+            Potong rekaman
+          </Text>
+          <Text type="secondary" style={{ fontSize: 12 }}>
+            Geser rentang biru, dengar preview, lalu terapkan. Durasi potongan:{' '}
+            <Text strong>{formatRecordingClock(selectionMs)}</Text> dari{' '}
+            {formatRecordingClock(Math.round(duration * 1000))}.
+          </Text>
+        </div>
 
-      {error ? <Alert type="warning" showIcon message={error} /> : null}
+        {error ? <Alert type="warning" showIcon message={error} /> : null}
 
-      <canvas
-        ref={canvasRef}
-        style={{
-          width: '100%',
-          height: 56,
-          display: 'block',
-          borderRadius: 6,
-          background: 'rgba(0,0,0,0.04)',
-        }}
-      />
-
-      {duration > 0 ? (
-        <Slider
-          range
-          min={0}
-          max={Number(duration.toFixed(2))}
-          step={0.01}
-          value={range}
-          disabled={disabled || busy}
-          tooltip={{
-            formatter: (v) => formatRecordingClock(Math.round((v ?? 0) * 1000)),
-          }}
-          onChange={(v) => {
-            stopBufferPlayback();
-            const [a, b] = v as [number, number];
-            if (b - a < 0.1) return;
-            setRange([a, b]);
+        <canvas
+          ref={canvasRef}
+          style={{
+            width: '100%',
+            height: 64,
+            display: 'block',
+            borderRadius: 8,
+            background: 'rgba(0,0,0,0.04)',
           }}
         />
-      ) : null}
 
-      <div>
-        <Flex align="center" gap={8} style={{ marginBottom: 6 }}>
-          <Text strong style={{ fontSize: 13 }}>
-            Preview hasil potongan
-          </Text>
-          {clipBuilding ? (
-            <Text type="secondary" style={{ fontSize: 12 }}>
-              Memperbarui…
-            </Text>
-          ) : null}
-        </Flex>
-        {clipPreviewUrl ? (
-          <audio
-            ref={clipAudioRef}
-            key={clipPreviewUrl}
-            src={clipPreviewUrl}
-            preload="auto"
-            controls
-            style={{ width: '100%', maxWidth: 480 }}
-            onPlay={() => {
-              stopBufferPlayback();
-              fullAudioRef.current?.pause();
-              setPlayingSelection(true);
+        {duration > 0 ? (
+          <Slider
+            range
+            min={0}
+            max={Number(duration.toFixed(2))}
+            step={0.01}
+            value={range}
+            disabled={disabled || busy}
+            tooltip={{
+              formatter: (v) => formatRecordingClock(Math.round((v ?? 0) * 1000)),
             }}
-            onPause={() => setPlayingSelection(false)}
-            onEnded={() => setPlayingSelection(false)}
-          />
-        ) : (
-          <Text type="secondary" style={{ fontSize: 12 }}>
-            Player potongan belum siap — pakai tombol Preview potongan di bawah.
-          </Text>
-        )}
-      </div>
-
-      {fullPreviewUrl ? (
-        <details>
-          <summary style={{ cursor: 'pointer', fontSize: 12, color: 'rgba(0,0,0,0.45)' }}>
-            Dengarkan rekaman penuh (sebelum dipotong)
-          </summary>
-          <audio
-            ref={fullAudioRef}
-            src={fullPreviewUrl}
-            preload="metadata"
-            controls
-            style={{ width: '100%', maxWidth: 480, marginTop: 8 }}
-            onPlay={() => {
+            onChange={(v) => {
               stopBufferPlayback();
-              clipAudioRef.current?.pause();
-              setPlayingSelection(false);
+              const [a, b] = v as [number, number];
+              if (b - a < 0.1) return;
+              setRange([a, b]);
             }}
           />
-        </details>
-      ) : null}
-
-      <Space wrap>
-        <Button
-          type="default"
-          icon={playingSelection ? <PauseCircleOutlined /> : <PlayCircleOutlined />}
-          onClick={() => void togglePreview()}
-          disabled={disabled || busy || duration <= 0}
-        >
-          {playingSelection ? 'Stop preview' : 'Preview potongan'}
-        </Button>
-        <Button
-          icon={<ScissorOutlined />}
-          onClick={autoDetect}
-          disabled={disabled || busy || !bufferRef.current}
-        >
-          Deteksi otomatis
-        </Button>
-        <Button
-          type="primary"
-          icon={<AudioOutlined />}
-          loading={busy}
-          disabled={disabled || duration <= 0}
-          onClick={() => void handleConfirm()}
-        >
-          {confirmLabel}
-        </Button>
-        {onRerecord ? (
-          <Button onClick={onRerecord} disabled={disabled || busy}>
-            Rekam ulang
-          </Button>
         ) : null}
-        <Button onClick={onCancel} disabled={disabled || busy}>
-          Buang
-        </Button>
+
+        <div>
+          <Flex align="center" gap={8} style={{ marginBottom: 6 }}>
+            <Text strong style={{ fontSize: 13 }}>
+              Preview potongan
+            </Text>
+            {clipBuilding ? (
+              <Text type="secondary" style={{ fontSize: 12 }}>
+                Memperbarui…
+              </Text>
+            ) : null}
+          </Flex>
+          {clipPreviewUrl ? (
+            <audio
+              ref={clipAudioRef}
+              key={clipPreviewUrl}
+              src={clipPreviewUrl}
+              preload="auto"
+              controls
+              style={{ width: '100%' }}
+              onPlay={() => {
+                stopBufferPlayback();
+                fullAudioRef.current?.pause();
+                setPlayingSelection(true);
+              }}
+              onPause={() => setPlayingSelection(false)}
+              onEnded={() => setPlayingSelection(false)}
+            />
+          ) : (
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              Player belum siap — pakai tombol Preview potongan.
+            </Text>
+          )}
+        </div>
+
+        {fullPreviewUrl ? (
+          <details>
+            <summary style={{ cursor: 'pointer', fontSize: 12, color: 'rgba(0,0,0,0.45)' }}>
+              Dengarkan rekaman penuh (sebelum dipotong)
+            </summary>
+            <audio
+              ref={fullAudioRef}
+              src={fullPreviewUrl}
+              preload="metadata"
+              controls
+              style={{ width: '100%', marginTop: 8 }}
+              onPlay={() => {
+                stopBufferPlayback();
+                clipAudioRef.current?.pause();
+                setPlayingSelection(false);
+              }}
+            />
+          </details>
+        ) : null}
+
+        <Flex wrap gap={8}>
+          <Button
+            type="default"
+            icon={playingSelection ? <PauseCircleOutlined /> : <PlayCircleOutlined />}
+            onClick={() => void togglePreview()}
+            disabled={disabled || busy || duration <= 0}
+          >
+            {playingSelection ? 'Stop preview' : 'Preview potongan'}
+          </Button>
+          <Button
+            icon={<ScissorOutlined />}
+            onClick={autoDetect}
+            disabled={disabled || busy || !bufferRef.current}
+          >
+            Deteksi otomatis
+          </Button>
+          <Button
+            type="primary"
+            icon={<AudioOutlined />}
+            loading={busy}
+            disabled={disabled || duration <= 0}
+            onClick={() => void handleConfirm()}
+          >
+            {confirmLabel}
+          </Button>
+          {onRerecord ? (
+            <Button onClick={onRerecord} disabled={disabled || busy}>
+              Rekam ulang
+            </Button>
+          ) : null}
+          <Button onClick={onCancel} disabled={disabled || busy}>
+            Buang
+          </Button>
+        </Flex>
       </Space>
-    </Space>
+    </div>
   );
 }
