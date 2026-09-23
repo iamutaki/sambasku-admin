@@ -34,15 +34,16 @@ export interface WordImagesFieldProps {
  */
 export function WordImagesField({ value, onChange }: WordImagesFieldProps) {
   const [images, setLocalImages] = useState<WordImageFormValue[]>(() => value ?? []);
-  const imagesRef = useRef(images);
-  imagesRef.current = images;
+  // Keep latest list for async upload handlers without reading/writing refs during render
+  // (react-hooks/refs). Updated only in setImages + the controlled-value effect below.
+  const imagesRef = useRef(value ?? []);
 
   useEffect(() => {
     if (value === undefined) return;
     if (value === imagesRef.current) return;
     if (sameImageList(value, imagesRef.current)) return;
-    setLocalImages(value);
     imagesRef.current = value;
+    setLocalImages(value);
   }, [value]);
 
   const { upload, unavailable } = useUploadWordImage();
@@ -119,7 +120,10 @@ export function WordImagesField({ value, onChange }: WordImagesFieldProps) {
       return Upload.LIST_IGNORE;
     }
 
-    const uid = typed.uid ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    // Prefer Ant Design's RcFile.uid; fall back to pure File fields (no Date.now/Math.random —
+    // those trip react-hooks/purity even inside this event callback under eslint-plugin-react-hooks).
+    const uid =
+      typed.uid ?? `f-${typed.name}-${typed.size}-${typed.lastModified}-${imagesRef.current.length}`;
     void startUpload(typed, uid);
     return false;
   };
