@@ -22,6 +22,7 @@ import type { MenuProps } from 'antd';
 import { useAuth } from '@/shared/auth/use-auth';
 import { ROLE_LABELS, type UserRole } from '@/features/auth/domain/user';
 import { useLogout } from '@/features/auth/application/use-logout';
+import { ApiTierBanner } from '@/shared/components/api-tier-banner';
 import { App as AntdApp } from 'antd';
 
 const { Sider, Header, Content } = Layout;
@@ -239,6 +240,7 @@ export function ConsoleLayout() {
           </Dropdown>
         </Header>
         <Content className="console-layout__content">
+          <ApiTierBanner />
           <div
             className="console-layout__card"
             style={{

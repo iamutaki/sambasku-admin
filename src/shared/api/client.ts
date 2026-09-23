@@ -1,7 +1,13 @@
-import axios, { type AxiosError, type AxiosRequestConfig } from 'axios';
+import axios, {
+  type AxiosError,
+  type AxiosRequestConfig,
+  type AxiosResponse,
+  type InternalAxiosRequestConfig,
+} from 'axios';
 import { env } from '@/shared/config/env';
 import { restoreSessionUser, sessionStore, userFromJwtClaims } from '@/shared/auth/session';
 import { refreshAccessTokenSingleFlight } from './refresh';
+import { activeTier, advanceTier, hasFallbacks, isInfraFailure, isReplayableMethod } from './failover';
 import { AuthExpiredError, isAuthExpiredError, normalizeError } from './error';
 import type { ApiErrorEnvelope, ApiOkEnvelope } from './types';
 import { decodeJwtClaims } from '@/shared/utils/jwt';
@@ -30,12 +36,31 @@ const BASE_CONFIG: AxiosRequestConfig = {
 export const authClient = axios.create(BASE_CONFIG);
 export const client = axios.create(BASE_CONFIG);
 
+// ---- Circuit breaker tiga tier (shared/api/failover.ts) ----
+// Dipasang di KEDUA instance: refresh harus mengikuti tier yang sama dengan
+// request yang memicunya, kalau tidak refresh menembak tier 1 yang sedang mati
+// sementara request datanya sudah pindah.
+function applyActiveTier(config: InternalAxiosRequestConfig): InternalAxiosRequestConfig {
+  if (!hasFallbacks) return config;
+  const tier = activeTier();
+  config.baseURL = tier.baseUrl;
+  config.timeout = tier.timeoutMs;
+  return config;
+}
+
+authClient.interceptors.request.use(applyActiveTier);
+client.interceptors.request.use(applyActiveTier);
+
 // authClient tidak membawa interceptor token (supaya login/refresh tidak
 // memicu loop 401 → refresh). Error-nya tetap dinormalisasi ke ApiError
 // agar halaman auth bisa membaca status, error_code, dan message.
 authClient.interceptors.response.use(
   (response) => response,
-  (error: AxiosError<ApiErrorEnvelope>) => Promise.reject(normalizeError(error)),
+  async (error: AxiosError<ApiErrorEnvelope>) => {
+    const retried = await retryOnNextTier(authClient, error);
+    if (retried) return retried;
+    return Promise.reject(normalizeError(error));
+  },
 );
 
 // ---- Interceptor: sisipkan Authorization: Bearer <access_token> ----
@@ -47,6 +72,40 @@ client.interceptors.request.use((config) => {
 
 interface RetryableRequestConfig extends AxiosRequestConfig {
   _retried?: boolean;
+  _failoverRetried?: boolean;
+}
+
+/**
+ * Naikkan tier saat kegagalan infrastruktur, lalu ulangi SEKALI - hanya untuk
+ * metode idempoten.
+ *
+ * Mutasi tidak diulang otomatis walau tier sudah pindah: timeout terima respons
+ * bisa berarti server SUDAH menyimpan, jadi mengulang berisiko data ganda. Pin
+ * tetap berubah, sehingga percobaan ulang dari admin sendiri langsung mendarat
+ * di tier baru.
+ *
+ * Mengembalikan respons kalau berhasil diulang, atau null kalau tidak.
+ */
+async function retryOnNextTier(
+  instance: typeof client,
+  error: AxiosError<ApiErrorEnvelope>,
+): Promise<AxiosResponse | null> {
+  if (!hasFallbacks || !isInfraFailure(error)) return null;
+
+  const config = error.config as (RetryableRequestConfig & InternalAxiosRequestConfig) | undefined;
+  const next = advanceTier();
+  if (!next || !config) return null;
+  if (config._failoverRetried || !isReplayableMethod(config.method)) return null;
+
+  config._failoverRetried = true;
+  config.baseURL = next.baseUrl;
+  config.timeout = next.timeoutMs;
+  try {
+    return await instance(config);
+  } catch {
+    // Tier berikutnya juga gagal: biarkan error asli yang dilaporkan.
+    return null;
+  }
 }
 
 type OnAuthExpiredHandler = () => void;
@@ -107,6 +166,10 @@ client.interceptors.response.use(
   (response) => response,
   async (error: AxiosError<ApiErrorEnvelope>) => {
     if (!isRetryableUnauthorized(error)) {
+      // Kegagalan infrastruktur didahulukan: 401 bukan kasusnya, dan mencoba
+      // refresh saat host-nya sendiri mati hanya menambah satu request gagal.
+      const retried = await retryOnNextTier(client, error);
+      if (retried) return retried;
       return Promise.reject(normalizeError(error));
     }
 
