@@ -1,6 +1,5 @@
 import { Outlet } from '@tanstack/react-router';
 import { Layout, Typography } from 'antd';
-import { BookOutlined } from '@ant-design/icons';
 import { env } from '@/shared/config/env';
 
 /**
@@ -12,13 +11,16 @@ export function BaseLayout() {
     <Layout className="base-layout">
       <Layout.Content className="base-layout__content">
         <div className="base-layout__brand">
-          <BookOutlined className="base-layout__logo" />
-          <div>
-            <Typography.Title level={3} style={{ margin: 0 }}>
-              Kamus Sambas
-            </Typography.Title>
-            <Typography.Text type="secondary">Console Admin</Typography.Text>
-          </div>
+          <img
+            className="base-layout__logo"
+            src="/logo_alpha.webp"
+            alt="SambasKu"
+            width={480}
+            height={635}
+            decoding="async"
+            fetchPriority="high"
+          />
+          <Typography.Text type="secondary">Konsol Admin</Typography.Text>
         </div>
         <Outlet />
         <Typography.Text type="secondary" className="base-layout__footer">

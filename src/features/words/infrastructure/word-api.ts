@@ -1,6 +1,6 @@
 import { client } from '@/shared/api/client';
 import type { ApiCursorPageEnvelope, ApiOkEnvelope, CursorPage } from '@/shared/api/types';
-import type { ListWordsParams, WordListItem } from '../domain/word';
+import type { ListWordsParams, TakedownReasonCode, WordListItem } from '../domain/word';
 import type { CreateWordRequest, CreateWordResult } from '../domain/create-word';
 import type { UpdateWordRequest, UpdateWordResult, WordDetail } from '../domain/word-detail';
 
@@ -112,4 +112,15 @@ export async function publishWordRequest(
 export async function unpublishWordRequest(id: string, signal?: AbortSignal): Promise<unknown> {
   const res = await client.post<ApiOkEnvelope<unknown>>(`/admin/words/${id}/unpublish`, undefined, { signal });
   return res.data.data;
+}
+
+export async function takedownWordRequest(
+  id: string,
+  body: { reason_code: TakedownReasonCode; note?: string },
+): Promise<void> {
+  await client.post(`/admin/words/${id}/takedown`, body);
+}
+
+export async function restoreWordRequest(id: string): Promise<void> {
+  await client.post(`/admin/words/${id}/restore`);
 }

@@ -6,6 +6,7 @@ export interface AdminUserListItem {
   email: string;
   role: AdminUserRole;
   isActive: boolean;
+  canContribute: boolean;
   createdAt: string;
   updatedAt: string | null;
 }
@@ -13,7 +14,7 @@ export interface AdminUserListItem {
 export const ROLE_LABELS: Record<AdminUserRole, string> = {
   root: 'Root',
   admin: 'Admin',
-  reviewer: 'Reviewer',
+  reviewer: 'Verifikator',
   editor: 'Editor',
   contributor: 'Kontributor',
 };

@@ -20,6 +20,10 @@ function wordDetail(overrides: Partial<WordDetail> = {}): WordDetail {
     status: 'published',
     is_verified: false,
     is_corrected: false,
+    self_verified: false,
+    created_by: null,
+    verified_by: null,
+    verified_at: null,
     created_at: '2026-09-18T10:00:00Z',
     updated_at: null,
     meanings: [
@@ -44,6 +48,7 @@ function wordDetail(overrides: Partial<WordDetail> = {}): WordDetail {
     ],
     categories: [{ id: 'cat1', name: 'Makanan' }],
     pronunciations: [{ id: 'p1', notation: 'ipa', value: '/makatn/', dialect_id: null }],
+    audios: [],
     images: [],
     related_words: [{ word_id: 'w2', lemma: 'ngamakn', relation_type: 'synonym' }],
     appears_in: [],
@@ -66,6 +71,9 @@ describe('wordDetailToFormValues', () => {
           word_class_id: WC_ID,
           definition: 'Aktivitas makan',
           order_index: 1,
+          is_have_definition: true,
+          is_have_translation: true,
+          meaning_completeness: 'both',
           translations: [{ language_id: IDN_ID, translation_text: 'makan', translation_type: 'direct' }],
           examples: [
             {
@@ -160,6 +168,8 @@ describe('buildUpdateWordBody', () => {
           word_class_id: WC_ID,
           definition: 'Aktivitas makan',
           order_index: 1,
+          is_have_definition: true,
+          is_have_translation: true,
           translations: [{ language_id: IDN_ID, translation_text: 'makan', translation_type: 'direct' }],
           examples: [
             {

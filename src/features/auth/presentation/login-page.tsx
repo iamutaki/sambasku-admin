@@ -3,7 +3,7 @@ import { Alert, App as AntdApp, Button, Card, Form, Input, Typography } from 'an
 import { useNavigate } from '@tanstack/react-router';
 import { useLogin } from '../application/use-login';
 import type { LoginCredentials } from '../domain/user';
-import { ApiError } from '@/shared/api/error';
+import { normalizeError } from '@/shared/api/error';
 
 /**
  * Halaman Login (base layout / pra-auth).
@@ -25,21 +25,19 @@ export function LoginPage() {
       message.success(`Selamat datang, ${result.user.username}`);
       navigate({ to: '/dashboard' });
     } catch (err) {
-      if (err instanceof ApiError) {
-        const fieldErrors = err.fieldErrors();
-        if (Object.keys(fieldErrors).length > 0) {
-          const fields = Object.entries(fieldErrors).map(([name, value]) => ({
-            name: name as keyof LoginCredentials,
-            errors: [value],
-          }));
-          form.setFields(fields);
-        }
-        if (err.status === 401 || err.status === 403) {
-          message.error(err.message);
-        }
+      const apiError = normalizeError(err);
+      const fieldErrors = apiError.fieldErrors();
+      if (Object.keys(fieldErrors).length > 0) {
+        const fields = Object.entries(fieldErrors).map(([name, value]) => ({
+          name: name as keyof LoginCredentials,
+          errors: [value],
+        }));
+        form.setFields(fields);
       }
     }
   };
+
+  const loginError = loginMutation.isError ? normalizeError(loginMutation.error) : null;
 
   return (
     <Card style={{ width: 400, maxWidth: '100%' }} styles={{ body: { padding: 32 } }}>
@@ -47,11 +45,11 @@ export function LoginPage() {
         Masuk ke Konsol
       </Typography.Title>
       <Typography.Paragraph type="secondary" style={{ textAlign: 'center' }}>
-        Gunakan akun admin/editor/reviewer Anda.
+        Gunakan akun admin, editor, atau verifikator Anda.
       </Typography.Paragraph>
 
-      {loginMutation.isError && loginMutation.error instanceof ApiError && loginMutation.error.status !== 401 && loginMutation.error.status !== 403 ? (
-        <Alert type="error" showIcon style={{ marginBottom: 16 }} message="Gagal masuk" description={loginMutation.error.message} />
+      {loginError ? (
+        <Alert type="error" showIcon style={{ marginBottom: 16 }} title="Gagal masuk" description={loginError.message} />
       ) : null}
 
       <Form form={form} layout="vertical" requiredMark={false} onFinish={onFinish} disabled={loginMutation.isPending}>

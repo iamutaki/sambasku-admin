@@ -9,6 +9,7 @@ import type {
   CreateWordRequestVariant,
   CreateWordExampleFormValue,
   CreateWordVariantFormValue,
+  DialectOption,
   InlineWordFormValue,
   InlineWordRequest,
   LanguageOption,
@@ -55,6 +56,19 @@ export function pickDefaultLanguageIds(languages: LanguageOption[]): DefaultLang
     : undefined;
 
   return { sourceId: source?.id, targetId: target?.id };
+}
+
+/**
+ * Dialek default untuk form create: `is_default`, fallback code `umum`.
+ * Return undefined kalau daftar kosong - biarkan Select kosong.
+ */
+export function pickDefaultDialectId(dialects: DialectOption[]): string | undefined {
+  const active = dialects.filter((d) => d.is_active);
+  const pool = active.length > 0 ? active : dialects;
+  return (
+    pool.find((d) => d.is_default)?.id ??
+    pool.find((d) => d.code.trim().toLowerCase() === 'umum')?.id
+  );
 }
 
 /**
@@ -119,12 +133,7 @@ export function buildCreateWordBody(
 function keptIndicesOf(meanings: NonNullable<CreateWordFormValues['meanings']>): number[] {
   const kept: number[] = [];
   for (const [i, meaning] of meanings.entries()) {
-    const hasTranslation = (meaning.translations ?? []).some(
-      (t) => t.language_id && t.translation_text?.trim(),
-    );
-    if (meaning.word_class_id && meaning.definition?.trim() && hasTranslation) {
-      kept.push(i);
-    }
+    if (normalizeMeaning(meaning)) kept.push(i);
   }
   return kept;
 }
@@ -149,12 +158,11 @@ function buildMeanings(raw: CreateWordFormValues['meanings']): CreateWordRequest
   return normalized;
 }
 
-/** Normalisasi SATU makna (induk ATAU inline inherit=false): makna tanpa isi
- * (kelas kata/definisi/terjemahan kosong) dibuang, sisanya dibersihkan. */
+/** Normalisasi SATU makna: wajib kelas + (definisi nyata ATAU padanan). */
 function normalizeMeaning(
   meaning: CreateWordMeaningFormValue,
 ): Omit<CreateWordRequestMeaning, 'order_index'> | null {
-  if (!meaning.word_class_id || !meaning.definition?.trim()) return null;
+  if (!meaning.word_class_id) return null;
 
   const translations = (meaning.translations ?? [])
     .filter((t) => t.language_id && t.translation_text?.trim())
@@ -163,7 +171,13 @@ function normalizeMeaning(
       translation_text: (t.translation_text as string).trim(),
       translation_type: t.translation_type ?? 'direct',
     }));
-  if (translations.length === 0) return null;
+
+  const hasDefinition = meaning.is_have_definition !== false;
+  const def = hasDefinition ? (meaning.definition?.trim() ?? '') : '-';
+  if (!def) return null;
+
+  // Definisi placeholder "-" tanpa padanan tidak sah (API refineMeaningPadanan).
+  if (def === '-' && translations.length === 0) return null;
 
   const examples: CreateWordRequestExample[] = (meaning.examples ?? [])
     .filter((e) => e.source_language_id && e.source_sentence?.trim())
@@ -171,7 +185,9 @@ function normalizeMeaning(
 
   return {
     word_class_id: meaning.word_class_id as string,
-    definition: meaning.definition.trim(),
+    definition: def,
+    is_have_definition: hasDefinition && def !== '-',
+    is_have_translation: translations.length > 0,
     translations,
     ...(examples.length ? { examples } : {}),
   };
@@ -291,6 +307,7 @@ export function buildImages(raw: WordImageFormValue[] | undefined): WordImageInp
     .map((img) => ({
       url: img.url as string,
       provider_file_id: img.provider_file_id as string,
+      ...(img.sha ? { sha: img.sha } : {}),
       ...(img.alt_text?.trim() ? { alt_text: img.alt_text.trim() } : {}),
       is_primary: img.is_primary ?? false,
     }));

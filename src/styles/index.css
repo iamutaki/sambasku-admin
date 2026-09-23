@@ -54,12 +54,13 @@ body {
   flex-direction: column;
   align-items: center;
   text-align: center;
-  gap: 6px;
+  gap: 8px;
 }
 
 .base-layout__logo {
-  font-size: 34px;
-  color: #1677ff;
+  display: block;
+  width: 112px;
+  height: auto;
 }
 
 .base-layout__footer {
@@ -70,6 +71,7 @@ body {
 
 .console-layout {
   min-height: 100vh;
+  min-height: 100dvh;
 }
 
 /* Sider selalu menempel di viewport: menu navigasi tidak ikut scroll
@@ -85,38 +87,37 @@ body {
 .console-layout__sider-brand {
   display: flex;
   align-items: center;
-  gap: 10px;
-  height: 64px;
-  padding: 0 20px;
-  color: rgba(255, 255, 255, 0.85);
-  font-size: 18px;
-}
-
-.console-layout__sider-brand .anticon {
-  color: #1677ff;
-}
-
-.console-layout__sider-title {
-  font-weight: 600;
-  font-size: 15px;
-  white-space: nowrap;
-}
-
-.console-layout .ant-layout-sider-collapsed .console-layout__sider-title {
-  display: none;
-}
-
-.console-layout__sider-brand .anticon {
-  font-size: 20px;
-}
-
-/* Sider collapsed: brand hanya logo */
-.console-layout .ant-layout-sider-collapsed .console-layout__sider-brand {
   justify-content: center;
-  padding: 0;
+  min-height: 64px;
+  padding: 12px 16px 8px;
+}
+
+.console-layout__sider-logo {
+  display: block;
+  width: 76px;
+  height: auto;
+}
+
+/* Sider collapsed: logo mengecil mengikuti lebar 56px */
+.console-layout .ant-layout-sider-collapsed .console-layout__sider-brand {
+  padding: 12px 8px;
+}
+
+.console-layout .ant-layout-sider-collapsed .console-layout__sider-logo {
+  width: 36px;
 }
 
 .console-layout__content {
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+.console-layout__card {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
   padding: 24px;
 }
 
@@ -138,6 +139,14 @@ body {
 .page-header {
   margin-bottom: 16px;
   min-height: 40px;
+}
+
+/* Loading halaman penuh: isi sisa kartu konten, spinner di tengah. */
+.page-loading {
+  flex: 1;
+  align-self: stretch;
+  width: 100%;
+  min-height: 240px;
 }
 
 /* ---- Dashboard ---- */
@@ -225,6 +234,28 @@ body {
   line-height: 1.2;
 }
 
+.dashboard__wotd {
+  margin: 0;
+}
+
+.dashboard__wotd .ant-card-body {
+  padding: 12px 14px;
+}
+
+.dashboard__wotd-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.dashboard__wotd-lemma {
+  margin: 6px 0 4px !important;
+}
+
+.dashboard__wotd-sense {
+  margin-bottom: 8px !important;
+}
+
 @media (max-width: 560px) {
   .dashboard__strip {
     flex-direction: column;
@@ -239,4 +270,32 @@ body {
   .dashboard__strip-cell {
     width: 100%;
   }
+}
+
+/* ---- Audio studio (pelafalan) ---- */
+
+@keyframes audio-studio-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(255, 77, 79, 0.45);
+    transform: scale(1);
+  }
+  50% {
+    box-shadow: 0 0 0 14px rgba(255, 77, 79, 0);
+    transform: scale(1.04);
+  }
+}
+
+.audio-studio__pulse {
+  animation: audio-studio-pulse 1.4s ease-out infinite;
+}
+
+.audio-studio__action:hover:not(:disabled) {
+  border-color: #1677ff !important;
+  box-shadow: 0 0 0 2px rgba(22, 119, 255, 0.12);
+}
+
+.audio-studio__action:focus-visible {
+  outline: 2px solid #1677ff;
+  outline-offset: 2px;
 }

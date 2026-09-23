@@ -5,12 +5,17 @@ import {
   BookOutlined,
   CommentOutlined,
   DashboardOutlined,
+  EditOutlined,
+  FlagOutlined,
   InboxOutlined,
   LikeOutlined,
   LogoutOutlined,
+  SafetyCertificateOutlined,
   SearchOutlined,
+  StopOutlined,
   TranslationOutlined,
   UserOutlined,
+  WarningOutlined,
 } from '@ant-design/icons';
 import { Avatar, Breadcrumb, Button, Dropdown, Layout, Menu, Space, Tag, Typography, theme } from 'antd';
 import type { MenuProps } from 'antd';
@@ -25,13 +30,16 @@ const { Sider, Header, Content } = Layout;
 const KAMUS_ROUTES = {
   '/words': { icon: <TranslationOutlined />, label: 'Kata' },
   '/contributions': { icon: <InboxOutlined />, label: 'Review' },
+  '/word-suggestions': { icon: <EditOutlined />, label: 'Usul Edit' },
+  '/word-reports': { icon: <WarningOutlined />, label: 'Laporan Entri' },
   '/comments': { icon: <CommentOutlined />, label: 'Komentar' },
-  '/search-misses': { icon: <SearchOutlined />, label: 'Search Miss' },
+  '/comment-blocklist': { icon: <StopOutlined />, label: 'Blocklist' },
+  '/search-misses': { icon: <SearchOutlined />, label: 'Pencarian' },
   '/vote-moderation': { icon: <LikeOutlined />, label: 'Vote' },
 } as const;
 
 type KamusRoute = keyof typeof KAMUS_ROUTES;
-type TopRoute = '/dashboard' | '/users' | '/audit-logs';
+type TopRoute = '/dashboard' | '/users' | '/audit-logs' | '/bug-reports' | '/verifier-applications';
 type MenuRoute = KamusRoute | TopRoute;
 
 const KAMUS_GROUP_KEY = 'kamus';
@@ -40,11 +48,16 @@ const BREADCRUMB_LABELS: Record<string, string> = {
   dashboard: 'Dashboard',
   words: 'Kata',
   contributions: 'Review',
+  'word-suggestions': 'Usul Edit',
+  'word-reports': 'Laporan Entri',
   comments: 'Komentar',
-  'search-misses': 'Search Miss',
+  'comment-blocklist': 'Blocklist',
+  'search-misses': 'Pencarian',
   'vote-moderation': 'Vote',
   'audit-logs': 'Audit Log',
+  'bug-reports': 'Laporan Masalah',
   users: 'Pengguna',
+  'verifier-applications': 'Pengajuan verifikator',
   profile: 'Profil',
 };
 
@@ -77,7 +90,15 @@ export function ConsoleLayout() {
     const canManageUsers = user?.role === 'root' || user?.role === 'admin';
 
     const kamusChildren = (Object.entries(KAMUS_ROUTES) as [KamusRoute, (typeof KAMUS_ROUTES)[KamusRoute]][])
-      .filter(([key]) => (key === '/vote-moderation' ? canModerateContent : true))
+      .filter(([key]) =>
+        key === '/word-reports'
+          ? canModerateContent || user?.role === 'editor'
+          : key === '/vote-moderation' || key === '/word-suggestions'
+            ? canModerateContent
+            : key === '/comment-blocklist'
+              ? canManageUsers
+              : true,
+      )
       .map(([key, { icon, label }]) => ({ key, icon, label }));
 
     const items: MenuProps['items'] = [
@@ -91,6 +112,12 @@ export function ConsoleLayout() {
     ];
     if (canManageUsers) {
       items.push({ key: '/users', icon: <UserOutlined />, label: 'Pengguna' });
+      items.push({
+        key: '/verifier-applications',
+        icon: <SafetyCertificateOutlined />,
+        label: 'Pengajuan verifikator',
+      });
+      items.push({ key: '/bug-reports', icon: <FlagOutlined />, label: 'Laporan Masalah' });
     }
     items.push({ key: '/audit-logs', icon: <AuditOutlined />, label: 'Audit Log' });
     return items;
@@ -111,7 +138,9 @@ export function ConsoleLayout() {
               : undefined
         : segments[0] === 'contributions' && segments[1]
           ? 'Detail Kontribusi'
-          : undefined;
+          : segments[0] === 'verifier-applications' && segments[1]
+            ? 'Detail pengajuan'
+            : undefined;
     if (subLabel) {
       items.push({ title: subLabel });
     }
@@ -129,21 +158,30 @@ export function ConsoleLayout() {
 
   // Controlled openKeys: route di bawah Kamus → parent tetap expand;
   // user boleh collapse manual, tapi navigasi ke child me-expand lagi.
+  // Sesuaikan saat render (bukan effect) supaya tidak cascade commit.
   const [openKeys, setOpenKeys] = useState<string[]>(() =>
     kamusActive ? [KAMUS_GROUP_KEY] : [],
   );
-
-  useEffect(() => {
-    if (!kamusActive) return;
-    setOpenKeys((prev) => (prev.includes(KAMUS_GROUP_KEY) ? prev : [...prev, KAMUS_GROUP_KEY]));
-  }, [kamusActive, currentMenuKey]);
+  const [expandedForMenuKey, setExpandedForMenuKey] = useState(currentMenuKey);
+  if (kamusActive && expandedForMenuKey !== currentMenuKey) {
+    setExpandedForMenuKey(currentMenuKey);
+    if (!openKeys.includes(KAMUS_GROUP_KEY)) {
+      setOpenKeys([...openKeys, KAMUS_GROUP_KEY]);
+    }
+  }
 
   return (
     <Layout className="console-layout">
       <Sider collapsible collapsedWidth={56} breakpoint="lg" width={220} theme="dark">
         <div className="console-layout__sider-brand">
-          <TranslationOutlined />
-          <span className="console-layout__sider-title">Sambasku</span>
+          <img
+            className="console-layout__sider-logo"
+            src="/logo_white.webp"
+            alt="SambasKu"
+            width={512}
+            height={678}
+            decoding="async"
+          />
         </div>
         <Menu
           theme="dark"
@@ -202,11 +240,10 @@ export function ConsoleLayout() {
         </Header>
         <Content className="console-layout__content">
           <div
+            className="console-layout__card"
             style={{
               background: colorBgContainer,
               borderRadius: borderRadiusLG,
-              padding: 24,
-              minHeight: '100%',
             }}
           >
             <Outlet />

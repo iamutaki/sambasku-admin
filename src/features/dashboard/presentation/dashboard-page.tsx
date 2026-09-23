@@ -6,6 +6,7 @@ import { useAuth } from '@/shared/auth/use-auth';
 import { ROLE_LABELS, type UserRole } from '@/features/auth/domain/user';
 import { useDashboardStats } from '../application/use-dashboard-stats';
 import { StatCards } from './components/stat-cards';
+import { WordOfDayCard } from '@/features/word-of-day/presentation/word-of-day-card';
 
 /**
  * Dashboard - strip KPI ringkas. Navigasi kerja lewat sider.
@@ -50,6 +51,8 @@ export function DashboardPage() {
           }
         />
       ) : null}
+
+      <WordOfDayCard />
 
       {isPending && !stats ? (
         <div className="dashboard__strip dashboard__strip--skeleton">

@@ -19,11 +19,14 @@ export interface CorrectContributionShared {
   publish?: boolean;
 }
 
-export interface CorrectWordRequest extends CorrectContributionShared {
-  entity_type: 'word';
-  /** replace semantics: payload lengkap create-word TANPA field status */
-  word: Omit<CreateWordRequest, 'status'>;
-}
+/**
+ * replace semantics: field create-word (tanpa status) Datar di root body,
+ * sejajar `entity_type` / `publish`. API menolak bungkus `{ word: {...} }`.
+ */
+export type CorrectWordRequest = CorrectContributionShared &
+  Omit<CreateWordRequest, 'status'> & {
+    entity_type: 'word';
+  };
 
 export interface CorrectPronunciationRequest extends CorrectContributionShared {
   entity_type: 'pronunciation';
@@ -43,6 +46,13 @@ export interface CorrectWordImageRequest extends CorrectContributionShared {
   is_primary: boolean;
 }
 
+export interface CorrectWordAudioRequest extends CorrectContributionShared {
+  entity_type: 'word_audio';
+  speaker_name?: string;
+  dialect_id?: string;
+  is_primary: boolean;
+}
+
 export interface CorrectExampleRequest extends CorrectContributionShared {
   entity_type: 'example';
   source_sentence: string;
@@ -55,4 +65,5 @@ export type CorrectContributionRequest =
   | CorrectWordRequest
   | CorrectPronunciationRequest
   | CorrectWordImageRequest
+  | CorrectWordAudioRequest
   | CorrectExampleRequest;

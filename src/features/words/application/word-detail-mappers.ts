@@ -27,26 +27,39 @@ export function wordDetailToFormValues(detail: WordDetail): CreateWordFormValues
     lemma: detail.lemma,
     ...(detail.notes?.trim() ? { notes: detail.notes } : {}),
     word_type: detail.word_type,
-    meanings: detail.meanings.map((m) => ({
-      word_class_id: m.word_class?.id ?? undefined,
-      definition: m.definition,
-      order_index: m.order_index,
-      translations: m.translations.map((t) => ({
-        language_id: t.language_id,
-        translation_text: t.translation_text,
-        translation_type: t.translation_type as TranslationType,
-      })),
-      examples:
-        m.examples.length > 0
-          ? m.examples.map((e) => ({
-              source_language_id: e.source_language_id,
-              source_sentence: e.source_sentence,
-              ...(e.target_language_id ? { target_language_id: e.target_language_id } : {}),
-              ...(e.target_sentence ? { target_sentence: e.target_sentence } : {}),
-              ...(e.source_type ? { source_type: e.source_type as ExampleSourceType } : {}),
-            }))
-          : undefined,
-    })),
+    meanings: detail.meanings.map((m) => {
+      const definition = m.definition ?? '-';
+      const translations = m.translations ?? [];
+      const examples = m.examples ?? [];
+      return {
+        word_class_id: m.word_class?.id ?? undefined,
+        definition: definition === '-' ? '' : definition,
+        order_index: m.order_index,
+        is_have_definition: definition.trim() !== '-',
+        is_have_translation: translations.length > 0,
+        meaning_completeness:
+          definition.trim() === '-'
+            ? ('padanan_only' as const)
+            : translations.length === 0
+              ? ('definition_only' as const)
+              : ('both' as const),
+        translations: translations.map((t) => ({
+          language_id: t.language_id,
+          translation_text: t.translation_text,
+          translation_type: t.translation_type as TranslationType,
+        })),
+        examples:
+          examples.length > 0
+            ? examples.map((e) => ({
+                source_language_id: e.source_language_id,
+                source_sentence: e.source_sentence,
+                ...(e.target_language_id ? { target_language_id: e.target_language_id } : {}),
+                ...(e.target_sentence ? { target_sentence: e.target_sentence } : {}),
+                ...(e.source_type ? { source_type: e.source_type as ExampleSourceType } : {}),
+              }))
+            : undefined,
+      };
+    }),
     category_ids: detail.categories.map((c) => c.id),
     related_words: detail.related_words.map((rel) => ({
       relation_type: rel.relation_type as RelationType,
@@ -69,6 +82,7 @@ export function wordDetailToFormValues(detail: WordDetail): CreateWordFormValues
       uid: i.id,
       url: i.url,
       provider_file_id: i.provider_file_id,
+      ...(i.sha ? { sha: i.sha } : {}),
       alt_text: i.alt_text ?? undefined,
       is_primary: i.is_primary,
       status: 'done' as const,

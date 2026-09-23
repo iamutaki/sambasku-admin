@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { createColumnHelper, getCoreRowModel, useReactTable } from '@tanstack/react-table';
 import { useNavigate } from '@tanstack/react-router';
-import { DeleteOutlined, ReloadOutlined, SearchOutlined } from '@ant-design/icons';
+import { CaretDownOutlined, CaretUpOutlined, DeleteOutlined, ReloadOutlined, SearchOutlined } from '@ant-design/icons';
 import {
   Alert,
   App as AntdApp,
@@ -18,7 +18,7 @@ import {
   Tooltip,
   Typography,
 } from 'antd';
-import dayjs from 'dayjs';
+import { formatDateTime } from '@/shared/utils/format-datetime';
 import { DataTable } from '@/shared/components/data-table';
 import { PageHeader } from '@/shared/components/page-header';
 import { useAuth } from '@/shared/auth/use-auth';
@@ -187,13 +187,21 @@ function VoteListTab() {
         header: 'Nilai',
         size: 130,
         cell: (info) =>
-          info.getValue() === 1 ? <Tag color="green">↑ Upvote</Tag> : <Tag color="red">↓ Downvote</Tag>,
+          info.getValue() === 1 ? (
+            <Tag icon={<CaretUpOutlined />} color="green">
+              Upvote
+            </Tag>
+          ) : (
+            <Tag icon={<CaretDownOutlined />} color="red">
+              Downvote
+            </Tag>
+          ),
       }),
       voteColumnHelper.accessor('createdAt', {
         header: 'Waktu',
         size: 180,
         meta: { responsive: ['md'] },
-        cell: (info) => dayjs(info.getValue()).format('DD MMM YYYY HH:mm'),
+        cell: (info) => formatDateTime(info.getValue()),
       }),
       voteColumnHelper.display({
         id: 'actions',
@@ -323,12 +331,20 @@ function TopTargetsTab({ enabled }: { enabled: boolean }) {
       topColumnHelper.accessor('upvotes', {
         header: 'Upvote',
         size: 110,
-        cell: (info) => <Tag color="green">↑ {info.getValue()}</Tag>,
+        cell: (info) => (
+          <Tag icon={<CaretUpOutlined />} color="green">
+            {info.getValue()}
+          </Tag>
+        ),
       }),
       topColumnHelper.accessor('downvotes', {
         header: 'Downvote',
         size: 110,
-        cell: (info) => <Tag color="red">↓ {info.getValue()}</Tag>,
+        cell: (info) => (
+          <Tag icon={<CaretDownOutlined />} color="red">
+            {info.getValue()}
+          </Tag>
+        ),
       }),
       topColumnHelper.accessor('net', {
         header: 'Skor Bersih',
@@ -416,7 +432,7 @@ export function VoteModerationPage() {
       <Result
         status="403"
         title="403"
-        subTitle="Panel vote hanya untuk role reviewer, admin, dan root."
+        subTitle="Panel vote hanya untuk peran verifikator, admin, dan root."
       />
     );
   }

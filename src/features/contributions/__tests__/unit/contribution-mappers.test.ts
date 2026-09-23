@@ -201,6 +201,100 @@ describe('normalizeContributionDetail - anak (pronunciation)', () => {
   });
 });
 
+describe('normalizeContributionDetail - anak (word_audio)', () => {
+  it('layout impl: data bersarang + metadata file', () => {
+    const payload: ContributionDetailPayload = {
+      contribution: listItem({ entity_type: 'word_audio', entity_id: 'a1', word_lemma: 'makatn' }),
+      review: null,
+      entity: {
+        id: 'a1',
+        wordId: 'w1',
+        wordLemma: 'makatn',
+        data: {
+          word_id: 'w1',
+          example_id: null,
+          url: 'https://cdn.example/a.wav',
+          speaker_name: 'Alice',
+          dialect_id: null,
+          is_primary: true,
+          duration_ms: 1500,
+          mime_type: 'audio/wav',
+          file_size: 24000,
+        },
+        status: 'pending_review',
+        isVerified: false,
+        isCorrected: false,
+      },
+    };
+    const detail = normalizeContributionDetail(payload);
+    expect(detail.entityType).toBe('word_audio');
+    expect(childOf(detail)!).toMatchObject({
+      id: 'a1',
+      wordId: 'w1',
+      wordLemma: 'makatn',
+      status: 'pending_review',
+      fields: {
+        url: 'https://cdn.example/a.wav',
+        speaker_name: 'Alice',
+        mime_type: 'audio/wav',
+        duration_ms: 1500,
+        file_size: 24000,
+        is_primary: true,
+        example_id: null,
+      },
+    });
+  });
+
+  it('tidak melempar bila entity_type tidak dikenal (bekas bug: t/keys is not iterable)', () => {
+    const payload = {
+      contribution: listItem({ entity_type: 'meaning' as ContributionListItem['entity_type'], entity_id: 'm1' }),
+      review: null,
+      entity: {
+        id: 'm1',
+        wordId: 'w1',
+        wordLemma: 'makatn',
+        data: { definition: 'Aktivitas makan', translations: [{ language_id: IDN_ID, translation_text: 'makan' }] },
+        status: 'pending_review',
+        isVerified: false,
+        isCorrected: false,
+      },
+    } as ContributionDetailPayload;
+    expect(() => normalizeContributionDetail(payload)).not.toThrow();
+    const detail = normalizeContributionDetail(payload);
+    expect(detail.entityType).not.toBe('word');
+    expect(childOf(detail)?.wordLemma).toBe('makatn');
+  });
+
+  it('membaca entityType camelCase bila entity_type absen', () => {
+    const payload = {
+      contribution: {
+        id: 'c1',
+        userId: 'u1',
+        contributorUsername: 'kontributor',
+        entityType: 'word_audio',
+        entityId: 'a1',
+        action: 'create',
+        status: 'pending',
+        createdAt: '2026-09-01T00:00:00.000Z',
+        wordLemma: 'makatn',
+      },
+      review: null,
+      entity: {
+        id: 'a1',
+        wordId: 'w1',
+        wordLemma: 'makatn',
+        data: { url: 'https://cdn.example/a.wav', mime_type: 'audio/wav' },
+        status: 'pending_review',
+        isVerified: false,
+        isCorrected: false,
+      },
+    } as unknown as ContributionDetailPayload;
+    const detail = normalizeContributionDetail(payload);
+    expect(detail.entityType).toBe('word_audio');
+    expect(childOf(detail)?.fields).toMatchObject({ url: 'https://cdn.example/a.wav', mime_type: 'audio/wav' });
+  });
+});
+
 describe('normalizeContributionDetail - anak (word_image & example)', () => {
   it('word_image: provider_file_id + is_primary', () => {
     const payload: ContributionDetailPayload = {

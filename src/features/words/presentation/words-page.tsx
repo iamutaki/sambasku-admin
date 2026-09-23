@@ -141,6 +141,13 @@ export function WordsPage() {
         cell: (info) => {
           const row = info.row.original;
           const checked = row.status === 'published';
+          if (row.status === 'taken_down') {
+            return (
+              <Tooltip title="Entri ditarik. Pulihkan dari halaman detail.">
+                <Switch checked={false} disabled size="small" />
+              </Tooltip>
+            );
+          }
           if (!canVerify) {
             return <Switch checked={checked} disabled size="small" />;
           }
@@ -262,7 +269,16 @@ export function WordsPage() {
         title="Kata"
         subtitle="Kamus kosakata - list, cari, dan kelola entri. Tab Tidak tayang untuk draft / ditarik."
         extra={
-          <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate({ to: '/words/new' })}>
+          <Button
+            type="primary"
+            icon={<PlusOutlined />}
+            onClick={() =>
+              navigate({
+                to: '/words/new',
+                search: { from_miss: undefined, term: undefined, direction: undefined },
+              })
+            }
+          >
             Tambah Kata
           </Button>
         }

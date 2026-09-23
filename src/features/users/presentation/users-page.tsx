@@ -13,18 +13,19 @@ import {
   Row,
   Select,
   Space,
+  Tabs,
   Tag,
   Tooltip,
   Typography,
 } from 'antd';
-import dayjs from 'dayjs';
+import { formatDateTime } from '@/shared/utils/format-datetime';
 import { DataTable } from '@/shared/components/data-table';
 import { PageHeader } from '@/shared/components/page-header';
 import { normalizeError } from '@/shared/api/error';
 import { useAuth } from '@/shared/auth/use-auth';
 import { useDebouncedValue } from '@/shared/hooks/use-debounced-value';
 import { useUserAdminList, type UseUserAdminListArgs } from '../application/use-user-admin-list';
-import { useUpdateUserRole } from '../application/use-update-user-role';
+import { useSetCanContribute, useUpdateUserRole } from '../application/use-update-user-role';
 import {
   CHANGEABLE_ROLES,
   ROLE_LABELS,
@@ -49,10 +50,16 @@ export function UsersPage() {
   const { message } = AntdApp.useApp();
   const [searchInput, setSearchInput] = useState('');
   const [filterRole, setFilterRole] = useState<AdminUserRole | undefined>();
+  const [userTab, setUserTab] = useState<'all' | 'blocked'>('all');
   const [pendingRoles, setPendingRoles] = useState<PendingRoleMap>({});
   const q = useDebouncedValue(searchInput, 300);
   const updateRole = useUpdateUserRole();
-  const listArgs: UseUserAdminListArgs = { q, role: filterRole };
+  const setContribute = useSetCanContribute();
+  const listArgs: UseUserAdminListArgs = {
+    q,
+    role: filterRole,
+    canContribute: userTab === 'blocked' ? false : undefined,
+  };
   const { items, hasMore, loadMore, isLoading, isFetching, isFetchingNextPage, isError, error, refetch } =
     useUserAdminList(listArgs);
 
@@ -113,6 +120,26 @@ export function UsersPage() {
           </div>
         ),
       }),
+      columnHelper.display({
+        id: 'contribute',
+        header: 'Kontribusi',
+        size: 180,
+        cell: (info) => {
+          const row = info.row.original;
+          if (row.canContribute) return <Tag>Boleh mengirim</Tag>;
+          return (
+            <Button
+              size="small"
+              loading={setContribute.isPending}
+              onClick={() =>
+                setContribute.mutate({ id: row.id, canContribute: true, username: row.username })
+              }
+            >
+              Izinkan lagi
+            </Button>
+          );
+        },
+      }),
       columnHelper.accessor('role', {
         header: 'Peran',
         size: 160,
@@ -134,7 +161,7 @@ export function UsersPage() {
         header: 'Bergabung',
         size: 180,
         meta: { responsive: ['md'] },
-        cell: (info) => dayjs(info.getValue()).format('DD MMM YYYY, HH:mm'),
+        cell: (info) => formatDateTime(info.getValue()),
       }),
       columnHelper.display({
         id: 'actions',
@@ -200,7 +227,7 @@ export function UsersPage() {
         },
       }),
     ],
-    [pendingRoles, updateRole.variables, updateRole.isPending, onSaveRole],
+    [pendingRoles, updateRole.variables, updateRole.isPending, onSaveRole, setContribute],
   );
 
   const table = useReactTable({
@@ -230,7 +257,16 @@ export function UsersPage() {
     <>
       <PageHeader
         title={<Space size={8}><UserOutlined /> <span>Pengguna</span></Space>}
-        subtitle="Kelola akun dan peran (role) pengguna sistem. Hanya admin & root yang dapat akses halaman ini."
+        subtitle="Kelola akun dan peran pengguna. Hanya admin dan root yang dapat membuka halaman ini. Peran Verifikator memeriksa antrean. Admin, Editor, dan Root juga boleh memeriksa, dengan wewenang tambahan, dan jabatan mereka tetap Admin, Editor, atau Root."
+      />
+      <Tabs
+        activeKey={userTab}
+        onChange={(key) => setUserTab(key as 'all' | 'blocked')}
+        style={{ marginBottom: 12 }}
+        items={[
+          { key: 'all', label: 'Semua' },
+          { key: 'blocked', label: 'Tidak bisa kontribusi' },
+        ]}
       />
       <Row gutter={[12, 12]} style={{ marginBottom: 16 }}>
         <Col xs={24} md={10}>
@@ -274,11 +310,15 @@ export function UsersPage() {
         />
       ) : null}
 
-      <DataTable
-        table={table}
-        rowKey={(record) => String(record.id)}
-        loading={isLoading || (isFetching && !items.length)}
-      />
+      {userTab === 'blocked' && !isLoading && items.length === 0 ? (
+        <Typography.Text type="secondary">Tidak ada pengguna yang dihentikan kontribusinya.</Typography.Text>
+      ) : (
+        <DataTable
+          table={table}
+          rowKey={(record) => String(record.id)}
+          loading={isLoading || (isFetching && !items.length)}
+        />
+      )}
 
       <Flex justify="center" align="center" gap={16} style={{ marginTop: 16 }}>
         {hasMore ? (

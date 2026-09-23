@@ -23,7 +23,7 @@ export class ApiError extends Error {
 
   /** details → map field → pesan, untuk di-inject ke error inline Form antd. */
   fieldErrors(): Record<string, string> {
-    if (!this.details) return {};
+    if (!Array.isArray(this.details)) return {};
     return Object.fromEntries(this.details.map((d) => [d.field, d.message]));
   }
 }

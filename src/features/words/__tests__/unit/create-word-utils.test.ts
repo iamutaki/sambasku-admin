@@ -2,11 +2,13 @@ import { describe, expect, it } from 'vitest';
 import {
   buildCreateWordBody,
   fieldToNamePath,
+  pickDefaultDialectId,
   pickDefaultLanguageIds,
   hasUploadingImages,
 } from '@/features/words/application/create-word-utils';
 import type {
   CreateWordFormValues,
+  DialectOption,
   InlineWordRequest,
   LanguageOption,
 } from '@/features/words/domain/create-word';
@@ -98,6 +100,49 @@ describe('pickDefaultLanguageIds', () => {
   });
 });
 
+const UMUM_ID = '01HXYDIALECTUMUM00000000000';
+const KOTA_ID = '01HXYDIALECTKOTA00000000000';
+
+function dialect(
+  id: string,
+  code: string,
+  name: string,
+  opts: { is_default?: boolean; is_active?: boolean } = {},
+): DialectOption {
+  return {
+    id,
+    language_id: SAMBAS_ID,
+    code,
+    name,
+    is_active: opts.is_active ?? true,
+    is_default: opts.is_default ?? false,
+  };
+}
+
+describe('pickDefaultDialectId', () => {
+  it('memilih dialek dengan is_default=true', () => {
+    expect(
+      pickDefaultDialectId([
+        dialect(KOTA_ID, 'kota', 'Sambas Kota'),
+        dialect(UMUM_ID, 'umum', 'Umum', { is_default: true }),
+      ]),
+    ).toBe(UMUM_ID);
+  });
+
+  it('fallback ke code umum bila belum ada is_default', () => {
+    expect(
+      pickDefaultDialectId([
+        dialect(KOTA_ID, 'kota', 'Sambas Kota'),
+        dialect(UMUM_ID, 'umum', 'Umum'),
+      ]),
+    ).toBe(UMUM_ID);
+  });
+
+  it('mengembalikan undefined bila daftar kosong', () => {
+    expect(pickDefaultDialectId([])).toBeUndefined();
+  });
+});
+
 function formValues(overrides: Partial<CreateWordFormValues>): CreateWordFormValues {
   return {
     language_id: SAMBAS_ID,
@@ -126,6 +171,8 @@ describe('buildCreateWordBody', () => {
           word_class_id: WORD_CLASS_ID,
           definition: 'Aktivitas makan',
           order_index: 1,
+          is_have_definition: true,
+          is_have_translation: true,
           translations: [{ language_id: INDONESIA_ID, translation_text: 'makan', translation_type: 'direct' }],
         },
       ],
@@ -133,6 +180,78 @@ describe('buildCreateWordBody', () => {
       related_words: [],
       status: 'draft',
     });
+  });
+
+  it('mengizinkan makna dengan definisi nyata tanpa padanan', () => {
+    const body = buildCreateWordBody(
+      formValues({
+        meanings: [
+          {
+            word_class_id: WORD_CLASS_ID,
+            definition: 'Uraian tanpa padanan tunggal',
+            is_have_translation: false,
+            translations: [],
+          },
+        ],
+      }),
+      'draft',
+    );
+    expect(body.meanings).toEqual([
+      {
+        word_class_id: WORD_CLASS_ID,
+        definition: 'Uraian tanpa padanan tunggal',
+        order_index: 1,
+        is_have_definition: true,
+        is_have_translation: false,
+        translations: [],
+      },
+    ]);
+  });
+
+  it('mengizinkan makna padanan saja (tanpa definisi)', () => {
+    const body = buildCreateWordBody(
+      formValues({
+        meanings: [
+          {
+            word_class_id: WORD_CLASS_ID,
+            definition: '-',
+            is_have_definition: false,
+            is_have_translation: true,
+            translations: [
+              { language_id: INDONESIA_ID, translation_text: 'makan', translation_type: 'direct' },
+            ],
+          },
+        ],
+      }),
+      'draft',
+    );
+    expect(body.meanings).toEqual([
+      {
+        word_class_id: WORD_CLASS_ID,
+        definition: '-',
+        order_index: 1,
+        is_have_definition: false,
+        is_have_translation: true,
+        translations: [{ language_id: INDONESIA_ID, translation_text: 'makan', translation_type: 'direct' }],
+      },
+    ]);
+  });
+
+  it('membuang makna definisi placeholder tanpa padanan', () => {
+    const body = buildCreateWordBody(
+      formValues({
+        meanings: [
+          {
+            word_class_id: WORD_CLASS_ID,
+            definition: '-',
+            is_have_translation: false,
+            translations: [],
+          },
+        ],
+      }),
+      'draft',
+    );
+    expect(body.meanings).toEqual([]);
   });
 
   it('membersihkan terjemahan/baris yang kosong dan membuang makna tanpa isi', () => {
@@ -345,6 +464,8 @@ describe('buildCreateWordBody - Form B (sinonim inline)', () => {
             word_class_id: WORD_CLASS_ID,
             definition: 'Belum makan',
             order_index: 1,
+            is_have_definition: true,
+            is_have_translation: true,
             translations: [{ language_id: INDONESIA_ID, translation_text: 'belum makan', translation_type: 'direct' }],
           },
         ],

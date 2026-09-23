@@ -12,10 +12,18 @@ import { WordDetailPage } from '@/features/words/presentation/word-detail-page';
 import { ContributionsPage } from '@/features/contributions/presentation/contributions-page';
 import { ContributionDetailPage } from '@/features/contributions/presentation/contribution-detail-page';
 import { CommentsPage } from '@/features/comments/presentation/comments-page';
+import { CommentBlocklistPage } from '@/features/comment-blocklist/presentation/comment-blocklist-page';
 import { SearchMissesPage } from '@/features/search-miss/presentation/search-misses-page';
 import { VoteModerationPage } from '@/features/vote-moderation/presentation/vote-moderation-page';
+import { WordSuggestionsPage } from '@/features/word-suggestions/presentation/word-suggestions-page';
+import { WordSuggestionDetailPage } from '@/features/word-suggestions/presentation/word-suggestion-detail-page';
 import { AuditLogsPage } from '@/features/audit/presentation/audit-logs-page';
+import { BugReportsPage } from '@/features/bug-reports/presentation/bug-reports-page';
+import { WordReportsPage } from '@/features/word-reports/presentation/word-reports-page';
+import { WordReportDetailPage } from '@/features/word-reports/presentation/word-report-detail-page';
 import { UsersPage } from '@/features/users/presentation/users-page';
+import { VerifierApplicationsPage } from '@/features/verifier-applications/presentation/verifier-applications-page';
+import { VerifierApplicationDetailPage } from '@/features/verifier-applications/presentation/verifier-application-detail-page';
 import { ProfilePage } from '@/features/profile/presentation/pages/profile-page';
 import { NotFoundPage } from '@/shared/layouts/not-found-page';
 
@@ -131,6 +139,12 @@ const commentsRoute = createRoute({
   component: CommentsPage,
 });
 
+const commentBlocklistRoute = createRoute({
+  getParentRoute: () => consoleLayoutRoute,
+  path: '/comment-blocklist',
+  component: CommentBlocklistPage,
+});
+
 const searchMissesRoute = createRoute({
   getParentRoute: () => consoleLayoutRoute,
   path: '/search-misses',
@@ -143,16 +157,58 @@ const voteModerationRoute = createRoute({
   component: VoteModerationPage,
 });
 
+const wordSuggestionsRoute = createRoute({
+  getParentRoute: () => consoleLayoutRoute,
+  path: '/word-suggestions',
+  component: WordSuggestionsPage,
+});
+
+const wordSuggestionDetailRoute = createRoute({
+  getParentRoute: () => consoleLayoutRoute,
+  path: '/word-suggestions/$id',
+  component: WordSuggestionDetailPage,
+});
+
 const auditLogsRoute = createRoute({
   getParentRoute: () => consoleLayoutRoute,
   path: '/audit-logs',
   component: AuditLogsPage,
 });
 
+const bugReportsRoute = createRoute({
+  getParentRoute: () => consoleLayoutRoute,
+  path: '/bug-reports',
+  component: BugReportsPage,
+});
+
+const wordReportsRoute = createRoute({
+  getParentRoute: () => consoleLayoutRoute,
+  path: '/word-reports',
+  component: WordReportsPage,
+});
+
+const wordReportDetailRoute = createRoute({
+  getParentRoute: () => consoleLayoutRoute,
+  path: '/word-reports/$id',
+  component: WordReportDetailPage,
+});
+
 const usersRoute = createRoute({
   getParentRoute: () => consoleLayoutRoute,
   path: '/users',
   component: UsersPage,
+});
+
+const verifierApplicationsRoute = createRoute({
+  getParentRoute: () => consoleLayoutRoute,
+  path: '/verifier-applications',
+  component: VerifierApplicationsPage,
+});
+
+const verifierApplicationDetailRoute = createRoute({
+  getParentRoute: () => consoleLayoutRoute,
+  path: '/verifier-applications/$id',
+  component: VerifierApplicationDetailPage,
 });
 
 const profileRoute = createRoute({
@@ -164,7 +220,7 @@ const profileRoute = createRoute({
 const routeTree = rootRoute.addChildren([
   indexRoute,
   baseLayoutRoute.addChildren([loginRoute]),
-  consoleLayoutRoute.addChildren([dashboardRoute, wordsRoute, createWordRoute, wordDetailRoute, editWordRoute, contributionsRoute, contributionDetailRoute, commentsRoute, searchMissesRoute, voteModerationRoute, auditLogsRoute, usersRoute, profileRoute]),
+  consoleLayoutRoute.addChildren([dashboardRoute, wordsRoute, createWordRoute, wordDetailRoute, editWordRoute, contributionsRoute, contributionDetailRoute, commentsRoute, commentBlocklistRoute, searchMissesRoute, voteModerationRoute, wordSuggestionsRoute, wordSuggestionDetailRoute, wordReportsRoute, wordReportDetailRoute, auditLogsRoute, bugReportsRoute, usersRoute, verifierApplicationsRoute, verifierApplicationDetailRoute, profileRoute]),
 ]);
 
 export const router = createRouter({

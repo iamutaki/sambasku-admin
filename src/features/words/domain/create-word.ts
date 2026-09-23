@@ -72,6 +72,8 @@ export interface DialectOption {
   code: string;
   name: string;
   is_active: boolean;
+  /** True = pilihan default form (biasanya code=umum). */
+  is_default: boolean;
 }
 
 export interface WordClassOption {
@@ -109,6 +111,8 @@ export interface CreateWordRequestMeaning {
   word_class_id: string;
   definition: string;
   order_index: number;
+  is_have_definition?: boolean;
+  is_have_translation?: boolean;
   translations: CreateWordRequestTranslation[];
   examples?: CreateWordRequestExample[];
 }
@@ -164,10 +168,11 @@ export interface CreateWordRequestVariant {
   affix_value?: string;
 }
 
-/** Satu gambar di images[] create/update (hasil direct-upload ke CDN). */
+/** Satu gambar di images[] create/update (hasil upload ke GitHub/CDN). */
 export interface WordImageInput {
   url: string;
   provider_file_id: string;
+  sha?: string;
   alt_text?: string;
   is_primary?: boolean;
 }
@@ -235,6 +240,10 @@ export interface CreateWordMeaningFormValue {
   word_class_id?: string;
   definition?: string;
   order_index?: number;
+  /** both | definition_only | padanan_only - unset = belum dipilih di UI */
+  meaning_completeness?: 'both' | 'definition_only' | 'padanan_only';
+  is_have_definition?: boolean;
+  is_have_translation?: boolean;
   translations?: CreateWordTranslationFormValue[];
   examples?: CreateWordExampleFormValue[];
 }
@@ -295,6 +304,7 @@ export interface WordImageFormValue {
   status?: WordImageUploadStatus;
   url?: string;
   provider_file_id?: string;
+  sha?: string;
   alt_text?: string;
   is_primary?: boolean;
   /** Blob URL preview file lokal - UI only (sebelum/Failed upload), tidak ikut submit. */

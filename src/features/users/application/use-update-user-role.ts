@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { App } from 'antd';
 import { normalizeError } from '@/shared/api/error';
-import { updateUserRoleRequest } from '../infrastructure/user-admin-api';
+import { setCanContributeRequest, updateUserRoleRequest } from '../infrastructure/user-admin-api';
 import type { AdminUserRole } from '../domain/user-admin';
 
 export interface UpdateRoleVariables {
@@ -32,6 +32,26 @@ export function useUpdateUserRole() {
       message.warning(
         `Gagal ubah role "${vars.username}": ${e.message || 'Kesalahan tidak diketahui'}`,
       );
+    },
+  });
+}
+
+export function useSetCanContribute() {
+  const queryClient = useQueryClient();
+  const { message } = App.useApp();
+  return useMutation({
+    mutationFn: (vars: { id: string; canContribute: boolean; username: string }) =>
+      setCanContributeRequest(vars.id, vars.canContribute),
+    onSuccess: async (_, vars) => {
+      await queryClient.invalidateQueries({ queryKey: ['admin-users'] });
+      message.success(
+        vars.canContribute
+          ? `${vars.username} bisa mengirim usulan lagi.`
+          : `Kontribusi ${vars.username} dihentikan.`,
+      );
+    },
+    onError: (err) => {
+      message.warning(normalizeError(err).message || 'Gagal mengubah hak kontribusi');
     },
   });
 }

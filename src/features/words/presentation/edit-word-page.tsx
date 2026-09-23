@@ -13,7 +13,6 @@ import {
   Input,
   Popconfirm,
   Row,
-  Skeleton,
   Select,
   Space,
   Tag,
@@ -21,10 +20,12 @@ import {
   theme,
 } from 'antd';
 import { useNavigate, useParams } from '@tanstack/react-router';
+import { useQueryClient } from '@tanstack/react-query';
 import { PageHeader } from '@/shared/components/page-header';
+import { PageLoading } from '@/shared/components/page-loading';
 import { ApiError } from '@/shared/api/error';
 import { useAuth } from '@/shared/auth/use-auth';
-import { fieldToNamePath, pickDefaultLanguageIds } from '../application/create-word-utils';
+import { fieldToNamePath, pickDefaultDialectId, pickDefaultLanguageIds } from '../application/create-word-utils';
 import { buildUpdateWordBody, wordDetailToFormValues } from '../application/word-detail-mappers';
 import { hasUploadingImages } from '../application/create-word-utils';
 import { useUpdateWord } from '../application/use-update-word';
@@ -35,6 +36,8 @@ import { WORD_STATUS_LABELS } from '../domain/word';
 import {
   MeaningFields,
   RelatedWordItem,
+  WordExampleAudiosSection,
+  WordLemmaAudiosSection,
   WordVariantsField,
   buildRelationOptions,
   buildWordClassOptions,
@@ -58,6 +61,7 @@ const { Text } = Typography;
  */
 export function EditWordPage() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { message } = AntdApp.useApp();
   const { user } = useAuth();
   const { token: { colorFillAlter } } = theme.useToken();
@@ -108,6 +112,15 @@ export function EditWordPage() {
     }
   }, [detail, detailQuery.isPending, detailQuery.isFetching, form]);
 
+  // Kata lama tanpa dialect_id → isi default (umum); jangan overwrite nilai yang sudah ada.
+  useEffect(() => {
+    if (!seeded.current || !dialectQuery.data?.length) return;
+    const current = form.getFieldValue('dialect_id') as string | undefined | null;
+    if (current) return;
+    const defaultId = pickDefaultDialectId(dialectQuery.data);
+    if (defaultId) form.setFieldsValue({ dialect_id: defaultId });
+  }, [dialectQuery.data, form, detail]);
+
   const currentStatus = detail?.status;
 
   const wordClassOptions = useMemo(
@@ -124,6 +137,28 @@ export function EditWordPage() {
   );
 
   const relationOptions = useMemo(() => buildRelationOptions(wordType), [wordType]);
+
+  const dialectOptions = useMemo(
+    () => (dialectQuery.data ?? []).map((d) => ({ value: d.id, label: d.name })),
+    [dialectQuery.data],
+  );
+
+  const dialectName = (dialectId: string | null | undefined) => {
+    if (!dialectId) return '-';
+    return dialectOptions.find((d) => d.value === dialectId)?.label ?? dialectId;
+  };
+
+  const defaultDialectId = useMemo(
+    () =>
+      (form.getFieldValue('dialect_id') as string | undefined) ??
+      pickDefaultDialectId(dialectQuery.data ?? []) ??
+      null,
+    [dialectQuery.data, form, detail],
+  );
+
+  const refreshAudios = () => {
+    void queryClient.invalidateQueries({ queryKey: ['words', 'detail', id] });
+  };
 
   const handleSubmitError = (err: unknown) => {
     if (err instanceof ApiError) {
@@ -154,9 +189,6 @@ export function EditWordPage() {
     setSubmitError(null);
     try {
       await form.validateFields();
-      // `images` di-set via setFieldsValue tanpa Form.Item name (kelola
-      // manual di WordImagesField) - validateFields() menyaringnya keluar,
-      // jadi ambil nilai dari full store.
       const values = form.getFieldsValue(true) as CreateWordFormValues;
       if (hasUploadingImages(values.images)) {
         message.warning('Masih ada gambar yang terunggah - tunggu selesai lalu simpan lagi.');
@@ -211,12 +243,7 @@ export function EditWordPage() {
   }
 
   if (detailQuery.isPending) {
-    return (
-      <Card>
-        <PageHeader title="Edit Kata" subtitle="Memuat detail kata…" />
-        <Skeleton active paragraph={{ rows: 6 }} />
-      </Card>
-    );
+    return <PageLoading tip="Memuat detail kata…" />;
   }
 
   if (detailQuery.isError || !detail) {
@@ -275,7 +302,7 @@ export function EditWordPage() {
                   label="Kata Sambas (Lemma)"
                   rules={[{ required: true, message: 'Kata wajib diisi' }, { whitespace: true, message: 'Kata tidak boleh hanya spasi' }]}
                 >
-                  <Input placeholder="mis. makatn" maxLength={255} allowClear />
+                  <Input placeholder="mis. kata" maxLength={255} allowClear />
                 </Form.Item>
               </Col>
               <Col xs={24} md={6} lg={4}>
@@ -288,7 +315,7 @@ export function EditWordPage() {
                   <Select
                     options={(dialectQuery.data ?? []).map((d) => ({ value: d.id, label: d.name }))}
                     loading={dialectQuery.isFetching}
-                    placeholder="Umum / tidak ada"
+                    placeholder="Pilih dialek"
                     allowClear
                   />
                 </Form.Item>
@@ -359,7 +386,7 @@ export function EditWordPage() {
                       )
                     }
                   >
-                    + Tambah Makna
+                    Tambah Makna
                   </Button>
                 </Space>
               )}
@@ -425,9 +452,9 @@ export function EditWordPage() {
               },
               {
                 key: 'pronunciation',
-                label: '6. Pengucapan (opsional)',
+                label: '6. Pengucapan & Audio (opsional)',
                 children: (
-                  <>
+                  <Space direction="vertical" size={16} style={{ width: '100%' }}>
                     <Row gutter={16}>
                       <Col xs={24} md={6} lg={4}>
                         <Form.Item name={['pronunciation', 'notation']} label="Notasi" initialValue="ipa">
@@ -436,18 +463,58 @@ export function EditWordPage() {
                       </Col>
                       <Col xs={24} md={18} lg={20}>
                         <Form.Item name={['pronunciation', 'value']} label="Teks Pengucapan">
-                          <Input placeholder="/makatn/" />
+                          <Input placeholder="/kata/" />
                         </Form.Item>
                       </Col>
                     </Row>
-                    <Text type="secondary">Fitur audio pengucapan (rekaman penutur asli) menyusul.</Text>
-                  </>
+                    <div>
+                      <Text strong style={{ display: 'block', marginBottom: 8 }}>
+                        Audio pelafalan lemma (kata)
+                      </Text>
+                      <WordLemmaAudiosSection
+                        wordId={id}
+                        lemma={detail?.lemma ?? ''}
+                        audios={detail?.audios ?? []}
+                        dialectLabel={dialectName}
+                        dialectOptions={dialectOptions}
+                        defaultDialectId={defaultDialectId}
+                        onUploaded={refreshAudios}
+                      />
+                    </div>
+                    <div>
+                      <Text strong style={{ display: 'block', marginBottom: 8 }}>
+                        Audio pelafalan contoh kalimat
+                      </Text>
+                      <WordExampleAudiosSection
+                        wordId={id}
+                        lemma={detail?.lemma ?? ''}
+                        examples={(detail?.meanings ?? []).flatMap((m) =>
+                          m.examples.map((e) => ({
+                            id: e.id,
+                            source_sentence: e.source_sentence,
+                            target_sentence: e.target_sentence,
+                            audios: e.audios,
+                          })),
+                        )}
+                        audios={detail?.audios ?? []}
+                        dialectLabel={dialectName}
+                        dialectOptions={dialectOptions}
+                        defaultDialectId={defaultDialectId}
+                        onUploaded={refreshAudios}
+                      />
+                    </div>
+                  </Space>
                 ),
               },
               {
                 key: 'images',
                 label: '7. Gambar (opsional)',
-                children: <WordImagesField />,
+                forceRender: true,
+                children: (
+                  <Form.Item name="images" initialValue={[]} noStyle>
+                    <WordImagesField />
+                  </Form.Item>
+                ),
               },
             ]}
           />

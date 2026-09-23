@@ -5,6 +5,7 @@ import type {
   ExampleChildData,
   PronunciationChildData,
   WordEntityView,
+  WordAudioChildData,
   WordImageChildData,
   WordMeaningExampleView,
   WordMeaningView,
@@ -31,11 +32,13 @@ interface ChildEntityLike {
   status: string;
   isVerified: boolean;
   isCorrected: boolean;
-  fields: PronunciationChildData | WordImageChildData | ExampleChildData;
+  fields: PronunciationChildData | WordImageChildData | WordAudioChildData | ExampleChildData;
 }
 
 export function normalizeContributionDetail(payload: ContributionDetailPayload): ContributionDetailView {
-  const { contribution, review, entity } = payload;
+  const contribution = normalizeContributionMeta(payload?.contribution);
+  const review = payload?.review ?? null;
+  const entity = payload?.entity;
 
   if (contribution.entity_type === 'word') {
     return {
@@ -47,17 +50,54 @@ export function normalizeContributionDetail(payload: ContributionDetailPayload):
     };
   }
 
+  // Anak: pronunciation | word_image | word_audio | example (dan tipe API
+  // lain yang belum ada di EntityType admin — tetap dinormalisasi aman).
+  const childType = contribution.entity_type;
   return {
     contribution,
     review,
-    entityType: contribution.entity_type,
-    child: normalizeChildEntity(contribution.entity_type, entity),
+    entityType: childType,
+    child: normalizeChildEntity(childType, entity),
     rawEntity: entity,
   };
 }
 
+/**
+ * Meta kontribusi toleran snake_case (wire) + camelCase (jika ada transform).
+ * Tanpa ini, `entity_type` undefined → CHILD_FIELD_KEYS[undefined] →
+ * "keys is not iterable" (di bundle minify: "t is not iterable").
+ */
+function normalizeContributionMeta(
+  raw: ContributionDetailPayload['contribution'] | null | undefined,
+): ContributionDetailPayload['contribution'] {
+  const r = toRecord(raw);
+  const entityType = String(
+    pickDefined(r, ['entity_type', 'entityType']) ?? 'word',
+  ) as ContributionDetailPayload['contribution']['entity_type'];
+
+  return {
+    id: String(pickDefined(r, ['id']) ?? ''),
+    user_id: String(pickDefined(r, ['user_id', 'userId']) ?? ''),
+    contributor_username: String(
+      pickDefined(r, ['contributor_username', 'contributorUsername']) ?? '',
+    ),
+    entity_type: entityType,
+    entity_id: String(pickDefined(r, ['entity_id', 'entityId']) ?? ''),
+    action: String(pickDefined(r, ['action']) ?? ''),
+    status: (pickDefined(r, ['status']) as ContributionDetailPayload['contribution']['status']) ?? 'pending',
+    created_at: String(pickDefined(r, ['created_at', 'createdAt']) ?? ''),
+    word_lemma: asString(pickDefined(r, ['word_lemma', 'wordLemma'])),
+    search_miss_id: asString(pickDefined(r, ['search_miss_id', 'searchMissId'])) ?? undefined,
+    search_miss_term: asString(pickDefined(r, ['search_miss_term', 'searchMissTerm'])) ?? undefined,
+    search_miss_direction:
+      (pickDefined(r, ['search_miss_direction', 'searchMissDirection']) as
+        | ContributionDetailPayload['contribution']['search_miss_direction']
+        | undefined) ?? undefined,
+  };
+}
+
 function toRecord(value: unknown): AnyRecord {
-  return value && typeof value === 'object' ? (value as AnyRecord) : {};
+  return value && typeof value === 'object' && !Array.isArray(value) ? (value as AnyRecord) : {};
 }
 
 /** Nilai pertama yang terdefinisi non-null dari kunci (camelCase/snake_case). */
@@ -200,20 +240,33 @@ function normalizeVariant(raw: unknown): WordVariantView {
 const CHILD_FIELD_KEYS = {
   pronunciation: ['notation', 'value', 'dialect_id', 'audio_url', 'speaker_name', 'notes'],
   word_image: ['provider', 'provider_file_id', 'url', 'alt_text', 'is_primary'],
+  word_audio: [
+    'word_id',
+    'example_id',
+    'url',
+    'speaker_name',
+    'dialect_id',
+    'is_primary',
+    'duration_ms',
+    'mime_type',
+    'file_size',
+  ],
   example: ['source_sentence', 'target_sentence', 'source_type', 'notes'],
 } as const;
 
-type ChildFieldKey = (typeof CHILD_FIELD_KEYS)[keyof typeof CHILD_FIELD_KEYS][number];
-
-function normalizeChildEntity(
-  entityType: 'pronunciation' | 'word_image' | 'example',
-  raw: unknown,
-): ChildEntityLike {
+function normalizeChildEntity(entityType: string, raw: unknown): ChildEntityLike {
   const r = toRecord(raw);
-  const data = toRecord(pickDefined(r, ['data']));
+  // `data` bisa object (impl) atau hilang (docs datar). Array/primitive → {}.
+  const dataRaw = pickDefined(r, ['data']);
+  const data =
+    dataRaw && typeof dataRaw === 'object' && !Array.isArray(dataRaw)
+      ? (dataRaw as AnyRecord)
+      : {};
 
   // Gabungkan matriks `data` (impl) + field datar (docs) - impl menang.
-  const matrix: Record<string, unknown> = { ...pickFields(r, CHILD_FIELD_KEYS[entityType]), ...data };
+  // fieldKeysFor selalu mengembalikan array (tidak pernah undefined) supaya
+  // `for…of` tidak melempar "keys/t is not iterable".
+  const matrix: Record<string, unknown> = { ...pickFields(r, fieldKeysFor(entityType)), ...data };
 
   const wordId = String(pickDefined(r, ['wordId', 'word_id']) ?? '');
   const wordLemma = asString(pickDefined(r, ['wordLemma', 'word_lemma']));
@@ -235,9 +288,9 @@ function normalizeChildEntity(
     const fields: PronunciationChildData = {
       notation: String(pickDefined(matrix, ['notation']) ?? 'ipa'),
       value: String(pickDefined(matrix, ['value']) ?? ''),
-      dialect_id: asString(pickDefined(matrix, ['dialect_id'])),
-      audio_url: asString(pickDefined(matrix, ['audio_url'])),
-      speaker_name: asString(pickDefined(matrix, ['speaker_name'])),
+      dialect_id: asString(pickDefined(matrix, ['dialect_id', 'dialectId'])),
+      audio_url: asString(pickDefined(matrix, ['audio_url', 'audioUrl'])),
+      speaker_name: asString(pickDefined(matrix, ['speaker_name', 'speakerName'])),
       notes: asString(pickDefined(matrix, ['notes'])),
     };
     return { ...base, fields };
@@ -246,25 +299,64 @@ function normalizeChildEntity(
   if (entityType === 'word_image') {
     const fields: WordImageChildData = {
       provider: asString(pickDefined(matrix, ['provider'])),
-      provider_file_id: String(pickDefined(matrix, ['provider_file_id']) ?? ''),
+      provider_file_id: String(pickDefined(matrix, ['provider_file_id', 'providerFileId']) ?? ''),
       url: String(pickDefined(matrix, ['url']) ?? ''),
-      alt_text: asString(pickDefined(matrix, ['alt_text'])),
-      is_primary: Boolean(pickDefined(matrix, ['is_primary']) ?? false),
+      alt_text: asString(pickDefined(matrix, ['alt_text', 'altText'])),
+      is_primary: Boolean(pickDefined(matrix, ['is_primary', 'isPrimary']) ?? false),
     };
     return { ...base, fields };
   }
 
+  if (entityType === 'word_audio') {
+    const durationRaw = pickDefined(matrix, ['duration_ms', 'durationMs']);
+    const fileSizeRaw = pickDefined(matrix, ['file_size', 'fileSize']);
+    const fields: WordAudioChildData = {
+      word_id: String(pickDefined(matrix, ['word_id', 'wordId']) ?? wordId),
+      example_id: asString(pickDefined(matrix, ['example_id', 'exampleId'])),
+      url: String(pickDefined(matrix, ['url']) ?? ''),
+      speaker_name: asString(pickDefined(matrix, ['speaker_name', 'speakerName'])),
+      dialect_id: asString(pickDefined(matrix, ['dialect_id', 'dialectId'])),
+      is_primary: Boolean(pickDefined(matrix, ['is_primary', 'isPrimary']) ?? false),
+      duration_ms:
+        durationRaw === undefined || durationRaw === null ? null : Number(durationRaw),
+      mime_type: asString(pickDefined(matrix, ['mime_type', 'mimeType'])),
+      file_size:
+        fileSizeRaw === undefined || fileSizeRaw === null ? null : Number(fileSizeRaw),
+    };
+    return { ...base, fields };
+  }
+
+  // example + fallback tipe tidak dikenal (mis. meaning) — jangan throw.
   const fields: ExampleChildData = {
-    source_sentence: String(pickDefined(matrix, ['source_sentence']) ?? ''),
-    target_sentence: asString(pickDefined(matrix, ['target_sentence'])),
-    source_type: asString(pickDefined(matrix, ['source_type'])),
+    source_sentence: String(
+      pickDefined(matrix, ['source_sentence', 'sourceSentence', 'definition']) ?? '',
+    ),
+    target_sentence: asString(pickDefined(matrix, ['target_sentence', 'targetSentence'])),
+    source_type: asString(pickDefined(matrix, ['source_type', 'sourceType'])),
     notes: asString(pickDefined(matrix, ['notes'])),
   };
   return { ...base, fields };
 }
 
-function pickFields(obj: AnyRecord, keys: readonly ChildFieldKey[]): Record<string, unknown> {
+/** Kunci field per entity_type — selalu array (kosong jika tipe tidak dikenal). */
+function fieldKeysFor(entityType: string): readonly string[] {
+  switch (entityType) {
+    case 'pronunciation':
+      return CHILD_FIELD_KEYS.pronunciation;
+    case 'word_image':
+      return CHILD_FIELD_KEYS.word_image;
+    case 'word_audio':
+      return CHILD_FIELD_KEYS.word_audio;
+    case 'example':
+      return CHILD_FIELD_KEYS.example;
+    default:
+      return [];
+  }
+}
+
+function pickFields(obj: AnyRecord, keys: readonly string[]): Record<string, unknown> {
   const out: Record<string, unknown> = {};
+  if (!Array.isArray(keys)) return out;
   for (const key of keys) {
     const value = obj[key];
     if (value !== undefined) out[key] = value;

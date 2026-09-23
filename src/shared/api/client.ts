@@ -30,6 +30,14 @@ const BASE_CONFIG: AxiosRequestConfig = {
 export const authClient = axios.create(BASE_CONFIG);
 export const client = axios.create(BASE_CONFIG);
 
+// authClient tidak membawa interceptor token (supaya login/refresh tidak
+// memicu loop 401 → refresh). Error-nya tetap dinormalisasi ke ApiError
+// agar halaman auth bisa membaca status, error_code, dan message.
+authClient.interceptors.response.use(
+  (response) => response,
+  (error: AxiosError<ApiErrorEnvelope>) => Promise.reject(normalizeError(error)),
+);
+
 // ---- Interceptor: sisipkan Authorization: Bearer <access_token> ----
 client.interceptors.request.use((config) => {
   const token = sessionStore.getSnapshot().accessToken;

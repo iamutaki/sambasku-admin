@@ -44,7 +44,7 @@ export const ROLE_LABELS_SHORT: Record<AppRoleKey, string> = {
   root: 'Root',
   admin: 'Admin',
   editor: 'Editor',
-  reviewer: 'Reviewer',
+  reviewer: 'Verifikator',
   contributor: 'Kontributor',
 };
 
