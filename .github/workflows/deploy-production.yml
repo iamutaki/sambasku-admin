@@ -1,0 +1,80 @@
+name: Deploy Admin (Production)
+
+# Deploy murni lewat CI/CD (GitHub Actions → wrangler pages deploy).
+#
+# Setup sekali di Cloudflare (manual):
+#   1. Pastikan zone sambasku.com ada di akun Cloudflare yang sama.
+#   2. Project Pages `sambasku-admin` dibuat otomatis oleh job ini.
+#   3. Attach custom domain: Workers & Pages → sambasku-admin →
+#      Custom domains → add `console.sambasku.com`.
+#   4. CORS API production harus memuat `https://console.sambasku.com`
+#      (api/wrangler.toml → [vars] CORS_ALLOWED_ORIGINS).
+#
+# Secrets repo (Settings → Secrets and variables → Actions):
+#   CLOUDFLARE_API_TOKEN   - izin "Cloudflare Pages: Edit"
+#   CLOUDFLARE_ACCOUNT_ID  - Account ID Cloudflare
+#
+# Cookie refresh_token SameSite=Strict: admin (console.sambasku.com) dan
+# API (api.sambasku.com) satu registrable domain (sambasku.com).
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-admin-production
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    name: Build & Deploy
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Test
+        run: pnpm test
+
+      - name: Build (production)
+        run: pnpm build
+        env:
+          VITE_API_BASE_URL: https://api.sambasku.com/api/v1
+          VITE_APP_NAME: SambasKu - Admin Console
+
+      - name: Pastikan project Cloudflare Pages ada
+        run: >
+          pnpm dlx wrangler pages project create sambasku-admin
+          --production-branch=main
+          || echo "Project sudah ada - lanjut deploy."
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      - name: Deploy ke Cloudflare Pages
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy dist --project-name=sambasku-admin --branch=main

@@ -91,9 +91,21 @@ lint + test + build → `wrangler pages deploy dist`.
 ### Kenapa custom domain wajib
 
 Cookie `refresh_token` API ber-`SameSite=Strict`. Admin dan API harus
-satu registrable domain (`iamutaki.com`) supaya cookie terkirim saat
-auto-refresh sesi. Domain `*.pages.dev` adalah situs berbeda → sesi
-"amnesia" ke halaman login.
+satu registrable domain (`iamutaki.com` di staging / `sambasku.com` di
+production) supaya cookie terkirim saat auto-refresh sesi. Domain
+`*.pages.dev` adalah situs berbeda → sesi "amnesia" ke halaman login.
+
+## Deploy Production
+
+Hosting: **Cloudflare Pages** - project `sambasku-admin`, custom domain
+`https://console.sambasku.com`. API: `https://api.sambasku.com/api/v1`.
+
+Deploy: `.github/workflows/deploy-production.yml` — push ke branch
+`main` (atau Run workflow manual) → lint + test + build → Pages deploy.
+
+Setup sekali: attach `console.sambasku.com` ke project `sambasku-admin`,
+pastikan CORS API production memuat `https://console.sambasku.com` dan
+`https://sambasku.com`.
 
 ### Routing SPA
 
