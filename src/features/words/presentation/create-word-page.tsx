@@ -22,7 +22,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { PageHeader } from '@/shared/components/page-header';
 import { ApiError } from '@/shared/api/error';
 import { useAuth } from '@/shared/auth/use-auth';
-import { buildCreateWordBody, fieldToNamePath, hasUploadingImages, pickDefaultDialectId, pickDefaultLanguageIds } from '../application/create-word-utils';
+import { buildCreateWordBody, fieldToNamePath, hasUploadingImages, pickDefaultDialectId, pickDefaultLanguageIds, pickUmumWordClassId } from '../application/create-word-utils';
 import { useCreateWord } from '../application/use-create-word';
 import {
   uploadPendingAudiosAfterCreate,
@@ -119,6 +119,10 @@ export function CreateWordPage() {
   const directionReady = Boolean(sourceLanguage && targetLanguage);
 
   const dialectQuery = useDialectOptions(defaultLanguageIds.sourceId);
+  const umumWordClassId = useMemo(
+    () => pickUmumWordClassId(wordClassQuery.data ?? []),
+    [wordClassQuery.data],
+  );
 
   // Isi nilai awal bahasa sumber (tersimpan tersembunyi di form store) sekali.
   const seeded = useRef(false);
@@ -132,14 +136,21 @@ export function CreateWordPage() {
       ...(missParams.term && !isTranslationMiss ? { lemma: missParams.term } : {}),
       meanings: [
         {
-          word_class_id: undefined,
+          word_class_id: umumWordClassId,
           definition: '',
           order_index: 1,
           translations: [],
         },
       ],
     });
-  }, [directionReady, defaultLanguageIds.sourceId, defaultLanguageIds.targetId, form, missParams]);
+  }, [
+    directionReady,
+    defaultLanguageIds.sourceId,
+    defaultLanguageIds.targetId,
+    form,
+    missParams,
+    umumWordClassId,
+  ]);
 
   // Dialek default (is_default / umum) - sekali, hanya jika user belum pilih.
   const dialectSeeded = useRef(false);
@@ -155,6 +166,19 @@ export function CreateWordPage() {
     dialectSeeded.current = true;
     form.setFieldsValue({ dialect_id: defaultId });
   }, [dialectQuery.data, form]);
+
+  // Kelas kata `umum` pada makna yang masih kosong. Sekali, jangan timpa pilihan user.
+  const wordClassSeeded = useRef(false);
+  useEffect(() => {
+    if (wordClassSeeded.current || !umumWordClassId || !seeded.current) return;
+    const meanings = form.getFieldValue('meanings') as { word_class_id?: string }[] | undefined;
+    if (!Array.isArray(meanings) || meanings.length === 0) return;
+    wordClassSeeded.current = true;
+    if (meanings.every((m) => m?.word_class_id)) return;
+    form.setFieldsValue({
+      meanings: meanings.map((m) => (m?.word_class_id ? m : { ...m, word_class_id: umumWordClassId })),
+    });
+  }, [umumWordClassId, directionReady, form]);
 
   const wordClassOptions = useMemo(
     () => buildWordClassOptions(wordClassQuery.data ?? []),
@@ -428,11 +452,17 @@ export function CreateWordPage() {
                     block
                     icon={<PlusOutlined />}
                     onClick={() =>
-                      add(
-                        defaultLanguageIds.targetId
-                          ? { order_index: meaningFields.length + 1, translations: [{ language_id: defaultLanguageIds.targetId, translation_type: 'direct' }] }
-                          : { order_index: meaningFields.length + 1 },
-                      )
+                      add({
+                        order_index: meaningFields.length + 1,
+                        ...(umumWordClassId ? { word_class_id: umumWordClassId } : {}),
+                        ...(defaultLanguageIds.targetId
+                          ? {
+                              translations: [
+                                { language_id: defaultLanguageIds.targetId, translation_type: 'direct' as const },
+                              ],
+                            }
+                          : {}),
+                      })
                     }
                   >
                     Tambah Makna

@@ -11,6 +11,7 @@ import type {
   CreateWordVariantFormValue,
   DialectOption,
   InlineWordFormValue,
+  WordClassOption,
   InlineWordRequest,
   LanguageOption,
   MeaningOverrideFormValue,
@@ -69,6 +70,16 @@ export function pickDefaultDialectId(dialects: DialectOption[]): string | undefi
     pool.find((d) => d.is_default)?.id ??
     pool.find((d) => d.code.trim().toLowerCase() === 'umum')?.id
   );
+}
+
+/**
+ * Kelas kata default form create: code `umum` (fallback "belum diketahui").
+ * Return undefined kalau tidak ada - biarkan Select kosong.
+ */
+export function pickUmumWordClassId(
+  wordClasses: Pick<WordClassOption, 'id' | 'code'>[],
+): string | undefined {
+  return wordClasses.find((w) => w.code.trim().toLowerCase() === 'umum')?.id;
 }
 
 /**

@@ -4,6 +4,7 @@ import {
   fieldToNamePath,
   pickDefaultDialectId,
   pickDefaultLanguageIds,
+  pickUmumWordClassId,
   hasUploadingImages,
 } from '@/features/words/application/create-word-utils';
 import type {
@@ -140,6 +141,24 @@ describe('pickDefaultDialectId', () => {
 
   it('mengembalikan undefined bila daftar kosong', () => {
     expect(pickDefaultDialectId([])).toBeUndefined();
+  });
+});
+
+const UMUM_CLASS_ID = '01HXYWORDCLASSUMUM000000000';
+
+describe('pickUmumWordClassId', () => {
+  it('memilih kelas dengan code umum, abaikan huruf besar', () => {
+    expect(
+      pickUmumWordClassId([
+        { id: WORD_CLASS_ID, code: 'n' },
+        { id: UMUM_CLASS_ID, code: 'Umum' },
+      ]),
+    ).toBe(UMUM_CLASS_ID);
+  });
+
+  it('mengembalikan undefined bila tidak ada code umum', () => {
+    expect(pickUmumWordClassId([{ id: WORD_CLASS_ID, code: 'n' }])).toBeUndefined();
+    expect(pickUmumWordClassId([])).toBeUndefined();
   });
 });
 

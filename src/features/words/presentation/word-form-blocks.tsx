@@ -31,7 +31,7 @@ import {
 import type { UploadProps } from 'antd';
 import { AFFIX_TYPES, AFFIX_TYPE_LABELS, EXAMPLE_SOURCE_TYPES, EXAMPLE_SOURCE_LABELS, RELATION_TYPES, RELATION_TYPE_LABELS, TRANSLATION_TYPES, TRANSLATION_TYPE_LABELS, VARIANT_TYPES, VARIANT_TYPE_LABELS, type CreateWordMeaningFormValue, type RelationType, type WordClassOption } from '../domain/create-word';
 import { WORD_TYPES, WORD_TYPE_LABELS } from '../domain/word';
-import type { DefaultLanguageIds } from '../application/create-word-utils';
+import { pickUmumWordClassId, type DefaultLanguageIds } from '../application/create-word-utils';
 import { matchWordClassId } from '../application/match-word-class';
 import { WordSearchSelect } from './word-search-select';
 import { KbbiDefinitionPickerModal } from './kbbi-definition-picker-modal';
@@ -865,6 +865,7 @@ export function InlineWordEditor({
 }: InlineWordEditorProps) {
   const form = Form.useFormInstance();
   const inherit = Form.useWatch(['related_words', name, 'word', 'inherit_meanings'], form) ?? true;
+  const umumWordClassId = pickUmumWordClassId(wordClasses);
 
   return (
     <Space direction="vertical" size={12} style={{ width: '100%' }}>
@@ -1000,11 +1001,17 @@ export function InlineWordEditor({
                 block
                 icon={<PlusOutlined />}
                 onClick={() =>
-                  add(
-                    defaultLanguageIds.targetId
-                      ? { order_index: meaningFields.length + 1, translations: [{ language_id: defaultLanguageIds.targetId, translation_type: 'direct' }] }
-                      : { order_index: meaningFields.length + 1 },
-                  )
+                  add({
+                    order_index: meaningFields.length + 1,
+                    ...(umumWordClassId ? { word_class_id: umumWordClassId } : {}),
+                    ...(defaultLanguageIds.targetId
+                      ? {
+                          translations: [
+                            { language_id: defaultLanguageIds.targetId, translation_type: 'direct' as const },
+                          ],
+                        }
+                      : {}),
+                  })
                 }
               >
                 Tambah Makna
