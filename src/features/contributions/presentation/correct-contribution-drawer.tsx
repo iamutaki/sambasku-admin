@@ -273,6 +273,7 @@ function CorrectWordForm({ form }: { form: FormInstance<CorrectFormValues> }) {
                       showOrderIndex
                       translationsRequired
                       orderIndexInitial={field.name + 1}
+                      allowSwap
                     />
                   </Card>
                 ))}

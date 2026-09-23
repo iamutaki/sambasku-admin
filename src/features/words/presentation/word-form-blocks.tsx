@@ -4,6 +4,7 @@ import {
   CheckOutlined,
   DeleteOutlined,
   PlusOutlined,
+  SwapOutlined,
 } from '@ant-design/icons';
 import type { FormInstance } from 'antd/es/form';
 import {
@@ -33,6 +34,7 @@ import { AFFIX_TYPES, AFFIX_TYPE_LABELS, EXAMPLE_SOURCE_TYPES, EXAMPLE_SOURCE_LA
 import { WORD_TYPES, WORD_TYPE_LABELS } from '../domain/word';
 import { pickUmumWordClassId, type DefaultLanguageIds } from '../application/create-word-utils';
 import { matchWordClassId } from '../application/match-word-class';
+import { swapMeaningTexts } from '../application/swap-meaning-texts';
 import { WordSearchSelect } from './word-search-select';
 import { KbbiDefinitionPickerModal } from './kbbi-definition-picker-modal';
 import {
@@ -110,6 +112,39 @@ function setHavePadanan(
     ]);
   }
   syncMeaningCompleteness(form, absolutePath);
+}
+
+function applyMeaningSwap(
+  form: FormInstance,
+  absolutePath: (string | number)[],
+  defaultLanguageIds: DefaultLanguageIds,
+) {
+  const definition = String(form.getFieldValue([...absolutePath, 'definition']) ?? '');
+  const current =
+    (form.getFieldValue([...absolutePath, 'translations']) as Array<Record<string, unknown>> | undefined) ?? [];
+  const translationText = String(current[0]?.translation_text ?? '');
+  const swapped = swapMeaningTexts({ definition, translationText });
+
+  setHaveDefinition(form, absolutePath, swapped.isHaveDefinition);
+  setHavePadanan(form, absolutePath, defaultLanguageIds, swapped.isHaveTranslation);
+
+  if (swapped.isHaveDefinition) {
+    form.setFieldValue([...absolutePath, 'definition'], swapped.definition);
+  }
+  if (!swapped.isHaveTranslation) return;
+
+  const after =
+    (form.getFieldValue([...absolutePath, 'translations']) as Array<Record<string, unknown>> | undefined) ?? [];
+  const first = after[0] ?? {};
+  form.setFieldValue([...absolutePath, 'translations'], [
+    {
+      ...first,
+      language_id: (first.language_id as string | undefined) || defaultLanguageIds.targetId || undefined,
+      translation_type: (first.translation_type as string | undefined) || 'direct',
+      translation_text: swapped.translationText,
+    },
+    ...after.slice(1),
+  ]);
 }
 
 /** Opsi checklist: kotak kiri + label, lebar penuh (bukan radio). */
@@ -280,6 +315,8 @@ export interface MeaningFieldsProps {
   ) => void;
   dialectOptionsForExampleAudio?: { value: string; label: string }[];
   defaultDialectIdForExampleAudio?: string | null;
+  /** Koreksi verifikator: tombol tukar definisi ↔ terjemahan. */
+  allowSwap?: boolean;
 }
 
 /** Key draft audio contoh di form create: maknaIndex:contohIndex */
@@ -304,6 +341,7 @@ export function MeaningFields({
   onPendingExampleAudioChange,
   dialectOptionsForExampleAudio = [],
   defaultDialectIdForExampleAudio = null,
+  allowSwap = false,
 }: MeaningFieldsProps) {
   const form = Form.useFormInstance();
   const { message } = AntdApp.useApp();
@@ -401,6 +439,16 @@ export function MeaningFields({
 
           return (
             <>
+              {allowSwap ? (
+                <Button
+                  htmlType="button"
+                  icon={<SwapOutlined />}
+                  onClick={() => applyMeaningSwap(form, absolutePath, defaultLanguageIds)}
+                  style={{ marginBottom: 12 }}
+                >
+                  Tukar definisi dan terjemahan
+                </Button>
+              ) : null}
               {!hasPadanan ? (
                 <Typography.Text type="secondary" style={{ display: 'block', marginBottom: 12 }}>
                   Tanpa terjemahan - definisi uraian sudah cukup. Bisa dilengkapi nanti.
