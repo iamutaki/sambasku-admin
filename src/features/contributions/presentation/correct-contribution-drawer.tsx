@@ -203,14 +203,14 @@ function CorrectWordForm({ form }: { form: FormInstance<CorrectFormValues> }) {
               </Form.Item>
               <Form.Item
                 name="lemma"
-                label="Kata Sambas (Lemma)"
+                label="Kata / ungkapan Sambas"
                 rules={[{ required: true, message: 'Kata wajib diisi' }, { whitespace: true, message: 'Kata tidak boleh hanya spasi' }]}
               >
                 <Input placeholder="mis. kata" maxLength={255} allowClear />
               </Form.Item>
             </Col>
             <Col xs={24} md={8}>
-              <Form.Item name="word_type" label="Jenis Entri">
+              <Form.Item name="word_type" label="Jenis">
                 <Select options={wordTypeOptions} />
               </Form.Item>
             </Col>

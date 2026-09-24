@@ -138,7 +138,7 @@ function WordEntityDetail({ word, dialectLabel }: { word: WordEntityView; dialec
     { key: 'lemma', label: 'Lemma', children: <Text strong>{word.lemma}</Text> },
     {
       key: 'word_type',
-      label: 'Jenis Entri',
+      label: 'Jenis',
       children: WORD_TYPE_LABELS[word.wordType] ?? word.wordType,
     },
     { key: 'status', label: 'Status', children: <StatusTag status={word.status} /> },

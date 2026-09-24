@@ -20,7 +20,9 @@ import {
   TAKEDOWN_REASON_LABELS,
   WORD_STATUS_LABELS,
   WORD_TYPE_LABELS,
+  USAGE_LABEL_LABELS,
   type TakedownReasonCode,
+  type UsageLabel,
   type WordStatus,
 } from '../domain/word';
 import { useRestoreWord, useTakedownWord } from '../application/use-word-takedown';
@@ -595,6 +597,31 @@ function WordDetailContent({
           <Space size={4} wrap>
             {(detail.categories ?? []).map((c) => (
               <Tag key={c.id}>{c.name}</Tag>
+            ))}
+          </Space>
+        ) : (
+          <Text type="secondary">Tidak ada</Text>
+        )}
+      </div>
+
+      {/* 3b. Register & peringatan */}
+      <div>
+        <Text strong style={{ display: 'block', marginBottom: 8 }}>
+          Register & peringatan
+        </Text>
+        {(detail.usage_labels ?? []).length ? (
+          <Space size={4} wrap>
+            {(detail.usage_labels ?? []).map((code) => (
+              <Tag
+                key={code}
+                color={
+                  code === 'kasar' || code === 'tabu' || code === 'seksual' || code === 'diskriminatif'
+                    ? 'volcano'
+                    : 'default'
+                }
+              >
+                {USAGE_LABEL_LABELS[code as UsageLabel] ?? code}
+              </Tag>
             ))}
           </Space>
         ) : (

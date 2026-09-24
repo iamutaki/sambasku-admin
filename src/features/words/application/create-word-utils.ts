@@ -124,6 +124,7 @@ export function buildCreateWordBody(
     lemma: (values.lemma as string).trim(),
     ...(values.notes?.trim() ? { notes: values.notes.trim() } : {}),
     word_type: values.word_type ?? 'word',
+    usage_labels: values.usage_labels ?? [],
     meanings,
     category_ids: values.category_ids ?? [],
     related_words: relatedWords,
@@ -318,6 +319,7 @@ export function buildImages(raw: WordImageFormValue[] | undefined): WordImageInp
     .map((img) => ({
       url: img.url as string,
       provider_file_id: img.provider_file_id as string,
+      ...(img.provider ? { provider: img.provider } : {}),
       ...(img.sha ? { sha: img.sha } : {}),
       ...(img.alt_text?.trim() ? { alt_text: img.alt_text.trim() } : {}),
       is_primary: img.is_primary ?? false,

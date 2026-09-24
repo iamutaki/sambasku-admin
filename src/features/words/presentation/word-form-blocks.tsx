@@ -12,6 +12,7 @@ import {
   Alert,
   Button,
   Card,
+  Checkbox,
   Col,
   Divider,
   Flex,
@@ -31,7 +32,14 @@ import {
 } from 'antd';
 import type { UploadProps } from 'antd';
 import { AFFIX_TYPES, AFFIX_TYPE_LABELS, EXAMPLE_SOURCE_TYPES, EXAMPLE_SOURCE_LABELS, RELATION_TYPES, RELATION_TYPE_LABELS, TRANSLATION_TYPES, TRANSLATION_TYPE_LABELS, VARIANT_TYPES, VARIANT_TYPE_LABELS, type CreateWordMeaningFormValue, type RelationType, type WordClassOption } from '../domain/create-word';
-import { WORD_TYPES, WORD_TYPE_LABELS } from '../domain/word';
+import {
+  REGISTER_LABELS,
+  USAGE_LABEL_LABELS,
+  WARNING_LABELS,
+  WORD_TYPES,
+  WORD_TYPE_LABELS,
+  type UsageLabel,
+} from '../domain/word';
 import { pickUmumWordClassId, type DefaultLanguageIds } from '../application/create-word-utils';
 import { matchWordClassId } from '../application/match-word-class';
 import { swapMeaningTexts } from '../application/swap-meaning-texts';
@@ -214,15 +222,15 @@ function KnowledgeToggleChip({
 
 function knowledgeHint(wantDefinition: boolean, wantPadanan: boolean): string {
   if (!wantDefinition && !wantPadanan) {
-    return 'Centang Definisi dan/atau Terjemahan. Form makna muncul setelah itu.';
+    return 'Centang Penjelasan arti dan/atau Terjemahan. Form makna muncul setelah itu.';
   }
   if (wantDefinition && wantPadanan) {
-    return 'Isi terjemahan dan uraian definisi.';
+    return 'Isi terjemahan dan penjelasan arti.';
   }
   if (wantDefinition) {
     return 'Isi uraian makna. Terjemahan bisa dilengkapi nanti.';
   }
-  return 'Isi terjemahan saja. Definisi bisa dilengkapi nanti.';
+  return 'Isi terjemahan saja. Penjelasan arti bisa dilengkapi nanti.';
 }
 
 // ------- Opsi dropdown bersama (dipakai form buat & koreksi) -------
@@ -231,6 +239,77 @@ export const translationTypeOptions = TRANSLATION_TYPES.map((t) => ({ value: t, 
 export const variantTypeOptions = VARIANT_TYPES.map((t) => ({ value: t, label: VARIANT_TYPE_LABELS[t] }));
 export const affixTypeOptions = AFFIX_TYPES.map((t) => ({ value: t, label: AFFIX_TYPE_LABELS[t] }));
 export const exampleSourceOptions = EXAMPLE_SOURCE_TYPES.map((t) => ({ value: t, label: EXAMPLE_SOURCE_LABELS[t] }));
+
+const registerLabelOptions = REGISTER_LABELS.map((code) => ({
+  label: USAGE_LABEL_LABELS[code],
+  value: code,
+}));
+const warningLabelOptions = WARNING_LABELS.map((code) => ({
+  label: USAGE_LABEL_LABELS[code],
+  value: code,
+}));
+
+function UsageLabelsCheckboxGroups({
+  value,
+  onChange,
+}: {
+  value?: UsageLabel[];
+  onChange?: (next: UsageLabel[]) => void;
+}) {
+  const selected = value ?? [];
+  const setGroup = (group: readonly UsageLabel[], groupSelected: UsageLabel[]) => {
+    const outside = selected.filter((code) => !(group as readonly string[]).includes(code));
+    onChange?.([...outside, ...groupSelected]);
+  };
+  return (
+    <Space direction="vertical" size={8} style={{ width: '100%' }}>
+      <div>
+        <Typography.Text type="secondary" style={{ display: 'block', marginBottom: 4 }}>
+          Register
+        </Typography.Text>
+        <Checkbox.Group
+          options={registerLabelOptions}
+          value={selected.filter((code) => (REGISTER_LABELS as readonly string[]).includes(code))}
+          onChange={(vals) => setGroup(REGISTER_LABELS, vals as UsageLabel[])}
+        />
+      </div>
+      <div>
+        <Typography.Text type="secondary" style={{ display: 'block', marginBottom: 4 }}>
+          Peringatan konten
+        </Typography.Text>
+        <Checkbox.Group
+          options={warningLabelOptions}
+          value={selected.filter((code) => (WARNING_LABELS as readonly string[]).includes(code))}
+          onChange={(vals) => setGroup(WARNING_LABELS, vals as UsageLabel[])}
+        />
+      </div>
+    </Space>
+  );
+}
+
+/** Checkbox Register + Peringatan (create/edit kata). */
+export function UsageLabelsFields() {
+  return (
+    <Form.Item
+      name="usage_labels"
+      label="Register & peringatan"
+      extra="Opsional. Halus dan Kasar tidak bisa dipilih bersamaan."
+      rules={[
+        {
+          validator: (_, value: UsageLabel[] | undefined) => {
+            const labels = value ?? [];
+            if (labels.includes('halus') && labels.includes('kasar')) {
+              return Promise.reject(new Error('Halus dan Kasar tidak bisa dipilih bersamaan'));
+            }
+            return Promise.resolve();
+          },
+        },
+      ]}
+    >
+      <UsageLabelsCheckboxGroups />
+    </Form.Item>
+  );
+}
 
 /**
  * Tipe relasi yang sah berdasarkan jenis entri (has_component hanya untuk
@@ -404,7 +483,7 @@ export function MeaningFields({
                     </Col>
                     <Col span={12}>
                       <KnowledgeToggleChip
-                        label="Definisi"
+                        label="Penjelasan arti"
                         selected={wantDefinition}
                         onClick={() => setHaveDefinition(form, absolutePath, !wantDefinition)}
                       />
@@ -466,7 +545,7 @@ export function MeaningFields({
                               }
                               return Array.isArray(value) && value.length > 0
                                 ? Promise.resolve()
-                                : Promise.reject(new Error('Minimal 1 terjemahan, atau pilih “Definisi”'));
+                                : Promise.reject(new Error('Minimal 1 terjemahan, atau pilih “Penjelasan arti”'));
                             },
                           },
                         ]
@@ -598,13 +677,13 @@ export function MeaningFields({
 
               {!hasDef ? (
                 <Typography.Text type="secondary" style={{ display: 'block', marginBottom: 12 }}>
-                  Tanpa definisi - isi terjemahan dulu. Definisi bisa dilengkapi nanti.
+                  Tanpa penjelasan arti - isi terjemahan dulu. Penjelasan arti bisa dilengkapi nanti.
                 </Typography.Text>
               ) : (
                 <Form.Item
                   name={[...name, 'definition']}
-                  label={showMeaningPicker ? 'Definisi (override)' : 'Definisi Konseptual'}
-                  rules={[{ required: !showMeaningPicker, message: 'Definisi wajib diisi' }]}
+                  label={showMeaningPicker ? 'Penjelasan arti (override)' : 'Penjelasan arti'}
+                  rules={[{ required: !showMeaningPicker, message: 'Penjelasan arti wajib diisi' }]}
                 >
                   <Input.TextArea
                     rows={2}
@@ -662,7 +741,7 @@ export function MeaningFields({
             form.setFieldValue([...absolutePath, 'translations'], next);
           }
 
-          const parts = ['Definisi'];
+          const parts = ['Penjelasan arti'];
           if (matchedId) parts.push('kelas kata');
           if (lemmaId) parts.push('terjemahan');
           message.success(`${parts.join(', ')} diisi dari KBBI - silakan review`);
@@ -928,14 +1007,14 @@ export function InlineWordEditor({
           </Form.Item>
         </Col>
         <Col xs={24} md={6} lg={5}>
-          <Form.Item name={[name, 'word', 'word_type']} label="Jenis Entri">
+          <Form.Item name={[name, 'word', 'word_type']} label="Jenis">
             <Select options={wordTypeOptions} allowClear placeholder="Ikut induk" />
           </Form.Item>
         </Col>
         <Col xs={24} md={6} lg={6}>
           <Form.Item
             name={[name, 'word', 'inherit_meanings']}
-            label="Definisi & Makna"
+            label="Penjelasan arti & makna"
             initialValue
             valuePropName="checked"
           >
@@ -1259,7 +1338,7 @@ export function WordAudioPlayerRow({
           {isExample ? <Tag>Contoh</Tag> : <Tag color="purple">Lemma</Tag>}
         </Space>
         <Text type="secondary">
-          Lemma: {parentLemma}
+          Kata: {parentLemma}
           {' · '}
           Dialek: {dialectLabel}
         </Text>

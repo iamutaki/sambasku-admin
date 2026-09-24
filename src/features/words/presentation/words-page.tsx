@@ -6,6 +6,7 @@ import {
   EyeOutlined,
   PlusOutlined,
   ReloadOutlined,
+  UploadOutlined,
 } from '@ant-design/icons';
 import { Alert, App as AntdApp, Button, Flex, Input, Popconfirm, Select, Switch, Tabs, Tooltip, Typography } from 'antd';
 import { DataTable } from '@/shared/components/data-table';
@@ -24,15 +25,18 @@ import {
   type WordType,
 } from '../domain/word';
 import { useDebouncedValue } from '@/shared/hooks/use-debounced-value';
+import { ImportWordsDrawer } from './import-words-drawer';
+import { WordDuplicatesPanel } from './word-duplicates-panel';
+import { useDuplicateWordGroups } from '../application/use-duplicate-words';
 
 const columnHelper = createColumnHelper<WordListItem>();
 
 const wordTypeOptions = WORD_TYPES.map((type) => ({ value: type, label: WORD_TYPE_LABELS[type] }));
 
-/** Tabs tayang di menu Kata (default: Tayang). */
-type PublishedTab = 'published' | 'unpublished' | 'all';
+/** Tabs tayang di menu Kata (default: Tayang). Duplikasi = panel terpisah. */
+type WordsTab = 'published' | 'unpublished' | 'all' | 'duplicates';
 
-const PUBLISHED_TABS: { key: PublishedTab; label: string; published?: boolean }[] = [
+const LIST_TABS: { key: Exclude<WordsTab, 'duplicates'>; label: string; published?: boolean }[] = [
   { key: 'published', label: 'Tayang', published: true },
   { key: 'unpublished', label: 'Tidak tayang', published: false },
   { key: 'all', label: 'Semua' },
@@ -48,17 +52,22 @@ export function WordsPage() {
   const publishWord = usePublishWord();
   const unpublishWord = useUnpublishWord();
   const canVerify = user?.role === 'root' || user?.role === 'admin' || user?.role === 'reviewer';
+  const canImport = canVerify || user?.role === 'editor';
+  const [importOpen, setImportOpen] = useState(false);
   const [searchInput, setSearchInput] = useState('');
   const [wordType, setWordType] = useState<WordType | undefined>();
   const [isVerified, setIsVerified] = useState<boolean | undefined>();
-  const [publishedTab, setPublishedTab] = useState<PublishedTab>('published');
+  const [activeTab, setActiveTab] = useState<WordsTab>('published');
   const [deletingId, setDeletingId] = useState<string | undefined>();
   const [publishingId, setPublishingId] = useState<string | undefined>();
   const [verifyingId, setVerifyingId] = useState<string | undefined>();
   const q = useDebouncedValue(searchInput, 300);
-  const published = PUBLISHED_TABS.find((t) => t.key === publishedTab)?.published;
+  const isDuplicatesTab = activeTab === 'duplicates';
+  const published = LIST_TABS.find((t) => t.key === activeTab)?.published;
+  const duplicatesQuery = useDuplicateWordGroups(true);
+  const duplicateCount = duplicatesQuery.data?.total_groups;
 
-  const listArgs: UseWordListArgs = { q, wordType, isVerified, published };
+  const listArgs: UseWordListArgs = { q, wordType, isVerified, published, enabled: !isDuplicatesTab };
   const { items, hasMore, loadMore, isLoading, isFetching, isFetchingNextPage, isError, error, refetch } =
     useWordList(listArgs);
 
@@ -269,26 +278,47 @@ export function WordsPage() {
         title="Kata"
         subtitle="Kamus kosakata - list, cari, dan kelola entri. Tab Tidak tayang untuk draft / ditarik."
         extra={
-          <Button
-            type="primary"
-            icon={<PlusOutlined />}
-            onClick={() =>
-              navigate({
-                to: '/words/new',
-                search: { from_miss: undefined, term: undefined, direction: undefined },
-              })
-            }
-          >
-            Tambah Kata
-          </Button>
+          <Flex gap={8}>
+            {canImport ? (
+              <Button icon={<UploadOutlined />} onClick={() => setImportOpen(true)}>
+                Impor massal
+              </Button>
+            ) : null}
+            <Button
+              type="primary"
+              icon={<PlusOutlined />}
+              onClick={() =>
+                navigate({
+                  to: '/words/new',
+                  search: { from_miss: undefined, term: undefined, direction: undefined },
+                })
+              }
+            >
+              Tambah Kata
+            </Button>
+          </Flex>
         }
       />
       <Tabs
-        activeKey={publishedTab}
-        onChange={(key) => setPublishedTab(key as PublishedTab)}
-        items={PUBLISHED_TABS.map((t) => ({ key: t.key, label: t.label }))}
+        activeKey={activeTab}
+        onChange={(key) => setActiveTab(key as WordsTab)}
+        items={[
+          ...LIST_TABS.map((t) => ({ key: t.key, label: t.label })),
+          {
+            key: 'duplicates',
+            label:
+              duplicateCount && duplicateCount > 0
+                ? `Duplikasi (${duplicateCount})`
+                : 'Duplikasi',
+          },
+        ]}
         style={{ marginBottom: 8 }}
       />
+
+      {isDuplicatesTab ? (
+        <WordDuplicatesPanel canMerge={canVerify} />
+      ) : (
+        <>
       <Flex wrap gap={12} style={{ marginBottom: 16 }}>
         <Input.Search
           allowClear
@@ -335,6 +365,9 @@ export function WordsPage() {
           </Button>
         ) : null}
       </Flex>
+        </>
+      )}
+      <ImportWordsDrawer open={importOpen} canVerify={canVerify} onClose={() => setImportOpen(false)} />
     </>
   );
 }

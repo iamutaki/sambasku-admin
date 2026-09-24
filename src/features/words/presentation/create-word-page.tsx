@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { DeleteOutlined, PlusOutlined, SaveOutlined, SendOutlined } from '@ant-design/icons';
+import { BookOutlined, DeleteOutlined, PlusOutlined, SaveOutlined, SendOutlined } from '@ant-design/icons';
 import {
   Alert,
   App as AntdApp,
@@ -12,6 +12,7 @@ import {
   Grid,
   Input,
   Row,
+  Segmented,
   Select,
   Space,
   Typography,
@@ -23,6 +24,7 @@ import { PageHeader } from '@/shared/components/page-header';
 import { ApiError } from '@/shared/api/error';
 import { useAuth } from '@/shared/auth/use-auth';
 import { buildCreateWordBody, fieldToNamePath, hasUploadingImages, pickDefaultDialectId, pickDefaultLanguageIds, pickUmumWordClassId } from '../application/create-word-utils';
+import { matchWordClassId } from '../application/match-word-class';
 import { useCreateWord } from '../application/use-create-word';
 import {
   uploadPendingAudiosAfterCreate,
@@ -35,6 +37,7 @@ import {
   MeaningFields,
   PendingPronunciationAudioField,
   RelatedWordItem,
+  UsageLabelsFields,
   WordVariantsField,
   buildRelationOptions,
   buildWordClassOptions,
@@ -42,8 +45,11 @@ import {
   type PendingPronunciationAudio,
 } from './word-form-blocks';
 import { WordImagesField } from './word-images-field';
+import { KbbiDefinitionPickerModal } from './kbbi-definition-picker-modal';
 
 const { Text } = Typography;
+
+type FormFillMode = 'simple' | 'full';
 
 const inlineStatusLabels: Record<WordStatus, string> = {
   draft: 'Draft',
@@ -81,6 +87,8 @@ export function CreateWordPage() {
   const [form] = Form.useForm<CreateWordFormValues>();
   const createMutation = useCreateWord();
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [fillMode, setFillMode] = useState<FormFillMode>('simple');
+  const [kbbiOpen, setKbbiOpen] = useState(false);
   const [pendingAudio, setPendingAudio] = useState<PendingPronunciationAudio | null>(null);
   /** Draft audio per contoh — diunggah berurutan setelah create + GET detail. */
   const [pendingExampleAudios, setPendingExampleAudios] = useState<
@@ -138,8 +146,18 @@ export function CreateWordPage() {
         {
           word_class_id: umumWordClassId,
           definition: '',
+          is_have_definition: false,
+          is_have_translation: true,
           order_index: 1,
-          translations: [],
+          translations: defaultLanguageIds.targetId
+            ? [
+                {
+                  language_id: defaultLanguageIds.targetId,
+                  translation_type: 'direct' as const,
+                  translation_text: isTranslationMiss && missParams.term ? missParams.term : '',
+                },
+              ]
+            : [],
         },
       ],
     });
@@ -234,11 +252,63 @@ export function CreateWordPage() {
   const submit = async (status: 'draft' | 'published') => {
     setSubmitError(null);
     try {
-      await form.validateFields();
+      if (fillMode === 'simple') {
+        const translation =
+          String(
+            form.getFieldValue(['meanings', 0, 'translations', 0, 'translation_text']) ?? '',
+          ).trim();
+        const definition = String(form.getFieldValue(['meanings', 0, 'definition']) ?? '').trim();
+        if (!translation && !definition) {
+          message.warning('Isi terjemahan Indonesia atau penjelasan arti');
+          return;
+        }
+        const dialectId =
+          (form.getFieldValue('dialect_id') as string | undefined) || defaultDialectId || undefined;
+        const classId =
+          (form.getFieldValue(['meanings', 0, 'word_class_id']) as string | undefined) ||
+          umumWordClassId;
+        if (!classId) {
+          message.warning('Data kelas kata belum siap. Coba lagi sebentar.');
+          return;
+        }
+        form.setFieldsValue({
+          word_type: 'word',
+          dialect_id: dialectId,
+          category_ids: [],
+          related_words: [],
+          variants: [],
+          notes: undefined,
+          pronunciation: undefined,
+          images: [],
+          meanings: [
+            {
+              word_class_id: classId,
+              definition: definition || '-',
+              is_have_definition: definition.length > 0,
+              is_have_translation: translation.length > 0,
+              order_index: 1,
+              translations:
+                translation && defaultLanguageIds.targetId
+                  ? [
+                      {
+                        language_id: defaultLanguageIds.targetId,
+                        translation_type: 'direct' as const,
+                        translation_text: translation,
+                      },
+                    ]
+                  : [],
+              examples: [],
+            },
+          ],
+        });
+      }
+
+      await form.validateFields(fillMode === 'simple' ? ['lemma', 'language_id'] : undefined);
+
       const values = form.getFieldsValue(true) as CreateWordFormValues;
       // Gambar yang masih terunggah tidak akan terkirim (buildImages hanya
       // ambil yang selesai) - tahan submit supaya tidak ada yang hilang diam-diam.
-      if (hasUploadingImages(values.images)) {
+      if (fillMode === 'full' && hasUploadingImages(values.images)) {
         message.warning('Masih ada gambar yang terunggah - tunggu selesai lalu simpan lagi.');
         return;
       }
@@ -293,7 +363,7 @@ export function CreateWordPage() {
                 });
               }
 
-              if (pendingAudio || exampleDrafts.length > 0) {
+              if (fillMode === 'full' && (pendingAudio || exampleDrafts.length > 0)) {
                 const uploadResult = await uploadPendingAudiosAfterCreate({
                   wordId: result.word_id,
                   lemmaAudio: pendingAudio,
@@ -317,6 +387,7 @@ export function CreateWordPage() {
                 }
               }
 
+              await queryClient.invalidateQueries({ queryKey: ['words'] });
               if (missParams.fromMiss) {
                 void queryClient.invalidateQueries({ queryKey: ['search-misses'] });
               }
@@ -333,7 +404,14 @@ export function CreateWordPage() {
 
   return (
     <>
-      <PageHeader title="Tambah Kata Baru" subtitle="Form kosakata lengkap - kata, makna, terjemahan, contoh, dan relasi." />
+      <PageHeader
+        title="Tambah Kata Baru"
+        subtitle={
+          fillMode === 'simple'
+            ? 'Mode sederhana - kata Sambas, terjemahan, dan penjelasan arti. Dialek & kelas kata diisi otomatis (umum).'
+            : 'Form lengkap - kata, makna, terjemahan, contoh, dan relasi.'
+        }
+      />
       <Form form={form} layout="vertical" requiredMark disabled={createMutation.isPending}>
         <Space direction="vertical" size={16} style={{ width: '100%' }}>
           {missParams.fromMiss ? (
@@ -349,23 +427,114 @@ export function CreateWordPage() {
             <Alert type="error" showIcon message="Gagal menyimpan kata" description={submitError} closable onClose={() => setSubmitError(null)} />
           ) : null}
 
+          <Card size="small">
+            <Flex align="center" gap={12} wrap>
+              <Text type="secondary">Cara mengisi</Text>
+              <Segmented
+                value={fillMode}
+                onChange={(v) => setFillMode(v as FormFillMode)}
+                options={[
+                  { value: 'simple', label: 'Sederhana' },
+                  { value: 'full', label: 'Lengkap' },
+                ]}
+              />
+            </Flex>
+          </Card>
+
+          <Form.Item name="language_id" noStyle rules={[{ required: true, message: 'Bahasa wajib dipilih' }]}>
+            <Input type="hidden" />
+          </Form.Item>
+
+          {fillMode === 'simple' ? (
+            <Card title="Kata">
+              <Form.Item name="word_type" hidden initialValue="word">
+                <Input />
+              </Form.Item>
+              <Form.Item name="dialect_id" hidden>
+                <Input />
+              </Form.Item>
+              <Form.Item name={['meanings', 0, 'word_class_id']} hidden>
+                <Input />
+              </Form.Item>
+              <Form.Item name={['meanings', 0, 'is_have_definition']} hidden>
+                <Input />
+              </Form.Item>
+              <Form.Item name={['meanings', 0, 'is_have_translation']} hidden>
+                <Input />
+              </Form.Item>
+              <Form.Item name={['meanings', 0, 'order_index']} hidden initialValue={1}>
+                <Input />
+              </Form.Item>
+              <Form.Item name={['meanings', 0, 'translations', 0, 'language_id']} hidden>
+                <Input />
+              </Form.Item>
+              <Form.Item name={['meanings', 0, 'translations', 0, 'translation_type']} hidden initialValue="direct">
+                <Input />
+              </Form.Item>
+              <Row gutter={16}>
+                <Col xs={24} md={12}>
+                  <Form.Item
+                    name="lemma"
+                    label="Kata / ungkapan Sambas"
+                    rules={[
+                      { required: true, message: 'Kata wajib diisi' },
+                      { whitespace: true, message: 'Kata tidak boleh hanya spasi' },
+                    ]}
+                  >
+                    <Input placeholder="Isi kata, peribahasa, atau ungkapan" maxLength={255} allowClear />
+                  </Form.Item>
+                </Col>
+                <Col xs={24} md={12}>
+                  <Form.Item
+                    name={['meanings', 0, 'translations', 0, 'translation_text']}
+                    label="Terjemahan Indonesia"
+                    extra="Tekan ikon buku untuk mencari penjelasan arti di KBBI"
+                  >
+                    <Input
+                      placeholder="Satu kata/frasa setara di Indonesia"
+                      allowClear
+                      suffix={
+                        <Button
+                          type="text"
+                          size="small"
+                          icon={<BookOutlined />}
+                          aria-label="Ambil dari KBBI"
+                          onClick={() => setKbbiOpen(true)}
+                        />
+                      }
+                    />
+                  </Form.Item>
+                </Col>
+                <Col xs={24}>
+                  <Form.Item
+                    name={['meanings', 0, 'definition']}
+                    label="Penjelasan arti"
+                    extra="Opsional. Boleh dikosongkan jika sudah ada terjemahan."
+                  >
+                    <Input.TextArea rows={2} placeholder="Jelaskan arti kata ini (opsional)" />
+                  </Form.Item>
+                </Col>
+                <Col xs={24}>
+                  <UsageLabelsFields />
+                </Col>
+              </Row>
+            </Card>
+          ) : (
+            <>
           {/* 1. Data kata dasar */}
           <Card title="1. Data Kata Dasar">
             <Row gutter={16}>
               <Col xs={24} md={12} lg={10}>
-                <Form.Item name="language_id" noStyle rules={[{ required: true, message: 'Bahasa wajib dipilih' }]}>
-                  <Input type="hidden" />
-                </Form.Item>
                 <Form.Item
                   name="lemma"
-                  label="Kata Sambas (Lemma)"
+                  label="Kata / ungkapan Sambas"
                   rules={[{ required: true, message: 'Kata wajib diisi' }, { whitespace: true, message: 'Kata tidak boleh hanya spasi' }]}
                 >
-                  <Input placeholder="mis. kata" maxLength={255} allowClear />
+                  <Input placeholder="Isi kata, peribahasa, atau ungkapan" maxLength={255} allowClear />
                 </Form.Item>
               </Col>
               <Col xs={24} md={6} lg={4}>
-                <Form.Item name="word_type" label="Jenis Entri">
+                <Form.Item name="word_type" label="Jenis">
                   <Select options={wordTypeOptions} />
                 </Form.Item>
               </Col>
@@ -487,6 +656,13 @@ export function CreateWordPage() {
             </Form.Item>
           </Card>
 
+          <Card title="3b. Register & Peringatan">
+            <Text type="secondary" style={{ display: 'block', marginBottom: 12 }}>
+              Penanda gaya bahasa dan peringatan konten (bukan kategori topik).
+            </Text>
+            <UsageLabelsFields />
+          </Card>
+
           {/* 4-6. Bagian opsional (collapsible) */}
           <Collapse
             items={[
@@ -574,8 +750,49 @@ export function CreateWordPage() {
               },
             ]}
           />
+            </>
+          )}
         </Space>
       </Form>
+
+      <KbbiDefinitionPickerModal
+        open={kbbiOpen}
+        initialLemma={String(
+          form.getFieldValue(['meanings', 0, 'translations', 0, 'translation_text']) ?? '',
+        )}
+        onClose={() => setKbbiOpen(false)}
+        onSelect={(suggestion) => {
+          const matchedId = matchWordClassId(
+            wordClassQuery.data ?? [],
+            suggestion.word_class_code,
+            suggestion.word_class_label,
+          );
+          const lemmaId = suggestion.lemma.trim();
+          form.setFieldsValue({
+            meanings: [
+              {
+                ...(form.getFieldValue('meanings')?.[0] ?? {}),
+                word_class_id: matchedId || umumWordClassId,
+                definition: suggestion.definition,
+                is_have_definition: true,
+                is_have_translation: Boolean(lemmaId),
+                order_index: 1,
+                translations: [
+                  {
+                    language_id: defaultLanguageIds.targetId,
+                    translation_type: 'direct' as const,
+                    translation_text: lemmaId,
+                  },
+                ],
+              },
+            ],
+          });
+          const parts = ['Penjelasan arti'];
+          if (matchedId) parts.push('kelas kata');
+          if (lemmaId) parts.push('terjemahan');
+          message.success(`${parts.join(', ')} diisi dari KBBI - silakan review`);
+        }}
+      />
 
       <Flex
         justify={md ? 'space-between' : 'flex-start'}

@@ -12,7 +12,7 @@ import { activeTierSnapshot, apiTiers, hasFallbacks, subscribeTier } from '@/sha
 export function ApiTierBanner() {
   const tier = useSyncExternalStore(subscribeTier, activeTierSnapshot, activeTierSnapshot);
 
-  if (!hasFallbacks || tier.index === 0) return null;
+  if (!hasFallbacks() || tier.index === 0) return null;
 
   const isLast = tier.index === apiTiers.length - 1;
 

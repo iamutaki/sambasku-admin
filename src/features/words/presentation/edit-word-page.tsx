@@ -36,6 +36,7 @@ import { WORD_STATUS_LABELS } from '../domain/word';
 import {
   MeaningFields,
   RelatedWordItem,
+  UsageLabelsFields,
   WordExampleAudiosSection,
   WordLemmaAudiosSection,
   WordVariantsField,
@@ -299,14 +300,14 @@ export function EditWordPage() {
                 </Form.Item>
                 <Form.Item
                   name="lemma"
-                  label="Kata Sambas (Lemma)"
+                  label="Kata / ungkapan Sambas"
                   rules={[{ required: true, message: 'Kata wajib diisi' }, { whitespace: true, message: 'Kata tidak boleh hanya spasi' }]}
                 >
                   <Input placeholder="mis. kata" maxLength={255} allowClear />
                 </Form.Item>
               </Col>
               <Col xs={24} md={6} lg={4}>
-                <Form.Item name="word_type" label="Jenis Entri">
+                <Form.Item name="word_type" label="Jenis">
                   <Select options={wordTypeOptions} />
                 </Form.Item>
               </Col>
@@ -406,6 +407,13 @@ export function EditWordPage() {
                 placeholder="mis. Kekerabatan, Makanan, Alam"
               />
             </Form.Item>
+          </Card>
+
+          <Card title="3b. Register & Peringatan">
+            <Text type="secondary" style={{ display: 'block', marginBottom: 12 }}>
+              Penanda gaya bahasa dan peringatan konten (bukan kategori topik).
+            </Text>
+            <UsageLabelsFields />
           </Card>
 
           {/* 4-6. Bagian opsional (collapsible) */}

@@ -167,6 +167,7 @@ function formValues(overrides: Partial<CreateWordFormValues>): CreateWordFormVal
     language_id: SAMBAS_ID,
     lemma: '  makatn  ',
     word_type: 'word',
+    usage_labels: [],
     meanings: [
       {
         word_class_id: WORD_CLASS_ID,
@@ -185,6 +186,7 @@ describe('buildCreateWordBody', () => {
       language_id: SAMBAS_ID,
       lemma: 'makatn',
       word_type: 'word',
+      usage_labels: [],
       meanings: [
         {
           word_class_id: WORD_CLASS_ID,
@@ -559,6 +561,34 @@ describe('buildCreateWordBody - images (05-support-image)', () => {
     );
     expect(body.images).toEqual([
       { url: 'https://cdn/1.jpg', provider_file_id: 'f1', alt_text: 'ilustrasi', is_primary: true },
+    ]);
+  });
+
+  it('gambar stock Media Explorer membawa provider di body', () => {
+    const body = buildCreateWordBody(
+      formValues({
+        images: [
+          {
+            uid: 'stock-1',
+            status: 'done',
+            url: 'https://images.pexels.com/photos/1/a.jpg',
+            provider: 'pexels',
+            provider_file_id: 'pexels-1',
+            alt_text: 'Foto: A / pexels',
+            is_primary: true,
+          },
+        ],
+      }),
+      'published',
+    );
+    expect(body.images).toEqual([
+      {
+        url: 'https://images.pexels.com/photos/1/a.jpg',
+        provider: 'pexels',
+        provider_file_id: 'pexels-1',
+        alt_text: 'Foto: A / pexels',
+        is_primary: true,
+      },
     ]);
   });
 

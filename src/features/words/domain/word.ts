@@ -11,6 +11,29 @@ export const WORD_TYPE_LABELS: Record<WordType, string> = {
   ungkapan: 'Ungkapan',
 };
 
+/** Register + peringatan konten (closed enum, sinkron API usage-labels). */
+export const USAGE_LABELS = [
+  'kasar',
+  'tabu',
+  'informal',
+  'halus',
+  'seksual',
+  'diskriminatif',
+] as const;
+export type UsageLabel = (typeof USAGE_LABELS)[number];
+
+export const REGISTER_LABELS = ['kasar', 'tabu', 'informal', 'halus'] as const satisfies readonly UsageLabel[];
+export const WARNING_LABELS = ['seksual', 'diskriminatif'] as const satisfies readonly UsageLabel[];
+
+export const USAGE_LABEL_LABELS: Record<UsageLabel, string> = {
+  kasar: 'Kasar',
+  tabu: 'Tabu',
+  informal: 'Informal',
+  halus: 'Halus',
+  seksual: 'Seksual',
+  diskriminatif: 'Diskriminatif',
+};
+
 export const WORD_STATUS_LABELS: Record<WordStatus, string> = {
   draft: 'Draft',
   pending_review: 'Menunggu Review',
@@ -45,6 +68,7 @@ export interface WordListItem {
   language_id: string;
   language_code: string;
   word_type: WordType;
+  usage_labels?: UsageLabel[];
   status: WordStatus;
   is_verified: boolean;
   matched_translation?: string; // hanya saat search_in=translation

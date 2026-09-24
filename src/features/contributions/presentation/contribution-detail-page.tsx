@@ -139,8 +139,8 @@ export function ContributionDetailPage() {
           <Alert
             type="info"
             showIcon
-            message="Satu lemma tayang per bahasa"
-            description="Jika kata dengan lemma sama sudah tayang, Setujui akan menggabungkan makna ke entri itu (bukan membuat entri kedua)."
+            message="Satu kata tayang per bahasa"
+            description="Jika kata dengan ejaan sama sudah tayang, Setujui akan menggabungkan makna ke entri itu (bukan membuat entri kedua)."
           />
         ) : null}
         <Descriptions

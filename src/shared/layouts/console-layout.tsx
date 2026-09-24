@@ -10,6 +10,8 @@ import {
   InboxOutlined,
   LikeOutlined,
   LogoutOutlined,
+  MessageOutlined,
+  NotificationOutlined,
   SafetyCertificateOutlined,
   SearchOutlined,
   StopOutlined,
@@ -31,6 +33,7 @@ const { Sider, Header, Content } = Layout;
 const KAMUS_ROUTES = {
   '/words': { icon: <TranslationOutlined />, label: 'Kata' },
   '/contributions': { icon: <InboxOutlined />, label: 'Review' },
+  '/translation-helps': { icon: <MessageOutlined />, label: 'Bantuan Terjemahan' },
   '/word-suggestions': { icon: <EditOutlined />, label: 'Usul Edit' },
   '/word-reports': { icon: <WarningOutlined />, label: 'Laporan Entri' },
   '/comments': { icon: <CommentOutlined />, label: 'Komentar' },
@@ -40,7 +43,14 @@ const KAMUS_ROUTES = {
 } as const;
 
 type KamusRoute = keyof typeof KAMUS_ROUTES;
-type TopRoute = '/dashboard' | '/users' | '/audit-logs' | '/bug-reports' | '/verifier-applications';
+type TopRoute =
+  | '/dashboard'
+  | '/users'
+  | '/audit-logs'
+  | '/bug-reports'
+  | '/verifier-applications'
+  | '/notification-campaigns'
+  | '/notification-templates';
 type MenuRoute = KamusRoute | TopRoute;
 
 const KAMUS_GROUP_KEY = 'kamus';
@@ -49,6 +59,7 @@ const BREADCRUMB_LABELS: Record<string, string> = {
   dashboard: 'Dashboard',
   words: 'Kata',
   contributions: 'Review',
+  'translation-helps': 'Bantuan Terjemahan',
   'word-suggestions': 'Usul Edit',
   'word-reports': 'Laporan Entri',
   comments: 'Komentar',
@@ -59,6 +70,8 @@ const BREADCRUMB_LABELS: Record<string, string> = {
   'bug-reports': 'Laporan Masalah',
   users: 'Pengguna',
   'verifier-applications': 'Pengajuan verifikator',
+  'notification-campaigns': 'Campaign notifikasi',
+  'notification-templates': 'Template notifikasi',
   profile: 'Profil',
 };
 
@@ -92,7 +105,7 @@ export function ConsoleLayout() {
 
     const kamusChildren = (Object.entries(KAMUS_ROUTES) as [KamusRoute, (typeof KAMUS_ROUTES)[KamusRoute]][])
       .filter(([key]) =>
-        key === '/word-reports'
+        key === '/word-reports' || key === '/translation-helps'
           ? canModerateContent || user?.role === 'editor'
           : key === '/vote-moderation' || key === '/word-suggestions'
             ? canModerateContent
@@ -118,6 +131,16 @@ export function ConsoleLayout() {
         icon: <SafetyCertificateOutlined />,
         label: 'Pengajuan verifikator',
       });
+      items.push({
+        key: '/notification-campaigns',
+        icon: <NotificationOutlined />,
+        label: 'Campaign notifikasi',
+      });
+      items.push({
+        key: '/notification-templates',
+        icon: <NotificationOutlined />,
+        label: 'Template notifikasi',
+      });
       items.push({ key: '/bug-reports', icon: <FlagOutlined />, label: 'Laporan Masalah' });
     }
     items.push({ key: '/audit-logs', icon: <AuditOutlined />, label: 'Audit Log' });
@@ -139,9 +162,13 @@ export function ConsoleLayout() {
               : undefined
         : segments[0] === 'contributions' && segments[1]
           ? 'Detail Kontribusi'
-          : segments[0] === 'verifier-applications' && segments[1]
-            ? 'Detail pengajuan'
-            : undefined;
+          : segments[0] === 'translation-helps' && segments[1]
+            ? 'Detail'
+            : segments[0] === 'verifier-applications' && segments[1]
+              ? 'Detail pengajuan'
+              : segments[0] === 'notification-campaigns' && segments[1]
+                ? 'Detail campaign'
+                : undefined;
     if (subLabel) {
       items.push({ title: subLabel });
     }

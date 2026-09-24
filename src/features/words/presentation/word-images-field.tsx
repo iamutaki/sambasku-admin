@@ -7,12 +7,16 @@ import {
   LoadingOutlined,
   PlusOutlined,
   RedoOutlined,
+  TravelExploreOutlined,
 } from '@ant-design/icons';
 import { Alert, App as AntdApp, Button, Image, Input, Progress, Space, Switch, Tag, Typography, Upload } from 'antd';
 import type { UploadProps } from 'antd';
 import type { WordImageFormValue } from '../domain/create-word';
 import { useUploadWordImage } from '../application/use-upload-word-image';
 import { displayImageUrl } from '@/shared/utils/display-image-url';
+import { MediaExplorerModal } from './media-explorer-modal';
+import type { ShareBackgroundItem } from '../infrastructure/share-backgrounds-api';
+import { STOCK_PROVIDER_LABELS } from '../infrastructure/share-backgrounds-api';
 
 const { Text } = Typography;
 
@@ -31,13 +35,14 @@ export interface WordImagesFieldProps {
  * Preview pakai state lokal (langsung re-render saat file dipilih).
  * Upload dijalankan manual dari beforeUpload (return false) — lebih andal
  * daripada customRequest untuk daftar controlled.
+ * Media Explorer: URL stock eksternal tanpa upload.
  */
 export function WordImagesField({ value, onChange }: WordImagesFieldProps) {
   const [images, setLocalImages] = useState<WordImageFormValue[]>(() => value ?? []);
   // Keep latest list for async upload handlers without reading/writing refs during render
   // (react-hooks/refs). Updated only in setImages + the controlled-value effect below.
   const imagesRef = useRef(value ?? []);
-
+  const [explorerOpen, setExplorerOpen] = useState(false);
   useEffect(() => {
     if (value === undefined) return;
     if (value === imagesRef.current) return;
@@ -71,6 +76,32 @@ export function WordImagesField({ value, onChange }: WordImagesFieldProps) {
     if (img?.localUrl) URL.revokeObjectURL(img.localUrl);
     fileByUid.current.delete(uid);
     setImages(imagesRef.current.filter((img) => img.uid !== uid));
+  };
+
+  const addStockImage = (item: ShareBackgroundItem) => {
+    if (imagesRef.current.length >= MAX_IMAGES) {
+      message.warning(`Maksimal ${MAX_IMAGES} gambar per kata`);
+      return;
+    }
+    const photographer =
+      item.photographer.trim() ||
+      STOCK_PROVIDER_LABELS[item.provider] ||
+      item.provider;
+    const uid = `stock-${item.provider}-${item.id}-${imagesRef.current.length}`;
+    const isPrimary = imagesRef.current.length === 0;
+    setImages([
+      ...imagesRef.current,
+      {
+        uid,
+        fileName: `${photographer} · ${item.provider}`,
+        status: 'done',
+        url: item.url,
+        provider: item.provider,
+        provider_file_id: item.id,
+        alt_text: `Foto: ${photographer} / ${item.provider}`,
+        is_primary: isPrimary,
+      },
+    ]);
   };
 
   const startUpload = async (file: File, uid: string) => {
@@ -206,6 +237,9 @@ export function WordImagesField({ value, onChange }: WordImagesFieldProps) {
                 <Text strong ellipsis style={{ display: 'block', maxWidth: 360 }}>
                   {img.fileName ?? img.url}
                 </Text>
+                {img.provider ? (
+                  <Tag style={{ marginTop: 4 }}>{img.provider}</Tag>
+                ) : null}
                 {img.status === 'uploading' ? (
                   <Progress
                     percent={img.progress ?? 0}
@@ -252,8 +286,9 @@ export function WordImagesField({ value, onChange }: WordImagesFieldProps) {
   return (
     <Space direction="vertical" size={12} style={{ width: '100%' }}>
       <Text type="secondary" style={{ display: 'block' }}>
-        Maksimal {MAX_IMAGES} gambar (jpg/png/webp, maks {MAX_SIZE_MB}MB). Unggah terjadi
-        saat file dipilih; teks alternatif &amp; penanda utama diisi setelah selesai.
+        Maksimal {MAX_IMAGES} gambar (jpg/png/webp, maks {MAX_SIZE_MB}MB) atau dari Media
+        Explorer. Unggah terjadi saat file dipilih; teks alternatif &amp; penanda utama diisi
+        setelah selesai.
       </Text>
 
       {unavailable ? (
@@ -261,11 +296,17 @@ export function WordImagesField({ value, onChange }: WordImagesFieldProps) {
           type="warning"
           showIcon
           message="Penyimpanan gambar belum dikonfigurasi"
-          description="Isi PUBLIC_IMAGE_GITHUB_* di environment API untuk mengaktifkan upload gambar. Kata tetap bisa disimpan tanpa gambar."
+          description="Isi PUBLIC_IMAGE_GITHUB_* di environment API untuk mengaktifkan upload file. Media Explorer (URL stock) tetap bisa dipakai. Kata tetap bisa disimpan tanpa gambar."
         />
       ) : null}
 
       {selectedPanel}
+
+      {!atLimit ? (
+        <Button icon={<TravelExploreOutlined />} onClick={() => setExplorerOpen(true)}>
+          Pilih dari Media Explorer
+        </Button>
+      ) : null}
 
       {!unavailable && !atLimit ? (
         <Upload.Dragger
@@ -299,6 +340,12 @@ export function WordImagesField({ value, onChange }: WordImagesFieldProps) {
           message={`Batas ${MAX_IMAGES} gambar tercapai. Hapus salah satu untuk menambah yang baru.`}
         />
       ) : null}
+
+      <MediaExplorerModal
+        open={explorerOpen}
+        onClose={() => setExplorerOpen(false)}
+        onSelect={addStockImage}
+      />
     </Space>
   );
 }
@@ -423,6 +470,7 @@ function sameImageList(a: WordImageFormValue[], b: WordImageFormValue[]): boolea
       img.uid === other?.uid &&
       img.status === other.status &&
       img.url === other.url &&
+      img.provider === other.provider &&
       img.localUrl === other.localUrl &&
       img.progress === other.progress &&
       img.alt_text === other.alt_text &&

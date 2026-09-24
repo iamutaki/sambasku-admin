@@ -51,7 +51,7 @@ function KbbiPickerBody({
   return (
     <Space direction="vertical" size={12} style={{ width: '100%' }}>
       <Text type="secondary">
-        Ketik lemma bahasa Indonesia - hasil muncul otomatis. Pilih satu definisi
+        Ketik kata Indonesia - hasil muncul otomatis. Pilih satu penjelasan arti
         untuk mengisi field pada form (tetap bisa diedit setelahnya).
       </Text>
 
@@ -77,7 +77,7 @@ function KbbiPickerBody({
       ) : null}
 
       {!isLoading && showIdleHint ? (
-        <Empty description="Ketik lemma untuk mencari di KBBI" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+        <Empty description="Ketik kata untuk mencari di KBBI" image={Empty.PRESENTED_IMAGE_SIMPLE} />
       ) : null}
 
       {!isLoading && result && !result.found ? (

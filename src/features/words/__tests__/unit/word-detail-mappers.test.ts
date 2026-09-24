@@ -17,6 +17,7 @@ function wordDetail(overrides: Partial<WordDetail> = {}): WordDetail {
     language_id: SBS_ID,
     notes: null,
     word_type: 'word',
+    usage_labels: [],
     status: 'published',
     is_verified: false,
     is_corrected: false,
@@ -66,6 +67,7 @@ describe('wordDetailToFormValues', () => {
       language_id: SBS_ID,
       lemma: 'makatn',
       word_type: 'word',
+      usage_labels: [],
       meanings: [
         {
           word_class_id: WC_ID,
@@ -163,6 +165,7 @@ describe('buildUpdateWordBody', () => {
       language_id: SBS_ID,
       lemma: 'makatn betul',
       word_type: 'word',
+      usage_labels: [],
       meanings: [
         {
           word_class_id: WC_ID,

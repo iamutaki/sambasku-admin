@@ -7,7 +7,19 @@ import axios, {
 import { env } from '@/shared/config/env';
 import { restoreSessionUser, sessionStore, userFromJwtClaims } from '@/shared/auth/session';
 import { refreshAccessTokenSingleFlight } from './refresh';
-import { activeTier, advanceTier, hasFallbacks, isInfraFailure, isReplayableMethod } from './failover';
+import { decideFailoverStep, sameHost } from './failover-step';
+import type { AbortLike } from './cold-host-gate';
+import {
+  acquireColdSlot,
+  activeTier,
+  advanceTier,
+  apiTiers,
+  hasFallbacks,
+  isColdTier,
+  isInfraFailure,
+  isReplayableMethod,
+  releaseColdSlot,
+} from './failover';
 import { AuthExpiredError, isAuthExpiredError, normalizeError } from './error';
 import type { ApiErrorEnvelope, ApiOkEnvelope } from './types';
 import { decodeJwtClaims } from '@/shared/utils/jwt';
@@ -40,11 +52,32 @@ export const client = axios.create(BASE_CONFIG);
 // Dipasang di KEDUA instance: refresh harus mengikuti tier yang sama dengan
 // request yang memicunya, kalau tidak refresh menembak tier 1 yang sedang mati
 // sementara request datanya sudah pindah.
-function applyActiveTier(config: InternalAxiosRequestConfig): InternalAxiosRequestConfig {
-  if (!hasFallbacks) return config;
-  const tier = activeTier();
+function releaseCold(config: InternalAxiosRequestConfig | undefined): void {
+  const gated = config as (InternalAxiosRequestConfig & { _coldGated?: boolean }) | undefined;
+  if (!gated?._coldGated) return;
+  gated._coldGated = false;
+  releaseColdSlot();
+}
+
+async function applyActiveTier(config: InternalAxiosRequestConfig): Promise<InternalAxiosRequestConfig> {
+  if (!hasFallbacks()) return config;
+  // Axios di browser hanya punya satu timeout untuk seluruh request, tidak bisa
+  // memisahkan connect dan receive seperti Dio. Yang membatasi ledakan koneksi
+  // 75 detik adalah antrean host dingin, bukan angka timeout-nya.
+  let tier = activeTier();
+  let gated = false;
+  if (isColdTier(tier)) {
+    await acquireColdSlot(config.signal as AbortLike | undefined);
+    gated = true;
+    tier = activeTier();
+    if (!isColdTier(tier)) {
+      releaseColdSlot();
+      gated = false;
+    }
+  }
   config.baseURL = tier.baseUrl;
   config.timeout = tier.timeoutMs;
+  if (gated) (config as InternalAxiosRequestConfig & { _coldGated?: boolean })._coldGated = true;
   return config;
 }
 
@@ -55,8 +88,12 @@ client.interceptors.request.use(applyActiveTier);
 // memicu loop 401 → refresh). Error-nya tetap dinormalisasi ke ApiError
 // agar halaman auth bisa membaca status, error_code, dan message.
 authClient.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    releaseCold(response.config);
+    return response;
+  },
   async (error: AxiosError<ApiErrorEnvelope>) => {
+    releaseCold(error.config);
     const retried = await retryOnNextTier(authClient, error);
     if (retried) return retried;
     return Promise.reject(normalizeError(error));
@@ -90,16 +127,27 @@ async function retryOnNextTier(
   instance: typeof client,
   error: AxiosError<ApiErrorEnvelope>,
 ): Promise<AxiosResponse | null> {
-  if (!hasFallbacks || !isInfraFailure(error)) return null;
+  if (!hasFallbacks() || !isInfraFailure(error)) return null;
 
   const config = error.config as (RetryableRequestConfig & InternalAxiosRequestConfig) | undefined;
-  const next = advanceTier();
-  if (!next || !config) return null;
-  if (config._failoverRetried || !isReplayableMethod(config.method)) return null;
+  if (!config) return null;
+
+  const active = activeTier();
+  const step = decideFailoverStep({
+    replayable: isReplayableMethod(config.method),
+    replayed: config._failoverRetried === true,
+    failedOnActiveHost: sameHost(config.baseURL, active.baseUrl),
+    hasNextTier: active.index + 1 < apiTiers.length,
+  });
+  if (step.advance) advanceTier();
+  if (!step.retry) return null;
+
+  const target = activeTier();
+  if (sameHost(config.baseURL, target.baseUrl)) return null;
 
   config._failoverRetried = true;
-  config.baseURL = next.baseUrl;
-  config.timeout = next.timeoutMs;
+  config.baseURL = target.baseUrl;
+  config.timeout = target.timeoutMs;
   try {
     return await instance(config);
   } catch {
@@ -163,8 +211,12 @@ function isRetryableUnauthorized(error: AxiosError<ApiErrorEnvelope>): boolean {
 }
 
 client.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    releaseCold(response.config);
+    return response;
+  },
   async (error: AxiosError<ApiErrorEnvelope>) => {
+    releaseCold(error.config);
     if (!isRetryableUnauthorized(error)) {
       // Kegagalan infrastruktur didahulukan: 401 bukan kasusnya, dan mencoba
       // refresh saat host-nya sendiri mati hanya menambah satu request gagal.
