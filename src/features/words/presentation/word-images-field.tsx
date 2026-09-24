@@ -21,7 +21,8 @@ import { STOCK_PROVIDER_LABELS } from '../infrastructure/share-backgrounds-api';
 const { Text } = Typography;
 
 const MAX_IMAGES = 10; // cermin validator API (images[] max 10)
-const MAX_SIZE_MB = 5;
+/** Batas file asli sebelum kompresi (foto HP sering >5MB). */
+const MAX_ORIGINAL_SIZE_MB = 20;
 const ACCEPTED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 
 export interface WordImagesFieldProps {
@@ -33,9 +34,8 @@ export interface WordImagesFieldProps {
 /**
  * Section "7. Gambar (opsional)" untuk form tambah & edit kata.
  * Preview pakai state lokal (langsung re-render saat file dipilih).
- * Upload dijalankan manual dari beforeUpload (return false) — lebih andal
- * daripada customRequest untuk daftar controlled.
- * Media Explorer: URL stock eksternal tanpa upload.
+ * Upload: kompresi 720×720 @ JPEG 80 dulu (selaras mobile), lalu
+ * multipart ke GitHub. Media Explorer: URL stock tanpa upload.
  */
 export function WordImagesField({ value, onChange }: WordImagesFieldProps) {
   const [images, setLocalImages] = useState<WordImageFormValue[]>(() => value ?? []);
@@ -142,8 +142,8 @@ export function WordImagesField({ value, onChange }: WordImagesFieldProps) {
       message.warning(`${typed.name}: hanya jpg/png/webp yang didukung`);
       return Upload.LIST_IGNORE;
     }
-    if (typed.size > MAX_SIZE_MB * 1024 * 1024) {
-      message.warning(`${typed.name}: melebihi ${MAX_SIZE_MB}MB`);
+    if (typed.size > MAX_ORIGINAL_SIZE_MB * 1024 * 1024) {
+      message.warning(`${typed.name}: melebihi ${MAX_ORIGINAL_SIZE_MB}MB`);
       return Upload.LIST_IGNORE;
     }
     if (imagesRef.current.length >= MAX_IMAGES) {

@@ -37,6 +37,7 @@ function wordView(overrides: Partial<WordEntityView> = {}): WordEntityView {
     relatedWords: [],
     appearsIn: [],
     variants: [],
+    usageLabels: [],
     ...overrides,
   };
 }
@@ -80,16 +81,25 @@ describe('wordEntityToFormValues', () => {
       meaning_completeness: 'padanan_only',
     });
   });
+
+  it('membawa usage_labels agar koreksi tidak menghapus penanda', () => {
+    const values = wordEntityToFormValues(wordView({ usageLabels: ['kasar', 'seksual'] }));
+    expect(values.usage_labels).toEqual(['kasar', 'seksual']);
+  });
 });
 
 describe('buildCorrectWordBody', () => {
   it('mengirim field kata di root body, bukan di dalam word', () => {
-    const body = buildCorrectWordBody(wordEntityToFormValues(wordView()), { publish: true });
+    const body = buildCorrectWordBody(
+      wordEntityToFormValues(wordView({ usageLabels: ['informal'] })),
+      { publish: true },
+    );
     expect(body).toMatchObject({
       entity_type: 'word',
       language_id: SBS,
       lemma: 'lading',
       publish: true,
+      usage_labels: ['informal'],
       meanings: [
         expect.objectContaining({
           word_class_id: WC,

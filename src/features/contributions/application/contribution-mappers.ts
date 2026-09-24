@@ -1,4 +1,4 @@
-import type { WordType } from '@/features/words/domain/word';
+import { USAGE_LABELS, type UsageLabel, type WordType } from '@/features/words/domain/word';
 import type {
   ContributionDetailPayload,
   ContributionDetailView,
@@ -149,6 +149,12 @@ function normalizeWordEntity(raw: unknown): WordEntityView {
       })
     : [];
   const variants = Array.isArray(r.variants) ? r.variants.map(normalizeVariant) : [];
+  const rawUsageLabels = pickDefined(r, ['usage_labels', 'usageLabels']);
+  const usageLabels = Array.isArray(rawUsageLabels)
+    ? rawUsageLabels
+        .map((code) => String(code))
+        .filter((code): code is UsageLabel => (USAGE_LABELS as readonly string[]).includes(code))
+    : [];
 
   return {
     id: String(pickDefined(r, ['id']) ?? ''),
@@ -160,6 +166,7 @@ function normalizeWordEntity(raw: unknown): WordEntityView {
     notes: asString(pickDefined(r, ['notes'])),
     isVerified: Boolean(pickDefined(r, ['is_verified', 'isVerified']) ?? false),
     isCorrected: Boolean(pickDefined(r, ['is_corrected', 'isCorrected']) ?? false),
+    usageLabels,
     meanings,
     categories,
     pronunciations,

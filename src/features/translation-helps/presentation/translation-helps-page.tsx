@@ -147,7 +147,7 @@ export function TranslationHelpsPage() {
       <Alert
         type="warning"
         showIcon
-        message="Hanya admin, root, reviewer, dan editor yang dapat memoderasi bantuan terjemahan."
+        message="Hanya admin, root, reviewer, dan editor yang dapat memoderasi tanya terjemahan."
       />
     );
   }
@@ -155,8 +155,8 @@ export function TranslationHelpsPage() {
   return (
     <>
       <PageHeader
-        title="Bantuan Terjemahan"
-        subtitle="Antrean permintaan bantuan terjemahan dari aplikasi."
+        title="Tanya Terjemahan"
+        subtitle="Antrean pertanyaan terjemahan dari aplikasi."
         extra={
           <Button icon={<ReloadOutlined />} onClick={() => refetch()}>
             Muat ulang

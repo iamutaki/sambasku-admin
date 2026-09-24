@@ -47,7 +47,7 @@ import { ImageCensorEditor } from './image-censor-editor';
 const { Paragraph, Text } = Typography;
 
 /**
- * Detail moderasi bantuan terjemahan — /translation-helps/:id.
+ * Detail moderasi tanya terjemahan — /translation-helps/:id.
  * Pending + gambar: editor sensor opsional sebelum Setujui (multipart file_0..).
  */
 export function TranslationHelpDetailPage() {
@@ -107,7 +107,7 @@ export function TranslationHelpDetailPage() {
         id: detail.id,
         censoredFiles: anyCensored ? files : undefined,
       });
-      message.success('Bantuan terjemahan disetujui dan ditayangkan.');
+      message.success('Tanya terjemahan disetujui dan ditayangkan.');
       setCensoredBlobs([]);
       setEditingIndex(null);
     } catch (err) {
@@ -124,7 +124,7 @@ export function TranslationHelpDetailPage() {
     }
     try {
       await rejectMutation.mutateAsync({ id: detail.id, note });
-      message.success('Bantuan terjemahan ditolak.');
+      message.success('Tanya terjemahan ditolak.');
       setRejectOpen(false);
       setRejectNote('');
     } catch (err) {
@@ -143,7 +143,7 @@ export function TranslationHelpDetailPage() {
       onOk: async () => {
         try {
           await takedownMutation.mutateAsync({ id: detail.id });
-          message.success('Bantuan terjemahan ditarik dari feed.');
+          message.success('Tanya terjemahan ditarik dari feed.');
         } catch (err) {
           message.warning(normalizeError(err).message || 'Gagal menarik');
           throw err;
@@ -182,13 +182,13 @@ export function TranslationHelpDetailPage() {
   };
 
   if (detailQuery.isPending) {
-    return <PageLoading tip="Memuat detail bantuan terjemahan…" />;
+    return <PageLoading tip="Memuat detail tanya terjemahan…" />;
   }
 
   if (detailQuery.isError || !detail) {
     return (
       <>
-        <PageHeader title="Bantuan Terjemahan" subtitle="Gagal memuat detail." />
+        <PageHeader title="Tanya Terjemahan" subtitle="Gagal memuat detail." />
         <Alert
           type="error"
           showIcon
@@ -209,7 +209,7 @@ export function TranslationHelpDetailPage() {
   return (
     <>
       <PageHeader
-        title="Detail Bantuan Terjemahan"
+        title="Detail Tanya Terjemahan"
         subtitle={
           detail.username
             ? `Dari ${detail.username} · ${formatDateTime(detail.created_at)}`
@@ -473,7 +473,7 @@ export function TranslationHelpDetailPage() {
       </Space>
 
       <Modal
-        title="Tolak bantuan terjemahan"
+        title="Tolak tanya terjemahan"
         open={rejectOpen}
         onCancel={() => {
           setRejectOpen(false);

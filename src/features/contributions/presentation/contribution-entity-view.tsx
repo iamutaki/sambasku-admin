@@ -8,7 +8,7 @@ import {
   TRANSLATION_TYPE_LABELS,
   VARIANT_TYPE_LABELS,
 } from '@/features/words/domain/create-word';
-import { WORD_STATUS_LABELS, WORD_TYPE_LABELS } from '@/features/words/domain/word';
+import { WORD_STATUS_LABELS, WORD_TYPE_LABELS, USAGE_LABEL_LABELS, type UsageLabel } from '@/features/words/domain/word';
 import type {
   ContributionDetailView,
   ExampleChildData,
@@ -160,6 +160,27 @@ function WordEntityDetail({ word, dialectLabel }: { word: WordEntityView; dialec
     <>
       <Section title="Data Kata Dasar">
         <Descriptions size="small" column={2} items={basics} />
+      </Section>
+
+      <Section title="Register & peringatan">
+        {word.usageLabels.length ? (
+          <Space size={4} wrap>
+            {word.usageLabels.map((code) => (
+              <Tag
+                key={code}
+                color={
+                  code === 'kasar' || code === 'tabu' || code === 'seksual' || code === 'diskriminatif'
+                    ? 'volcano'
+                    : 'default'
+                }
+              >
+                {USAGE_LABEL_LABELS[code as UsageLabel] ?? code}
+              </Tag>
+            ))}
+          </Space>
+        ) : (
+          <Text type="secondary">Tidak ada</Text>
+        )}
       </Section>
 
       {word.meanings.length ? (
