@@ -1,11 +1,20 @@
 import { AxiosError, type AxiosAdapter, type InternalAxiosRequestConfig } from 'axios';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { client } from '../client';
+import { authClient, client } from '../client';
 import { ColdHostGate } from '../cold-host-gate';
-import { __configureFailoverForTests, activeTier, advanceTier } from '../failover';
+import {
+  __configureFailoverForTests,
+  activeTier,
+  advanceTier,
+  getForcedTierIndex,
+  isFailoverReplayable,
+  loadForcedTier,
+  setForcedTier,
+} from '../failover';
 import { decideFailoverStep } from '../failover-step';
 
 const TIERS = ['https://t1.test/api/v1', 'https://t2.test/api/v1', 'https://t3.test/api/v1'] as const;
+const FORCED_TIER_STORAGE_KEY = 'console.forcedApiTier';
 
 function ok(config: InternalAxiosRequestConfig) {
   return {
@@ -38,6 +47,24 @@ describe('decideFailoverStep', () => {
   });
 });
 
+describe('isFailoverReplayable', () => {
+  it('GET/HEAD selalu boleh diulang', () => {
+    expect(isFailoverReplayable('GET', '/words')).toBe(true);
+    expect(isFailoverReplayable('HEAD', '/health')).toBe(true);
+  });
+
+  it('POST /auth/refresh dan /auth/login boleh diulang', () => {
+    expect(isFailoverReplayable('POST', '/auth/refresh')).toBe(true);
+    expect(isFailoverReplayable('POST', '/auth/login')).toBe(true);
+  });
+
+  it('POST mutasi data tidak boleh diulang', () => {
+    expect(isFailoverReplayable('POST', '/contributions')).toBe(false);
+    expect(isFailoverReplayable('POST', '/auth/logout')).toBe(false);
+    expect(isFailoverReplayable('POST', '/auth/change-password')).toBe(false);
+  });
+});
+
 describe('ColdHostGate', () => {
   it('tidak melebihi dua slot', async () => {
     const gate = new ColdHostGate(2);
@@ -60,9 +87,20 @@ describe('ColdHostGate', () => {
 
 describe('failover client', () => {
   const hosts: string[] = [];
+  const storage = new Map<string, string>();
 
   beforeEach(() => {
     hosts.length = 0;
+    storage.clear();
+    vi.stubGlobal('localStorage', {
+      getItem: (key: string) => storage.get(key) ?? null,
+      setItem: (key: string, value: string) => {
+        storage.set(key, value);
+      },
+      removeItem: (key: string) => {
+        storage.delete(key);
+      },
+    });
     vi.stubGlobal(
       'fetch',
       vi.fn(() => Promise.resolve(new Response(null, { status: 200 }))),
@@ -146,6 +184,54 @@ describe('failover client', () => {
     await pending;
 
     expect(hosts.every((host) => host.includes('t1.test'))).toBe(true);
+    expect(activeTier().index).toBe(1);
+  });
+
+  it('POST /auth/refresh diulang ke tier 2 saat tier 1 gagal infrastruktur', async () => {
+    authClient.defaults.adapter = (async (config) => {
+      hosts.push(config.baseURL ?? '');
+      if ((config.baseURL ?? '').includes('t1.test')) throw down(config);
+      return {
+        data: {
+          success: true,
+          data: { access_token: 'new-access', expires_in: 900 },
+        },
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config,
+      };
+    }) satisfies AxiosAdapter;
+
+    const res = await authClient.post('/auth/refresh', {});
+    expect(res.status).toBe(200);
+    expect(hosts.map((host) => new URL(host).host)).toEqual(['t1.test', 't2.test']);
+    expect(activeTier().index).toBe(1);
+  });
+
+  it('POST /auth/login diulang ke tier 2 saat tier 1 gagal infrastruktur', async () => {
+    authClient.defaults.adapter = (async (config) => {
+      hosts.push(config.baseURL ?? '');
+      if ((config.baseURL ?? '').includes('t1.test')) throw down(config, 502);
+      return {
+        data: {
+          success: true,
+          data: { access_token: 'login-access', expires_in: 900 },
+        },
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config,
+      };
+    }) satisfies AxiosAdapter;
+
+    const res = await authClient.post('/auth/login', {
+      email: 'a@b.c',
+      password: 'x',
+      client_type: 'web',
+    });
+    expect(res.status).toBe(200);
+    expect(hosts.map((host) => new URL(host).host)).toEqual(['t1.test', 't2.test']);
     expect(activeTier().index).toBe(1);
   });
 
@@ -236,5 +322,49 @@ describe('failover client', () => {
 
     __configureFailoverForTests(TIERS);
     expect(signals[0]?.aborted).toBe(true);
+  });
+
+  it('setForcedTier(1) memakai tier 2 dan infra failure tidak advance', async () => {
+    setForcedTier(1);
+    expect(getForcedTierIndex()).toBe(1);
+    expect(activeTier().index).toBe(1);
+    expect(localStorage.getItem(FORCED_TIER_STORAGE_KEY)).toBe('1');
+
+    client.defaults.adapter = (async (config) => {
+      hosts.push(config.baseURL ?? '');
+      throw down(config);
+    }) satisfies AxiosAdapter;
+
+    await expect(client.get('/words/1')).rejects.toBeTruthy();
+
+    expect(hosts.map((host) => new URL(host).host)).toEqual(['t2.test']);
+    expect(activeTier().index).toBe(1);
+    expect(advanceTier()).toBeNull();
+  });
+
+  it('setForcedTier(null) mengembalikan Auto dan advance pin jalan lagi', async () => {
+    setForcedTier(2);
+    expect(activeTier().index).toBe(2);
+    setForcedTier(null);
+    expect(getForcedTierIndex()).toBeNull();
+    expect(localStorage.getItem(FORCED_TIER_STORAGE_KEY)).toBeNull();
+    expect(activeTier().index).toBe(0);
+
+    client.defaults.adapter = (async (config) => {
+      hosts.push(config.baseURL ?? '');
+      if ((config.baseURL ?? '').includes('t1.test')) throw down(config);
+      return ok(config);
+    }) satisfies AxiosAdapter;
+
+    await client.get('/words/1');
+    expect(hosts.map((host) => new URL(host).host)).toEqual(['t1.test', 't2.test']);
+    expect(activeTier().index).toBe(1);
+  });
+
+  it('loadForcedTier membaca override dari localStorage', () => {
+    localStorage.setItem(FORCED_TIER_STORAGE_KEY, '2');
+    loadForcedTier();
+    expect(getForcedTierIndex()).toBe(2);
+    expect(activeTier().index).toBe(2);
   });
 });

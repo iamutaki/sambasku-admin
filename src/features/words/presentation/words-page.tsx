@@ -27,16 +27,18 @@ import {
 import { useDebouncedValue } from '@/shared/hooks/use-debounced-value';
 import { ImportWordsDrawer } from './import-words-drawer';
 import { WordDuplicatesPanel } from './word-duplicates-panel';
+import { WordCommaSplitsPanel } from './word-comma-splits-panel';
 import { useDuplicateWordGroups } from '../application/use-duplicate-words';
+import { useCommaSplits } from '../application/use-comma-splits';
 
 const columnHelper = createColumnHelper<WordListItem>();
 
 const wordTypeOptions = WORD_TYPES.map((type) => ({ value: type, label: WORD_TYPE_LABELS[type] }));
 
-/** Tabs tayang di menu Kata (default: Tayang). Duplikasi = panel terpisah. */
-type WordsTab = 'published' | 'unpublished' | 'all' | 'duplicates';
+/** Tabs tayang di menu Kata. Duplikasi & Pemisahan = panel terpisah. */
+type WordsTab = 'published' | 'unpublished' | 'all' | 'duplicates' | 'comma_splits';
 
-const LIST_TABS: { key: Exclude<WordsTab, 'duplicates'>; label: string; published?: boolean }[] = [
+const LIST_TABS: { key: Exclude<WordsTab, 'duplicates' | 'comma_splits'>; label: string; published?: boolean }[] = [
   { key: 'published', label: 'Tayang', published: true },
   { key: 'unpublished', label: 'Tidak tayang', published: false },
   { key: 'all', label: 'Semua' },
@@ -63,11 +65,15 @@ export function WordsPage() {
   const [verifyingId, setVerifyingId] = useState<string | undefined>();
   const q = useDebouncedValue(searchInput, 300);
   const isDuplicatesTab = activeTab === 'duplicates';
+  const isCommaSplitsTab = activeTab === 'comma_splits';
+  const isSpecialTab = isDuplicatesTab || isCommaSplitsTab;
   const published = LIST_TABS.find((t) => t.key === activeTab)?.published;
   const duplicatesQuery = useDuplicateWordGroups(true);
   const duplicateCount = duplicatesQuery.data?.total_groups;
+  const commaSplitsQuery = useCommaSplits(true);
+  const commaSplitCount = commaSplitsQuery.data?.total;
 
-  const listArgs: UseWordListArgs = { q, wordType, isVerified, published, enabled: !isDuplicatesTab };
+  const listArgs: UseWordListArgs = { q, wordType, isVerified, published, enabled: !isSpecialTab };
   const { items, hasMore, loadMore, isLoading, isFetching, isFetchingNextPage, isError, error, refetch } =
     useWordList(listArgs);
 
@@ -311,12 +317,21 @@ export function WordsPage() {
                 ? `Duplikasi (${duplicateCount})`
                 : 'Duplikasi',
           },
+          {
+            key: 'comma_splits',
+            label:
+              commaSplitCount && commaSplitCount > 0
+                ? `Pemisahan (${commaSplitCount})`
+                : 'Pemisahan',
+          },
         ]}
         style={{ marginBottom: 8 }}
       />
 
       {isDuplicatesTab ? (
         <WordDuplicatesPanel canMerge={canVerify} />
+      ) : isCommaSplitsTab ? (
+        <WordCommaSplitsPanel canApply={canVerify} />
       ) : (
         <>
       <Flex wrap gap={12} style={{ marginBottom: 16 }}>
@@ -367,7 +382,14 @@ export function WordsPage() {
       </Flex>
         </>
       )}
-      <ImportWordsDrawer open={importOpen} canVerify={canVerify} onClose={() => setImportOpen(false)} />
+      <ImportWordsDrawer
+        open={importOpen}
+        canVerify={canVerify}
+        onClose={() => setImportOpen(false)}
+        onImported={({ drafts }) => {
+          if (drafts > 0) setActiveTab('unpublished');
+        }}
+      />
     </>
   );
 }

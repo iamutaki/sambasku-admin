@@ -285,13 +285,31 @@ export function TranslationHelpDetailPage() {
                 {detail.images.map((img, index) => {
                   const local = censoredPreviewUrls[index];
                   return (
-                    <div key={img.provider_file_id} style={{ position: 'relative' }}>
+                    <div
+                      key={img.provider_file_id}
+                      style={{
+                        position: 'relative',
+                        width: 120,
+                        height: 120,
+                        borderRadius: 8,
+                        background: 'rgba(0,0,0,0.04)',
+                        overflow: 'hidden',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                    >
                       <Image
                         src={local || previewImageUrl(img)}
                         alt={`Lampiran ${index + 1}`}
-                        width={120}
-                        height={120}
-                        style={{ objectFit: 'cover', borderRadius: 8 }}
+                        style={{
+                          maxWidth: 120,
+                          maxHeight: 120,
+                          width: 'auto',
+                          height: 'auto',
+                          objectFit: 'contain',
+                          borderRadius: 8,
+                        }}
                       />
                       {local ? (
                         <Tag color="blue" style={{ position: 'absolute', top: 4, left: 4, margin: 0 }}>

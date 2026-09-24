@@ -117,6 +117,7 @@ export async function unpublishWordRequest(id: string, signal?: AbortSignal): Pr
 export interface ImportWordPayload {
   lemma: string;
   verify: boolean;
+  verified: boolean;
   notes?: string;
   meanings: { translation?: string; definition?: string; example?: string }[];
 }
@@ -188,3 +189,79 @@ export async function mergeDuplicateWordsRequest(body: {
   >('/admin/words/duplicates/merge', body);
   return res.data.data;
 }
+
+export interface CommaSplitLemmaDto {
+  word_id: string;
+  lemma: string;
+  language_id: string;
+  language_code: string;
+  word_type: WordListItem['word_type'];
+  status: WordListItem['status'];
+  is_verified: boolean;
+  meanings_count: number;
+  suggested_parts: string[];
+  meaning_preview: string[];
+}
+
+export interface CommaSplitTranslationDto {
+  meaning_translation_id: string;
+  meaning_id: string;
+  word_id: string;
+  lemma: string;
+  translation_text: string;
+  language_id: string;
+  language_code: string;
+  suggested_parts: string[];
+  definition: string;
+  word_class_id: string | null;
+}
+
+export async function listCommaSplitsRequest(
+  signal?: AbortSignal,
+): Promise<{
+  total: number;
+  lemmas: CommaSplitLemmaDto[];
+  translations: CommaSplitTranslationDto[];
+}> {
+  const res = await client.get<
+    ApiOkEnvelope<{
+      total: number;
+      lemmas: CommaSplitLemmaDto[];
+      translations: CommaSplitTranslationDto[];
+    }>
+  >('/admin/words/comma-splits', { signal });
+  return res.data.data;
+}
+
+export async function applyCommaSplitRequest(
+  body:
+    | { kind: 'lemma'; word_id: string; parts: string[] }
+    | { kind: 'translation'; meaning_translation_id: string; parts: string[] },
+): Promise<{
+  kind: 'lemma' | 'translation';
+  word_id: string;
+  created_word_ids?: string[];
+  meaning_ids?: string[];
+}> {
+  const res = await client.post<
+    ApiOkEnvelope<{
+      kind: 'lemma' | 'translation';
+      word_id: string;
+      created_word_ids?: string[];
+      meaning_ids?: string[];
+    }>
+  >('/admin/words/comma-splits/apply', body);
+  return res.data.data;
+}
+
+export async function markCommaLiteralRequest(
+  body:
+    | { kind: 'lemma'; word_id: string }
+    | { kind: 'translation'; meaning_translation_id: string },
+): Promise<{ kind: 'lemma' | 'translation'; id: string }> {
+  const res = await client.post<
+    ApiOkEnvelope<{ kind: 'lemma' | 'translation'; id: string }>
+  >('/admin/words/comma-splits/mark-literal', body);
+  return res.data.data;
+}
+

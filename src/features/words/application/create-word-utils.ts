@@ -122,6 +122,7 @@ export function buildCreateWordBody(
     language_id: values.language_id as string,
     ...(values.dialect_id ? { dialect_id: values.dialect_id } : {}),
     lemma: (values.lemma as string).trim(),
+    lemma_allows_comma: values.lemma_allows_comma === true,
     ...(values.notes?.trim() ? { notes: values.notes.trim() } : {}),
     word_type: values.word_type ?? 'word',
     usage_labels: values.usage_labels ?? [],
@@ -182,6 +183,7 @@ function normalizeMeaning(
       language_id: t.language_id as string,
       translation_text: (t.translation_text as string).trim(),
       translation_type: t.translation_type ?? 'direct',
+      ...(t.translation_allows_comma ? { translation_allows_comma: true } : {}),
     }));
 
   const hasDefinition = meaning.is_have_definition !== false;
@@ -261,6 +263,7 @@ function buildMeaningOverride(
       language_id: t.language_id as string,
       translation_text: (t.translation_text as string).trim(),
       translation_type: t.translation_type ?? 'direct',
+      ...(t.translation_allows_comma ? { translation_allows_comma: true } : {}),
     }));
   const examples: CreateWordRequestExample[] = (override.examples ?? [])
     .filter((e) => e.source_language_id && e.source_sentence?.trim())
@@ -323,6 +326,7 @@ export function buildImages(raw: WordImageFormValue[] | undefined): WordImageInp
       ...(img.sha ? { sha: img.sha } : {}),
       ...(img.alt_text?.trim() ? { alt_text: img.alt_text.trim() } : {}),
       is_primary: img.is_primary ?? false,
+      content_warnings: img.content_warnings ?? [],
     }));
 }
 

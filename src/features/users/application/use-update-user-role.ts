@@ -1,7 +1,13 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { App } from 'antd';
 import { normalizeError } from '@/shared/api/error';
-import { setCanContributeRequest, updateUserRoleRequest } from '../infrastructure/user-admin-api';
+import {
+  createAdminUserRequest,
+  setCanContributeRequest,
+  setUserActiveRequest,
+  updateUserRoleRequest,
+  type CreateAdminUserInput,
+} from '../infrastructure/user-admin-api';
 import type { AdminUserRole } from '../domain/user-admin';
 
 export interface UpdateRoleVariables {
@@ -52,6 +58,45 @@ export function useSetCanContribute() {
     },
     onError: (err) => {
       message.warning(normalizeError(err).message || 'Gagal mengubah hak kontribusi');
+    },
+  });
+}
+
+export function useCreateAdminUser() {
+  const queryClient = useQueryClient();
+  const { message } = App.useApp();
+  return useMutation({
+    mutationFn: (input: CreateAdminUserInput) => createAdminUserRequest(input),
+    onSuccess: async (user) => {
+      await queryClient.invalidateQueries({ queryKey: ['admin-users'] });
+      message.success(
+        user.is_active
+          ? `${user.username} ditambahkan dan bisa masuk.`
+          : `${user.username} ditambahkan dalam status nonaktif.`,
+      );
+    },
+    onError: (err) => {
+      message.warning(normalizeError(err).message || 'Gagal menambah pengguna');
+    },
+  });
+}
+
+export function useSetUserActive() {
+  const queryClient = useQueryClient();
+  const { message } = App.useApp();
+  return useMutation({
+    mutationFn: (vars: { id: string; isActive: boolean; username: string }) =>
+      setUserActiveRequest(vars.id, vars.isActive),
+    onSuccess: async (_, vars) => {
+      await queryClient.invalidateQueries({ queryKey: ['admin-users'] });
+      message.success(
+        vars.isActive ? `${vars.username} diaktifkan.` : `${vars.username} dinonaktifkan.`,
+      );
+    },
+    onError: (err, vars) => {
+      message.warning(
+        `Gagal mengubah status "${vars.username}": ${normalizeError(err).message || 'Kesalahan tidak diketahui'}`,
+      );
     },
   });
 }

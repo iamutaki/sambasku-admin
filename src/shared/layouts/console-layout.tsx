@@ -27,6 +27,7 @@ import { useAuth } from '@/shared/auth/use-auth';
 import { ROLE_LABELS, type UserRole } from '@/features/auth/domain/user';
 import { useLogout } from '@/features/auth/application/use-logout';
 import { ApiTierBanner } from '@/shared/components/api-tier-banner';
+import { ApiHostSwitcher } from '@/shared/components/api-host-switcher';
 import { App as AntdApp } from 'antd';
 
 const { Sider, Header, Content } = Layout;
@@ -253,33 +254,36 @@ export function ConsoleLayout() {
           }}
         >
           <Breadcrumb items={breadcrumbItems} />
-          <Dropdown
-            menu={{
-              items: [
-                { key: 'profile', icon: <UserOutlined />, label: 'Profil' },
-                { key: 'logout', icon: <LogoutOutlined />, label: 'Keluar', danger: true },
-              ],
-              onClick: async ({ key }) => {
-                if (key === 'profile') {
-                  navigate({ to: '/profile' });
-                  return;
-                }
-                if (key !== 'logout') return;
-                await logoutMutation.mutateAsync(undefined, {
-                  onError: () => message.warning('Gagal logout di server, tetapi sesi lokal dibersihkan'),
-                });
-              },
-            }}
-            trigger={['click']}
-          >
-            <Button type="text" style={{ height: '100%' }}>
-              <Space size={8}>
-                <Avatar size="small" icon={<UserOutlined />} />
-                <Typography.Text strong>{user?.username ?? 'Pengguna'}</Typography.Text>
-                {user ? <Tag color="blue">{ROLE_LABELS[user.role as UserRole] ?? user.role}</Tag> : null}
-              </Space>
-            </Button>
-          </Dropdown>
+          <Space size={16} align="center">
+            {user?.role === 'root' || user?.role === 'admin' ? <ApiHostSwitcher /> : null}
+            <Dropdown
+              menu={{
+                items: [
+                  { key: 'profile', icon: <UserOutlined />, label: 'Profil' },
+                  { key: 'logout', icon: <LogoutOutlined />, label: 'Keluar', danger: true },
+                ],
+                onClick: async ({ key }) => {
+                  if (key === 'profile') {
+                    navigate({ to: '/profile' });
+                    return;
+                  }
+                  if (key !== 'logout') return;
+                  await logoutMutation.mutateAsync(undefined, {
+                    onError: () => message.warning('Gagal logout di server, tetapi sesi lokal dibersihkan'),
+                  });
+                },
+              }}
+              trigger={['click']}
+            >
+              <Button type="text" style={{ height: '100%' }}>
+                <Space size={8}>
+                  <Avatar size="small" icon={<UserOutlined />} />
+                  <Typography.Text strong>{user?.username ?? 'Pengguna'}</Typography.Text>
+                  {user ? <Tag color="blue">{ROLE_LABELS[user.role as UserRole] ?? user.role}</Tag> : null}
+                </Space>
+              </Button>
+            </Dropdown>
+          </Space>
         </Header>
         <Content className="console-layout__content">
           <ApiTierBanner />

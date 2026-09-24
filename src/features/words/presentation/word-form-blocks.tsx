@@ -594,6 +594,13 @@ export function MeaningFields({
                                 }
                               />
                             </Form.Item>
+                            <Form.Item
+                              name={[tf.name, 'translation_allows_comma']}
+                              valuePropName="checked"
+                              style={{ marginTop: -12 }}
+                            >
+                              <Checkbox>Padanan memang mengandung koma (bukan multi-makna)</Checkbox>
+                            </Form.Item>
                           </Col>
                           <Col flex="140px">
                             <Form.Item name={[tf.name, 'translation_type']} label="Tipe" initialValue="direct">

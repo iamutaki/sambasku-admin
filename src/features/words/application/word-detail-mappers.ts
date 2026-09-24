@@ -25,6 +25,7 @@ export function wordDetailToFormValues(detail: WordDetail): CreateWordFormValues
   return {
     language_id: detail.language_id,
     lemma: detail.lemma,
+    lemma_allows_comma: detail.lemma_allows_comma ?? false,
     ...(detail.notes?.trim() ? { notes: detail.notes } : {}),
     word_type: detail.word_type,
     usage_labels: detail.usage_labels ?? [],
@@ -48,6 +49,7 @@ export function wordDetailToFormValues(detail: WordDetail): CreateWordFormValues
           language_id: t.language_id,
           translation_text: t.translation_text,
           translation_type: t.translation_type as TranslationType,
+          translation_allows_comma: t.translation_allows_comma ?? false,
         })),
         examples:
           examples.length > 0
@@ -86,6 +88,7 @@ export function wordDetailToFormValues(detail: WordDetail): CreateWordFormValues
       ...(i.sha ? { sha: i.sha } : {}),
       alt_text: i.alt_text ?? undefined,
       is_primary: i.is_primary,
+      content_warnings: i.content_warnings ?? [],
       status: 'done' as const,
     })),
   };

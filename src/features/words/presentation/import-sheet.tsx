@@ -1,4 +1,12 @@
-import { useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent } from 'react';
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+  type KeyboardEvent,
+  type PointerEvent as ReactPointerEvent,
+} from 'react';
 import { BookOutlined, DeleteOutlined } from '@ant-design/icons';
 import { Checkbox } from 'antd';
 
@@ -15,14 +23,63 @@ export interface SheetWord {
   id: string;
   lemma: string;
   verify: boolean;
+  verified: boolean;
   meanings: SheetMeaning[];
   message?: string;
 }
 
 type TextCol = 'lemma' | 'translation' | 'definition' | 'example';
-type ColId = TextCol | 'skip' | 'verify' | 'remove';
+type ColId = TextCol | 'skip' | 'verify' | 'verified' | 'remove';
 
 const TEXT_COLS: TextCol[] = ['lemma', 'translation', 'definition', 'example'];
+
+const GUTTER_WIDTH = 44;
+const MIN_TEXT_WIDTH = 96;
+const COL_WIDTH_STORAGE_KEY = 'sambasku.import-sheet.col-widths';
+const DEFAULT_TEXT_WIDTH: Record<TextCol, number> = {
+  lemma: 180,
+  translation: 200,
+  definition: 280,
+  example: 220,
+};
+const ACTION_WIDTH: Record<Exclude<ColId, TextCol>, number> = {
+  skip: 72,
+  verify: 96,
+  verified: 110,
+  remove: 40,
+};
+
+function loadTextWidths(): Record<TextCol, number> {
+  try {
+    const raw = localStorage.getItem(COL_WIDTH_STORAGE_KEY);
+    if (!raw) return { ...DEFAULT_TEXT_WIDTH };
+    const parsed = JSON.parse(raw) as Partial<Record<TextCol, number>>;
+    const next = { ...DEFAULT_TEXT_WIDTH };
+    for (const col of TEXT_COLS) {
+      const value = parsed[col];
+      if (typeof value === 'number' && Number.isFinite(value)) {
+        next[col] = Math.max(MIN_TEXT_WIDTH, value);
+      }
+    }
+    return next;
+  } catch {
+    return { ...DEFAULT_TEXT_WIDTH };
+  }
+}
+
+function isTextCol(col: ColId): col is TextCol {
+  return TEXT_COLS.includes(col as TextCol);
+}
+
+function colWidth(col: ColId, textWidths: Record<TextCol, number>) {
+  return isTextCol(col) ? textWidths[col] : ACTION_WIDTH[col];
+}
+
+function fitTextarea(el: HTMLTextAreaElement | null) {
+  if (!el) return;
+  el.style.height = '0px';
+  el.style.height = `${Math.max(28, el.scrollHeight)}px`;
+}
 
 const GRID = '#d0d0d0';
 const HEADER_BG = '#f3f3f3';
@@ -50,6 +107,7 @@ export function ImportSheet({
   onText,
   onSkip,
   onVerify,
+  onVerified,
   onKbbi,
   onRemove,
   query = '',
@@ -59,6 +117,7 @@ export function ImportSheet({
   onText: (wordId: string, rowNumber: number, col: TextCol, value: string) => void;
   onSkip: (wordId: string, rowNumber: number, skipped: boolean) => void;
   onVerify: (wordId: string, verify: boolean) => void;
+  onVerified: (wordId: string, verified: boolean) => void;
   onKbbi: (wordId: string, rowNumber: number, translation: string) => void;
   onRemove: (wordId: string, rowNumber: number) => void;
   query?: string;
@@ -66,7 +125,7 @@ export function ImportSheet({
   const cols: ColId[] = [
     ...TEXT_COLS,
     'skip',
-    ...(canVerify ? (['verify'] as const) : []),
+    ...(canVerify ? (['verify', 'verified'] as const) : []),
     'remove',
   ];
   const needle = query.trim().toLowerCase();
@@ -79,14 +138,17 @@ export function ImportSheet({
   );
   const [active, setActive] = useState<{ row: number; col: number }>({ row: 0, col: 0 });
   const [edit, setEdit] = useState<{ row: number; col: number; draft: string } | null>(null);
+  const [textWidths, setTextWidths] = useState(loadTextWidths);
   const editRef = useRef(edit);
+  const widthsRef = useRef(textWidths);
   const scroller = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
   const hadEdit = useRef(false);
 
   useEffect(() => {
     if (edit) {
       hadEdit.current = true;
+      fitTextarea(inputRef.current);
       inputRef.current?.focus();
       inputRef.current?.setSelectionRange(inputRef.current.value.length, inputRef.current.value.length);
       return;
@@ -167,6 +229,7 @@ export function ImportSheet({
     const id = cols[active.col];
     if (id === 'skip') onSkip(current.word.id, current.meaning.rowNumber, !current.meaning.skipped);
     if (id === 'verify') onVerify(current.word.id, !current.word.verify);
+    if (id === 'verified') onVerified(current.word.id, !current.word.verified);
     if (id === 'remove') removeActiveRow();
   };
 
@@ -228,7 +291,7 @@ export function ImportSheet({
     } else if (event.key === ' ') {
       event.preventDefault();
       const id = cols[col];
-      if (id === 'skip' || id === 'verify' || id === 'remove') toggleActive();
+      if (id === 'skip' || id === 'verify' || id === 'verified' || id === 'remove') toggleActive();
       else beginEdit(row, col, '');
     } else if (event.key.length === 1 && !event.metaKey && !event.ctrlKey && !event.altKey) {
       event.preventDefault();
@@ -237,7 +300,49 @@ export function ImportSheet({
   };
 
   const stickyGutter: CSSProperties = { position: 'sticky', left: 0, zIndex: 1 };
-  const stickyLemma: CSSProperties = { position: 'sticky', left: 44, zIndex: 1 };
+  const stickyLemma: CSSProperties = { position: 'sticky', left: GUTTER_WIDTH, zIndex: 1 };
+  const tableWidth = GUTTER_WIDTH + cols.reduce((sum, col) => sum + colWidth(col, textWidths), 0);
+
+  const startResize = (col: TextCol, event: ReactPointerEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    const handle = event.currentTarget;
+    handle.setPointerCapture(event.pointerId);
+    const startX = event.clientX;
+    const startWidth = textWidths[col];
+    const onMove = (moveEvent: PointerEvent) => {
+      if (moveEvent.pointerId !== event.pointerId) return;
+      const latest = Math.max(MIN_TEXT_WIDTH, Math.round(startWidth + moveEvent.clientX - startX));
+      setTextWidths((prev) => {
+        const next = { ...prev, [col]: latest };
+        widthsRef.current = next;
+        return next;
+      });
+    };
+    const onUp = (upEvent: PointerEvent) => {
+      if (upEvent.pointerId !== event.pointerId) return;
+      handle.removeEventListener('pointermove', onMove);
+      handle.removeEventListener('pointerup', onUp);
+      try {
+        localStorage.setItem(COL_WIDTH_STORAGE_KEY, JSON.stringify(widthsRef.current));
+      } catch {
+        // Kuota atau mode privat: lebar tetap untuk sesi ini.
+      }
+    };
+    handle.addEventListener('pointermove', onMove);
+    handle.addEventListener('pointerup', onUp);
+  };
+
+  const headerTitles = [
+    '#',
+    'Kata',
+    'Terjemahan',
+    'Penjelasan arti',
+    'Contoh',
+    'Lewati',
+    ...(canVerify ? ['Tayangkan', 'Terverifikasi'] : []),
+    '',
+  ];
 
   return (
     <div
@@ -254,26 +359,33 @@ export function ImportSheet({
         outline: 'none',
       }}
     >
-      <table style={{ borderCollapse: 'separate', borderSpacing: 0, minWidth: 980, width: '100%' }}>
+      <table
+        style={{
+          borderCollapse: 'separate',
+          borderSpacing: 0,
+          tableLayout: 'fixed',
+          width: tableWidth,
+        }}
+      >
+        <colgroup>
+          <col style={{ width: GUTTER_WIDTH }} />
+          {cols.map((col) => (
+            <col key={col} style={{ width: colWidth(col, textWidths) }} />
+          ))}
+        </colgroup>
         <thead>
           <tr>
-            {[
-              '#',
-              'Kata',
-              'Terjemahan',
-              'Penjelasan arti',
-              'Contoh',
-              'Lewati',
-              ...(canVerify ? ['Tayangkan'] : []),
-              '',
-            ].map((title, index) => (
+            {headerTitles.map((title, index) => {
+              const col = index === 0 ? null : cols[index - 1];
+              const resizable = col !== null && isTextCol(col);
+              return (
                 <th
                   key={`${title}-${index}`}
                   style={{
                     position: 'sticky',
                     top: 0,
                     zIndex: index <= 1 ? 3 : 2,
-                    left: index === 0 ? 0 : index === 1 ? 44 : undefined,
+                    left: index === 0 ? 0 : index === 1 ? GUTTER_WIDTH : undefined,
                     height: 28,
                     padding: '0 8px',
                     background: HEADER_BG,
@@ -282,12 +394,33 @@ export function ImportSheet({
                     fontWeight: 600,
                     textAlign: index >= 5 ? 'center' : 'left',
                     whiteSpace: 'nowrap',
-                    width: index === 0 ? 44 : index === cols.length ? 40 : undefined,
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    width: index === 0 ? GUTTER_WIDTH : col ? colWidth(col, textWidths) : undefined,
                   }}
                 >
                   {title}
+                  {resizable ? (
+                    <div
+                      role="separator"
+                      aria-orientation="vertical"
+                      aria-label={`Lebar kolom ${title}`}
+                      onPointerDown={(event) => startResize(col, event)}
+                      onMouseDown={(event) => event.stopPropagation()}
+                      style={{
+                        position: 'absolute',
+                        top: 0,
+                        right: -3,
+                        width: 6,
+                        height: '100%',
+                        cursor: 'col-resize',
+                        zIndex: 4,
+                      }}
+                    />
+                  ) : null}
                 </th>
-              ))}
+              );
+            })}
           </tr>
         </thead>
         <tbody>
@@ -312,13 +445,14 @@ export function ImportSheet({
                 <td
                   style={{
                     ...stickyGutter,
-                    width: 44,
+                    width: GUTTER_WIDTH,
                     textAlign: 'center',
                     color: '#666',
                     background: unused ? WARN : banded ? BAND_GUTTER : GUTTER_BG,
                     borderRight: `1px solid ${GRID}`,
                     borderBottom: `1px solid ${GRID}`,
-                    height: 28,
+                    minHeight: 28,
+                    verticalAlign: 'top',
                   }}
                   title={unused ? 'Tidak ikut disimpan: terjemahan dan penjelasan arti kosong' : undefined}
                 >
@@ -346,9 +480,8 @@ export function ImportSheet({
                       onDoubleClick={() => beginEdit(rowIndex, colIndex)}
                       style={{
                         ...(col === 'lemma' ? stickyLemma : undefined),
-                        height: 28,
-                        maxWidth: 280,
-                        padding: editing ? 0 : '0 8px',
+                        minHeight: 28,
+                        padding: editing ? 0 : '4px 8px',
                         background: skipped ? '#f5f5f5' : banded ? BAND : col === 'lemma' ? GUTTER_BG : '#fff',
                         borderRight: `1px solid ${GRID}`,
                         borderBottom: `1px solid ${GRID}`,
@@ -357,16 +490,21 @@ export function ImportSheet({
                         fontWeight: col === 'lemma' ? 700 : undefined,
                         fontStyle: col === 'example' ? 'italic' : undefined,
                         color: skipped ? '#999' : undefined,
-                        whiteSpace: 'nowrap',
-                        overflow: 'hidden',
-                        textAlign: col === 'skip' || col === 'verify' || col === 'remove' ? 'center' : 'left',
+                        whiteSpace: 'normal',
+                        overflowWrap: 'anywhere',
+                        verticalAlign: 'top',
+                        textAlign: col === 'skip' || col === 'verify' || col === 'verified' || col === 'remove' ? 'center' : 'left',
                       }}
                     >
                       {editing ? (
-                        <input
+                        <textarea
                           ref={inputRef}
+                          rows={1}
                           value={edit.draft}
-                          onChange={(e) => setEdit({ ...edit, draft: e.target.value })}
+                          onChange={(e) => {
+                            setEdit({ ...edit, draft: e.target.value });
+                            fitTextarea(e.target);
+                          }}
                           onBlur={() => commitEdit()}
                           onKeyDown={(event) => {
                             if (event.key === 'Escape') {
@@ -394,12 +532,20 @@ export function ImportSheet({
                           }}
                           style={{
                             width: '100%',
-                            height: 28,
+                            minHeight: 28,
                             border: 'none',
                             outline: 'none',
-                            padding: '0 8px',
+                            padding: '4px 8px',
                             font: 'inherit',
+                            fontStyle: 'inherit',
+                            fontWeight: 'inherit',
                             background: '#fff',
+                            resize: 'none',
+                            overflow: 'hidden',
+                            whiteSpace: 'pre-wrap',
+                            overflowWrap: 'anywhere',
+                            boxSizing: 'border-box',
+                            display: 'block',
                           }}
                         />
                       ) : col === 'skip' ? (
@@ -413,6 +559,12 @@ export function ImportSheet({
                           tabIndex={-1}
                           checked={row.word.verify}
                           onChange={(e) => onVerify(row.word.id, e.target.checked)}
+                        />
+                      ) : col === 'verified' ? (
+                        <Checkbox
+                          tabIndex={-1}
+                          checked={row.word.verified}
+                          onChange={(e) => onVerified(row.word.id, e.target.checked)}
                         />
                       ) : col === 'remove' ? (
                         <button
@@ -434,8 +586,8 @@ export function ImportSheet({
                           <DeleteOutlined />
                         </button>
                       ) : (
-                        <span style={{ display: 'flex', alignItems: 'center', gap: 4, minWidth: 0 }}>
-                          <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        <span style={{ display: 'flex', alignItems: 'flex-start', gap: 4, minWidth: 0 }}>
+                          <span style={{ flex: 1, whiteSpace: 'normal', overflowWrap: 'anywhere' }}>
                             {value.trim() ? value : '-'}
                           </span>
                           {col === 'translation' ? (

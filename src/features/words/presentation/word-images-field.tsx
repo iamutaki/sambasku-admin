@@ -274,6 +274,24 @@ export function WordImagesField({ value, onChange }: WordImagesFieldProps) {
                       />
                       <Text type="secondary">Hanya satu gambar utama per kata</Text>
                     </Space>
+                    <Space align="start">
+                      <Switch
+                        size="small"
+                        checked={(img.content_warnings ?? []).includes('kekerasan')}
+                        onChange={(v) =>
+                          patch(img.uid, {
+                            content_warnings: v ? ['kekerasan'] : [],
+                          })
+                        }
+                      />
+                      <div>
+                        <Text>Foto berisi kekerasan</Text>
+                        <Text type="secondary" style={{ display: 'block', fontSize: 12 }}>
+                          Centang kalau fotonya menunjukkan kekerasan (misalnya luka, darah, atau
+                          senjata yang dipakai menyerang). Tim kami juga bisa menandai ini nanti.
+                        </Text>
+                      </div>
+                    </Space>
                   </Space>
                 ) : null}
               </div>
@@ -286,7 +304,7 @@ export function WordImagesField({ value, onChange }: WordImagesFieldProps) {
   return (
     <Space direction="vertical" size={12} style={{ width: '100%' }}>
       <Text type="secondary" style={{ display: 'block' }}>
-        Maksimal {MAX_IMAGES} gambar (jpg/png/webp, maks {MAX_SIZE_MB}MB) atau dari Media
+        Maksimal {MAX_IMAGES} gambar (jpg/png/webp, maks {MAX_ORIGINAL_SIZE_MB}MB) atau dari Media
         Explorer. Unggah terjadi saat file dipilih; teks alternatif &amp; penanda utama diisi
         setelah selesai.
       </Text>
@@ -474,7 +492,9 @@ function sameImageList(a: WordImageFormValue[], b: WordImageFormValue[]): boolea
       img.localUrl === other.localUrl &&
       img.progress === other.progress &&
       img.alt_text === other.alt_text &&
-      img.is_primary === other.is_primary
+      img.is_primary === other.is_primary &&
+      JSON.stringify(img.content_warnings ?? []) ===
+        JSON.stringify(other.content_warnings ?? [])
     );
   });
 }

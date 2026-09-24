@@ -560,7 +560,13 @@ describe('buildCreateWordBody - images (05-support-image)', () => {
       'published',
     );
     expect(body.images).toEqual([
-      { url: 'https://cdn/1.jpg', provider_file_id: 'f1', alt_text: 'ilustrasi', is_primary: true },
+      {
+        url: 'https://cdn/1.jpg',
+        provider_file_id: 'f1',
+        alt_text: 'ilustrasi',
+        is_primary: true,
+        content_warnings: [],
+      },
     ]);
   });
 
@@ -588,6 +594,7 @@ describe('buildCreateWordBody - images (05-support-image)', () => {
         provider_file_id: 'pexels-1',
         alt_text: 'Foto: A / pexels',
         is_primary: true,
+        content_warnings: [],
       },
     ]);
   });

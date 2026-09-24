@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { EditOutlined, FileTextOutlined, InboxOutlined, PlusOutlined } from '@ant-design/icons';
+import { useQueryClient } from '@tanstack/react-query';
 import { App as AntdApp, Button, Drawer, Flex, Input, Modal, Typography, Upload, theme } from 'antd';
 import { normalizeError } from '@/shared/api/error';
 import {
@@ -26,12 +27,16 @@ interface WordDraft {
   id: string;
   lemma: string;
   verify: boolean;
+  verified: boolean;
   meanings: MeaningDraft[];
   note?: string;
 }
 
-const CHUNK = 25;
+/** Budget subrequest Workers/Turso (~6 SQL/kata + overhead refs/audit). */
+const CHUNK = 5;
 const MANUAL_STARTER_ROWS = 12;
+const DRAFT_PUBLISH_HINT =
+  'Draf muncul di tab Tidak tayang. Nyalakan sakelar Tayang di sana untuk menayangkan.';
 
 let draftSeq = 0;
 function nextDraftId() {
@@ -57,6 +62,7 @@ function blankRows(count: number, startAt = 1): WordDraft[] {
     id: nextDraftId(),
     lemma: '',
     verify: false,
+    verified: false,
     meanings: [emptyMeaning(startAt + i)],
   }));
 }
@@ -75,6 +81,7 @@ function toDrafts(words: ParsedWord[]): WordDraft[] {
       id: nextDraftId(),
       lemma: word.lemma,
       verify: false,
+      verified: false,
       meanings: word.meanings.map((meaning) => ({
         ...meaning,
         useTranslation: meaning.translation.length > 0,
@@ -100,6 +107,7 @@ function toPayload(words: WordDraft[], notes: string, canVerify: boolean): Impor
     .map((word) => ({
       lemma: word.lemma.trim(),
       verify: canVerify && word.verify,
+      verified: canVerify && word.verified,
       notes: notes.trim() || undefined,
       meanings: activeMeanings(word).map((meaning) => ({
         translation: meaning.useTranslation ? meaning.translation : undefined,
@@ -140,12 +148,15 @@ export function ImportWordsDrawer({
   open,
   canVerify,
   onClose,
+  onImported,
 }: {
   open: boolean;
   canVerify: boolean;
   onClose: () => void;
+  onImported?: (summary: { drafts: number; published: number }) => void;
 }) {
   const { message } = AntdApp.useApp();
+  const queryClient = useQueryClient();
   const { token } = theme.useToken();
   const [words, setWords] = useState<WordDraft[]>([]);
   const [notes, setNotes] = useState('');
@@ -281,7 +292,15 @@ export function ImportWordsDrawer({
       const counts = summarize(checked);
       Modal.confirm({
         title: 'Simpan impor ini?',
-        content: `${counts.published} kata tayang, ${counts.drafts} draf, ${counts.added} makna ditambahkan ke kata yang sudah ada, ${counts.skipped} dilewati. Dikirim ${CHUNK} kata sekali.`,
+        content: (
+          <div>
+            <div>
+              {counts.published} kata tayang, {counts.drafts} draf, {counts.added} makna ditambahkan ke
+              kata yang sudah ada, {counts.skipped} dilewati. Dikirim {CHUNK} kata sekali.
+            </div>
+            {counts.drafts > 0 ? <div style={{ marginTop: 8 }}>{DRAFT_PUBLISH_HINT}</div> : null}
+          </div>
+        ),
         okText: 'Simpan',
         cancelText: 'Batal',
         onOk: async () => {
@@ -296,9 +315,14 @@ export function ImportWordsDrawer({
               saved.push(...part);
             }
             const done = summarize(saved);
-            message.success(`${done.published} tayang, ${done.drafts} draf, ${done.added} makna ditambahkan`);
+            void queryClient.invalidateQueries({ queryKey: ['words'] });
+            message.success(
+              `${done.published} tayang, ${done.drafts} draf, ${done.added} makna ditambahkan.${done.drafts > 0 ? ` ${DRAFT_PUBLISH_HINT}` : ''}`,
+              done.drafts > 0 ? 6 : 3,
+            );
             downloadReport(saved);
             resetToChooser();
+            onImported?.({ drafts: done.drafts, published: done.published });
             onClose();
           } catch (err) {
             if (saved.length > 0) {
@@ -307,8 +331,10 @@ export function ImportWordsDrawer({
                 current.filter((word) => !doneLemmas.has(word.lemma.trim().toLowerCase())),
               );
               downloadReport(saved);
+              void queryClient.invalidateQueries({ queryKey: ['words'] });
+              const partial = summarize(saved);
               message.error(
-                `${saved.length} kata sudah tersimpan. Sisa lembar belum terkirim: ${normalizeError(err).message || 'impor gagal'}`,
+                `${saved.length} kata sudah tersimpan. Sisa lembar belum terkirim: ${normalizeError(err).message || 'impor gagal'}${partial.drafts > 0 ? ` ${DRAFT_PUBLISH_HINT}` : ''}`,
               );
             } else {
               message.error(normalizeError(err).message || 'Impor gagal');
@@ -497,10 +523,10 @@ export function ImportWordsDrawer({
               <Button
                 onClick={() =>
                   setWords((current) =>
-                    current.map((word) => ({
-                      ...word,
-                      verify: word.lemma.trim().length > 0 && activeMeanings(word).length > 0,
-                    })),
+                    current.map((word) => {
+                      const ready = word.lemma.trim().length > 0 && activeMeanings(word).length > 0;
+                      return { ...word, verify: ready, verified: ready ? word.verified : false };
+                    }),
                   )
                 }
               >
@@ -509,8 +535,22 @@ export function ImportWordsDrawer({
             ) : null}
             {canVerify ? (
               <Button
+                onClick={() =>
+                  setWords((current) =>
+                    current.map((word) => {
+                      const ready = word.lemma.trim().length > 0 && activeMeanings(word).length > 0;
+                      return ready ? { ...word, verify: true, verified: true } : word;
+                    }),
+                  )
+                }
+              >
+                Tandai semua terverifikasi
+              </Button>
+            ) : null}
+            {canVerify ? (
+              <Button
                 type="text"
-                onClick={() => setWords((current) => current.map((word) => ({ ...word, verify: false })))}
+                onClick={() => setWords((current) => current.map((word) => ({ ...word, verify: false, verified: false })))}
               >
                 Lepas semua
               </Button>
@@ -521,12 +561,19 @@ export function ImportWordsDrawer({
               Catatan pada kata baru: {appliedNotes}
             </Typography.Paragraph>
           ) : null}
+          {canVerify ? (
+            <Typography.Paragraph type="secondary" style={{ marginBottom: 12 }}>
+              Tanpa centang Tayangkan, kata tersimpan sebagai draf. Tayangkan nanti di tab Tidak tayang
+              lewat sakelar Tayang. Tanpa centang Terverifikasi, kata yang tayang bisa dikoreksi nanti.
+            </Typography.Paragraph>
+          ) : null}
           <ImportSheet
             canVerify={canVerify}
             words={words.map((word) => ({
               id: word.id,
               lemma: word.lemma,
               verify: word.verify,
+              verified: word.verified,
               message: word.lemma.trim()
                 ? server[word.lemma.trim().toLowerCase()]?.message
                 : undefined,
@@ -542,7 +589,16 @@ export function ImportWordsDrawer({
             onSkip={(wordId, rowNumber, skipped) => patchMeaning(wordId, rowNumber, { skipped })}
             onVerify={(wordId, verify) =>
               setWords((current) =>
-                current.map((word) => (word.id === wordId ? { ...word, verify } : word)),
+                current.map((word) =>
+                  word.id === wordId ? { ...word, verify, verified: verify ? word.verified : false } : word,
+                ),
+              )
+            }
+            onVerified={(wordId, verified) =>
+              setWords((current) =>
+                current.map((word) =>
+                  word.id === wordId ? { ...word, verified, verify: verified ? true : word.verify } : word,
+                ),
               )
             }
             onRemove={removeRow}

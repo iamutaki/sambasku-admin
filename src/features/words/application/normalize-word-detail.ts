@@ -55,6 +55,9 @@ export function normalizeWordDetail(raw: unknown): WordDetail {
     audios: list(word.audios).flatMap(audio),
     images: list(word.images).map((item) => {
       const image = record(item) ?? {};
+      const warnings = list(image.content_warnings).filter(
+        (w): w is string => typeof w === 'string',
+      );
       return {
         id: strOr(image.id),
         url: strOr(image.url),
@@ -62,6 +65,8 @@ export function normalizeWordDetail(raw: unknown): WordDetail {
         sha: str(image.sha),
         alt_text: str(image.alt_text),
         is_primary: bool(image.is_primary),
+        content_warnings: warnings,
+        is_verified: bool(image.is_verified),
       };
     }),
     related_words: list(word.related_words).map(relation),
