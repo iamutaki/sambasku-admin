@@ -27,6 +27,7 @@ export function wordDetailToFormValues(detail: WordDetail): CreateWordFormValues
     lemma: detail.lemma,
     ...(detail.notes?.trim() ? { notes: detail.notes } : {}),
     word_type: detail.word_type,
+    usage_labels: detail.usage_labels ?? [],
     meanings: detail.meanings.map((m) => {
       const definition = m.definition ?? '-';
       const translations = m.translations ?? [];

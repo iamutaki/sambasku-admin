@@ -61,6 +61,7 @@ jobs:
         run: pnpm build
         env:
           VITE_API_BASE_URL: https://api.sambasku.com/api/v1
+          VITE_API_BASE_URL_FALLBACKS: https://deno.sambasku.com/api/v1,https://render.sambasku.com/api/v1
           VITE_APP_NAME: SambasKu - Admin Console
 
       - name: Pastikan project Cloudflare Pages ada

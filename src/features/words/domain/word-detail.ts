@@ -1,5 +1,5 @@
 import type { CreateWordRequest, RelationType } from './create-word';
-import type { WordStatus, WordType } from './word';
+import type { UsageLabel, WordStatus, WordType } from './word';
 
 /**
  * Model fitur "Edit Kata" - konsumen dua endpoint admin:
@@ -84,6 +84,7 @@ export interface WordDetail {
   language_id: string;
   notes: string | null;
   word_type: WordType;
+  usage_labels: UsageLabel[];
   status: WordStatus;
   is_verified: boolean;
   is_corrected: boolean;

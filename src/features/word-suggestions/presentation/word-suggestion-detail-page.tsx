@@ -97,7 +97,7 @@ export function WordSuggestionDetailPage() {
       <Card title="Diff">
         {diff.lemma.changed && (
           <Typography.Paragraph>
-            Lemma: <Typography.Text delete>{diff.lemma.current}</Typography.Text> →{' '}
+            Kata: <Typography.Text delete>{diff.lemma.current}</Typography.Text> →{' '}
             <Typography.Text strong>{diff.lemma.proposed}</Typography.Text>
           </Typography.Paragraph>
         )}

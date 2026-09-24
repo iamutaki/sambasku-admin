@@ -1,4 +1,5 @@
-import { WORD_STATUSES, WORD_TYPES } from '../domain/word';
+import { USAGE_LABELS, WORD_STATUSES, WORD_TYPES } from '../domain/word';
+import type { UsageLabel } from '../domain/word';
 import type {
   WordDetail,
   WordDetailAudio,
@@ -22,6 +23,9 @@ export function normalizeWordDetail(raw: unknown): WordDetail {
     language_id: strOr(word.language_id),
     notes: str(word.notes),
     word_type: enumOr(word.word_type, WORD_TYPES, 'word'),
+    usage_labels: list(word.usage_labels)
+      .map((item) => (typeof item === 'string' ? item : ''))
+      .filter((code): code is UsageLabel => (USAGE_LABELS as readonly string[]).includes(code)),
     status: enumOr(word.status, WORD_STATUSES, 'draft'),
     is_verified: bool(word.is_verified),
     is_corrected: bool(word.is_corrected),

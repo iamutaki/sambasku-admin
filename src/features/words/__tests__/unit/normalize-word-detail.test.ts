@@ -12,6 +12,7 @@ const SOMET_DETAIL = {
   language_id: '01M32TP336MKN6E26BV09FMXEF',
   notes: null,
   word_type: 'word',
+  usage_labels: [],
   status: 'published',
   is_verified: true,
   is_corrected: false,

@@ -1,4 +1,4 @@
-import type { WordStatus, WordType } from './word';
+import type { UsageLabel, WordStatus, WordType } from './word';
 
 /**
  * Model fitur "Tambah Kata Baru" - kontrak POST /api/v1/admin/words
@@ -168,10 +168,12 @@ export interface CreateWordRequestVariant {
   affix_value?: string;
 }
 
-/** Satu gambar di images[] create/update (hasil upload ke GitHub/CDN). */
+/** Satu gambar di images[] create/update (upload GitHub ATAU stock Media Explorer). */
 export interface WordImageInput {
   url: string;
   provider_file_id: string;
+  /** Stock: pexels|… ; upload: absen (API isi storage aktif). */
+  provider?: string;
   sha?: string;
   alt_text?: string;
   is_primary?: boolean;
@@ -183,6 +185,7 @@ export interface CreateWordRequest {
   lemma: string;
   notes?: string;
   word_type: WordType;
+  usage_labels: UsageLabel[];
   meanings: CreateWordRequestMeaning[];
   category_ids: string[];
   related_words: CreateWordRequestRelated[];
@@ -303,6 +306,8 @@ export interface WordImageFormValue {
   fileName?: string;
   status?: WordImageUploadStatus;
   url?: string;
+  /** Stock Media Explorer; absen untuk upload GitHub. */
+  provider?: string;
   provider_file_id?: string;
   sha?: string;
   alt_text?: string;
@@ -319,6 +324,7 @@ export interface CreateWordFormValues {
   lemma?: string;
   notes?: string;
   word_type?: WordType;
+  usage_labels?: UsageLabel[];
   meanings?: CreateWordMeaningFormValue[];
   category_ids?: string[];
   related_words?: CreateWordRelatedFormValue[];

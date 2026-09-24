@@ -42,8 +42,8 @@ cookie HttpOnly (`SameSite=Strict`) dari API.
 
 | Jenis | Alur |
 | --- | --- |
-| Gambar kata / avatar | Multipart ke API → repo [sambasku-images](https://github.com/iamutaki/sambasku-images) (jsDelivr + wsrv) |
-| Audio pelafalan | Multipart ke API → repo [sambasku-pronunciation](https://github.com/iamutaki/sambasku-pronunciation) |
+| Gambar kata / avatar | Multipart ke API → repo [sambasku/images](https://github.com/sambasku/images) (jsDelivr + wsrv) |
+| Audio pelafalan | Multipart ke API → repo [sambasku/audios](https://github.com/sambasku/audios) |
 | Bukti verifikator / lampiran bug | Token ImageKit (privat), bukan GitHub |
 
 ## Struktur singkat

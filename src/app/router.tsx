@@ -21,9 +21,14 @@ import { AuditLogsPage } from '@/features/audit/presentation/audit-logs-page';
 import { BugReportsPage } from '@/features/bug-reports/presentation/bug-reports-page';
 import { WordReportsPage } from '@/features/word-reports/presentation/word-reports-page';
 import { WordReportDetailPage } from '@/features/word-reports/presentation/word-report-detail-page';
+import { TranslationHelpsPage } from '@/features/translation-helps/presentation/translation-helps-page';
+import { TranslationHelpDetailPage } from '@/features/translation-helps/presentation/translation-help-detail-page';
 import { UsersPage } from '@/features/users/presentation/users-page';
 import { VerifierApplicationsPage } from '@/features/verifier-applications/presentation/verifier-applications-page';
 import { VerifierApplicationDetailPage } from '@/features/verifier-applications/presentation/verifier-application-detail-page';
+import { NotificationCampaignsPage } from '@/features/notification-campaigns/presentation/notification-campaigns-page';
+import { NotificationCampaignDetailPage } from '@/features/notification-campaigns/presentation/notification-campaign-detail-page';
+import { NotificationTemplatesPage } from '@/features/notification-campaigns/presentation/notification-templates-page';
 import { ProfilePage } from '@/features/profile/presentation/pages/profile-page';
 import { NotFoundPage } from '@/shared/layouts/not-found-page';
 
@@ -181,6 +186,18 @@ const bugReportsRoute = createRoute({
   component: BugReportsPage,
 });
 
+const translationHelpsRoute = createRoute({
+  getParentRoute: () => consoleLayoutRoute,
+  path: '/translation-helps',
+  component: TranslationHelpsPage,
+});
+
+const translationHelpDetailRoute = createRoute({
+  getParentRoute: () => consoleLayoutRoute,
+  path: '/translation-helps/$id',
+  component: TranslationHelpDetailPage,
+});
+
 const wordReportsRoute = createRoute({
   getParentRoute: () => consoleLayoutRoute,
   path: '/word-reports',
@@ -211,6 +228,24 @@ const verifierApplicationDetailRoute = createRoute({
   component: VerifierApplicationDetailPage,
 });
 
+const notificationCampaignsRoute = createRoute({
+  getParentRoute: () => consoleLayoutRoute,
+  path: '/notification-campaigns',
+  component: NotificationCampaignsPage,
+});
+
+const notificationCampaignDetailRoute = createRoute({
+  getParentRoute: () => consoleLayoutRoute,
+  path: '/notification-campaigns/$id',
+  component: NotificationCampaignDetailPage,
+});
+
+const notificationTemplatesRoute = createRoute({
+  getParentRoute: () => consoleLayoutRoute,
+  path: '/notification-templates',
+  component: NotificationTemplatesPage,
+});
+
 const profileRoute = createRoute({
   getParentRoute: () => consoleLayoutRoute,
   path: '/profile',
@@ -220,7 +255,34 @@ const profileRoute = createRoute({
 const routeTree = rootRoute.addChildren([
   indexRoute,
   baseLayoutRoute.addChildren([loginRoute]),
-  consoleLayoutRoute.addChildren([dashboardRoute, wordsRoute, createWordRoute, wordDetailRoute, editWordRoute, contributionsRoute, contributionDetailRoute, commentsRoute, commentBlocklistRoute, searchMissesRoute, voteModerationRoute, wordSuggestionsRoute, wordSuggestionDetailRoute, wordReportsRoute, wordReportDetailRoute, auditLogsRoute, bugReportsRoute, usersRoute, verifierApplicationsRoute, verifierApplicationDetailRoute, profileRoute]),
+  consoleLayoutRoute.addChildren([
+    dashboardRoute,
+    wordsRoute,
+    createWordRoute,
+    wordDetailRoute,
+    editWordRoute,
+    contributionsRoute,
+    contributionDetailRoute,
+    translationHelpsRoute,
+    translationHelpDetailRoute,
+    commentsRoute,
+    commentBlocklistRoute,
+    searchMissesRoute,
+    voteModerationRoute,
+    wordSuggestionsRoute,
+    wordSuggestionDetailRoute,
+    wordReportsRoute,
+    wordReportDetailRoute,
+    auditLogsRoute,
+    bugReportsRoute,
+    usersRoute,
+    verifierApplicationsRoute,
+    verifierApplicationDetailRoute,
+    notificationCampaignsRoute,
+    notificationCampaignDetailRoute,
+    notificationTemplatesRoute,
+    profileRoute,
+  ]),
 ]);
 
 export const router = createRouter({

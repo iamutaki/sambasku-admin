@@ -50,7 +50,7 @@ export function ContributionsPage() {
   const columns = useMemo(
     () => [
       columnHelper.accessor('word_lemma', {
-        header: 'Lemma',
+        header: 'Kata',
         size: 180,
         cell: (info) => {
           const lemma = info.getValue();

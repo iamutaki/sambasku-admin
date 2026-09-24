@@ -114,6 +114,31 @@ export async function unpublishWordRequest(id: string, signal?: AbortSignal): Pr
   return res.data.data;
 }
 
+export interface ImportWordPayload {
+  lemma: string;
+  verify: boolean;
+  notes?: string;
+  meanings: { translation?: string; definition?: string; example?: string }[];
+}
+
+export interface ImportWordResultItem {
+  lemma: string;
+  outcome: 'created' | 'meanings_added' | 'skipped' | 'invalid';
+  status?: 'draft' | 'published';
+  is_verified?: boolean;
+  meanings_added: number;
+  meanings_skipped: number;
+  message?: string;
+}
+
+export async function importWordsRequest(body: {
+  mode: 'validate' | 'commit';
+  items: ImportWordPayload[];
+}): Promise<ImportWordResultItem[]> {
+  const res = await client.post<ApiOkEnvelope<{ items: ImportWordResultItem[] }>>('/admin/words/import', body);
+  return res.data.data.items;
+}
+
 export async function takedownWordRequest(
   id: string,
   body: { reason_code: TakedownReasonCode; note?: string },
@@ -123,4 +148,43 @@ export async function takedownWordRequest(
 
 export async function restoreWordRequest(id: string): Promise<void> {
   await client.post(`/admin/words/${id}/restore`);
+}
+export interface DuplicateWordItemDto {
+  id: string;
+  lemma: string;
+  language_id: string;
+  language_code: string;
+  word_type: WordListItem['word_type'];
+  status: WordListItem['status'];
+  is_verified: boolean;
+  meanings_count: number;
+  created_at: string;
+  suggested_keep: boolean;
+}
+
+export interface DuplicateWordGroupDto {
+  lemma: string;
+  language_id: string;
+  language_code: string;
+  default_keep_word_id: string;
+  items: DuplicateWordItemDto[];
+}
+
+export async function listDuplicateWordsRequest(
+  signal?: AbortSignal,
+): Promise<{ total_groups: number; groups: DuplicateWordGroupDto[] }> {
+  const res = await client.get<
+    ApiOkEnvelope<{ total_groups: number; groups: DuplicateWordGroupDto[] }>
+  >('/admin/words/duplicates', { signal });
+  return res.data.data;
+}
+
+export async function mergeDuplicateWordsRequest(body: {
+  keep_word_id: string;
+  merge_word_ids: string[];
+}): Promise<{ keep_word_id: string; merged_word_ids: string[] }> {
+  const res = await client.post<
+    ApiOkEnvelope<{ keep_word_id: string; merged_word_ids: string[] }>
+  >('/admin/words/duplicates/merge', body);
+  return res.data.data;
 }

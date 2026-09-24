@@ -11,6 +11,7 @@ import type {
   CreateWordVariantFormValue,
   DialectOption,
   InlineWordFormValue,
+  WordClassOption,
   InlineWordRequest,
   LanguageOption,
   MeaningOverrideFormValue,
@@ -72,6 +73,16 @@ export function pickDefaultDialectId(dialects: DialectOption[]): string | undefi
 }
 
 /**
+ * Kelas kata default form create: code `umum` (fallback "belum diketahui").
+ * Return undefined kalau tidak ada - biarkan Select kosong.
+ */
+export function pickUmumWordClassId(
+  wordClasses: Pick<WordClassOption, 'id' | 'code'>[],
+): string | undefined {
+  return wordClasses.find((w) => w.code.trim().toLowerCase() === 'umum')?.id;
+}
+
+/**
  * Path error dari backend ("meanings.0.definition") → namePath antd Form
  * (["meanings", 0, "definition"]) supaya error inline jatuh di field benar.
  * Segmen numerik dianggap index array.
@@ -113,6 +124,7 @@ export function buildCreateWordBody(
     lemma: (values.lemma as string).trim(),
     ...(values.notes?.trim() ? { notes: values.notes.trim() } : {}),
     word_type: values.word_type ?? 'word',
+    usage_labels: values.usage_labels ?? [],
     meanings,
     category_ids: values.category_ids ?? [],
     related_words: relatedWords,
@@ -307,6 +319,7 @@ export function buildImages(raw: WordImageFormValue[] | undefined): WordImageInp
     .map((img) => ({
       url: img.url as string,
       provider_file_id: img.provider_file_id as string,
+      ...(img.provider ? { provider: img.provider } : {}),
       ...(img.sha ? { sha: img.sha } : {}),
       ...(img.alt_text?.trim() ? { alt_text: img.alt_text.trim() } : {}),
       is_primary: img.is_primary ?? false,
