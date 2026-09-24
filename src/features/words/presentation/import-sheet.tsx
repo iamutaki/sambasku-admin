@@ -80,7 +80,6 @@ export function ImportSheet({
   const [active, setActive] = useState<{ row: number; col: number }>({ row: 0, col: 0 });
   const [edit, setEdit] = useState<{ row: number; col: number; draft: string } | null>(null);
   const editRef = useRef(edit);
-  editRef.current = edit;
   const scroller = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const hadEdit = useRef(false);
@@ -98,11 +97,16 @@ export function ImportSheet({
     }
   }, [edit]);
 
-  useEffect(() => {
-    editRef.current = null;
+  const [queryKey, setQueryKey] = useState(needle);
+  if (needle !== queryKey) {
+    setQueryKey(needle);
     setEdit(null);
     setActive({ row: 0, col: 0 });
-  }, [needle]);
+  }
+
+  useEffect(() => {
+    editRef.current = edit;
+  }, [edit]);
 
   const move = (row: number, col: number) => {
     if (rows.length === 0) return;

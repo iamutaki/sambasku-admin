@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { EyeOutlined, MergeCellsOutlined } from '@ant-design/icons';
 import {
   Alert,
@@ -36,11 +36,13 @@ function GroupCard({
   const { message } = AntdApp.useApp();
   const navigate = useNavigate();
   const merge = useMergeDuplicateWords();
+  const resetKey = `${group.lemma}:${group.default_keep_word_id}`;
   const [keepId, setKeepId] = useState(group.default_keep_word_id);
-
-  useEffect(() => {
+  const [seenKey, setSeenKey] = useState(resetKey);
+  if (seenKey !== resetKey) {
+    setSeenKey(resetKey);
     setKeepId(group.default_keep_word_id);
-  }, [group.default_keep_word_id, group.lemma]);
+  }
 
   const keep = group.items.find((i) => i.id === keepId);
   const mergeIds = group.items.filter((i) => i.id !== keepId).map((i) => i.id);

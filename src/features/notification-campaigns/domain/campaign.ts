@@ -86,3 +86,9 @@ export const AUDIENCE_LABELS: Record<CampaignAudienceType, string> = {
   all: 'Semua device aktif',
   selected: 'Pengguna terpilih',
 };
+
+/** Jadwal masih di masa depan pada saat tombol aksi dirender. */
+export function isSendAtInFuture(sendAt: string | null | undefined): boolean {
+  if (!sendAt) return false;
+  return new Date(sendAt).getTime() > Date.now();
+}

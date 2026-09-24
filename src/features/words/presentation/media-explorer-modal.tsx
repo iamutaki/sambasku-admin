@@ -27,7 +27,7 @@ export function MediaExplorerModal({ open, onClose, onSelect }: MediaExplorerMod
   const [activeQuery, setActiveQuery] = useState('');
   const [page, setPage] = useState(1);
   const [items, setItems] = useState<ShareBackgroundItem[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(open);
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const [degraded, setDegraded] = useState(false);
@@ -66,13 +66,53 @@ export function MediaExplorerModal({ open, onClose, onSelect }: MediaExplorerMod
     [],
   );
 
+  const [wasOpen, setWasOpen] = useState(open);
+  if (open !== wasOpen) {
+    setWasOpen(open);
+    if (open) {
+      setPage(1);
+      setActiveQuery('');
+      setQuery('');
+      setLoading(true);
+    }
+  }
+
   useEffect(() => {
     if (!open) return;
-    setPage(1);
-    setActiveQuery('');
-    setQuery('');
-    void load({ page: 1, query: '', provider, append: false });
-    return () => abortRef.current?.abort();
+    const ac = new AbortController();
+    abortRef.current?.abort();
+    abortRef.current = ac;
+    let ignore = false;
+    void (async () => {
+      try {
+        const result = await listShareBackgrounds({
+          q: '',
+          page: 1,
+          sort: 'popular',
+          provider,
+          limit: 12,
+          signal: ac.signal,
+        });
+        if (ignore) return;
+        setDegraded(result.degraded);
+        setItems(result.items);
+        setHasMore(result.items.length >= 12);
+      } catch (err) {
+        if (ignore || (err as { name?: string })?.name === 'CanceledError') return;
+        message.error('Gagal memuat Media Explorer');
+        setItems([]);
+        setHasMore(false);
+      } finally {
+        if (!ignore) {
+          setLoading(false);
+          setLoadingMore(false);
+        }
+      }
+    })();
+    return () => {
+      ignore = true;
+      ac.abort();
+    };
     // Hanya saat modal dibuka — ganti provider lewat onClick chip.
     // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional open gate
   }, [open]);

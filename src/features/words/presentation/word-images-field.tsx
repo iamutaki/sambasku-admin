@@ -6,8 +6,8 @@ import {
   InboxOutlined,
   LoadingOutlined,
   PlusOutlined,
+  GlobalOutlined,
   RedoOutlined,
-  TravelExploreOutlined,
 } from '@ant-design/icons';
 import { Alert, App as AntdApp, Button, Image, Input, Progress, Space, Switch, Tag, Typography, Upload } from 'antd';
 import type { UploadProps } from 'antd';
@@ -303,7 +303,7 @@ export function WordImagesField({ value, onChange }: WordImagesFieldProps) {
       {selectedPanel}
 
       {!atLimit ? (
-        <Button icon={<TravelExploreOutlined />} onClick={() => setExplorerOpen(true)}>
+        <Button icon={<GlobalOutlined />} onClick={() => setExplorerOpen(true)}>
           Pilih dari Media Explorer
         </Button>
       ) : null}

@@ -18,6 +18,7 @@ import {
   CAMPAIGN_STATUS_COLORS,
   CAMPAIGN_STATUS_LABELS,
   DEEP_LINK_KIND_LABELS,
+  isSendAtInFuture,
 } from '../domain/campaign';
 import {
   useCampaignDetail,
@@ -45,6 +46,7 @@ export function NotificationCampaignDetailPage() {
   }
 
   const canSend = data.status === 'draft' || data.status === 'scheduled';
+  const scheduled = isSendAtInFuture(data.sendAt);
   const canCancel = data.status === 'draft' || data.status === 'scheduled';
   const canRetry =
     data.audienceType === 'selected' &&
@@ -93,7 +95,7 @@ export function NotificationCampaignDetailPage() {
             {canSend ? (
               <Popconfirm
                 title={
-                  data.sendAt && new Date(data.sendAt).getTime() > Date.now()
+                  scheduled
                     ? `Jadwalkan kirim ke ${formatDateTime(data.sendAt)}?`
                     : `Kirim ke ${AUDIENCE_LABELS[data.audienceType]} (${data.targetedUsers} user)?`
                 }
@@ -111,9 +113,7 @@ export function NotificationCampaignDetailPage() {
                 }}
               >
                 <Button type="primary" loading={sendMutation.isPending}>
-                  {data.sendAt && new Date(data.sendAt).getTime() > Date.now()
-                    ? 'Jadwalkan'
-                    : 'Kirim sekarang'}
+                  {scheduled ? 'Jadwalkan' : 'Kirim sekarang'}
                 </Button>
               </Popconfirm>
             ) : null}

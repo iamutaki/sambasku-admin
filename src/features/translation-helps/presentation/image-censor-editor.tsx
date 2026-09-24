@@ -39,13 +39,6 @@ export function ImageCensorEditor({
   const [strength, setStrength] = useState(12);
   const [dirty, setDirty] = useState(false);
 
-  const modeRef = useRef(mode);
-  const brushRef = useRef(brushRadius);
-  const strengthRef = useRef(strength);
-  modeRef.current = mode;
-  brushRef.current = brushRadius;
-  strengthRef.current = strength;
-
   const redrawFromSource = useCallback(() => {
     const canvas = canvasRef.current;
     const source = sourceRef.current;
@@ -136,9 +129,9 @@ export function ImageCensorEditor({
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    const radius = brushRef.current;
-    const str = strengthRef.current;
-    const brushMode = modeRef.current;
+    const radius = brushRadius;
+    const str = strength;
+    const brushMode = mode;
 
     const x0 = Math.max(0, Math.floor(x - radius));
     const y0 = Math.max(0, Math.floor(y - radius));
@@ -230,7 +223,7 @@ export function ImageCensorEditor({
 
   const paintLine = (from: { x: number; y: number }, to: { x: number; y: number }) => {
     const dist = Math.hypot(to.x - from.x, to.y - from.y);
-    const step = Math.max(2, brushRef.current / 3);
+    const step = Math.max(2, brushRadius / 3);
     const n = Math.max(1, Math.ceil(dist / step));
     for (let i = 0; i <= n; i++) {
       const t = i / n;
