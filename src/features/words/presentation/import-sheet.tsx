@@ -1,6 +1,15 @@
-import { useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent } from 'react';
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+  type KeyboardEvent,
+  type PointerEvent as ReactPointerEvent,
+  type ReactNode,
+} from 'react';
 import { BookOutlined, DeleteOutlined } from '@ant-design/icons';
-import { Checkbox } from 'antd';
+import { Checkbox, Tooltip } from 'antd';
 
 export interface SheetMeaning {
   rowNumber: number;
@@ -15,14 +24,65 @@ export interface SheetWord {
   id: string;
   lemma: string;
   verify: boolean;
+  verified: boolean;
   meanings: SheetMeaning[];
   message?: string;
+  importStatus?: 'pending' | 'saved' | 'failed';
+  importError?: string;
 }
 
 type TextCol = 'lemma' | 'translation' | 'definition' | 'example';
-type ColId = TextCol | 'skip' | 'verify' | 'remove';
+type ColId = TextCol | 'skip' | 'verify' | 'verified' | 'remove';
 
 const TEXT_COLS: TextCol[] = ['lemma', 'translation', 'definition', 'example'];
+
+const GUTTER_WIDTH = 44;
+const MIN_TEXT_WIDTH = 88;
+const COL_WIDTH_STORAGE_KEY = 'sambasku.import-sheet.col-widths.v2';
+const DEFAULT_TEXT_WIDTH: Record<TextCol, number> = {
+  lemma: 140,
+  translation: 155,
+  definition: 220,
+  example: 165,
+};
+const ACTION_WIDTH: Record<Exclude<ColId, TextCol>, number> = {
+  skip: 56,
+  verify: 44,
+  verified: 44,
+  remove: 40,
+};
+
+function loadTextWidths(): Record<TextCol, number> {
+  try {
+    const raw = localStorage.getItem(COL_WIDTH_STORAGE_KEY);
+    if (!raw) return { ...DEFAULT_TEXT_WIDTH };
+    const parsed = JSON.parse(raw) as Partial<Record<TextCol, number>>;
+    const next = { ...DEFAULT_TEXT_WIDTH };
+    for (const col of TEXT_COLS) {
+      const value = parsed[col];
+      if (typeof value === 'number' && Number.isFinite(value)) {
+        next[col] = Math.max(MIN_TEXT_WIDTH, value);
+      }
+    }
+    return next;
+  } catch {
+    return { ...DEFAULT_TEXT_WIDTH };
+  }
+}
+
+function isTextCol(col: ColId): col is TextCol {
+  return TEXT_COLS.includes(col as TextCol);
+}
+
+function colWidth(col: ColId, textWidths: Record<TextCol, number>) {
+  return isTextCol(col) ? textWidths[col] : ACTION_WIDTH[col];
+}
+
+function fitTextarea(el: HTMLTextAreaElement | null) {
+  if (!el) return;
+  el.style.height = '0px';
+  el.style.height = `${Math.max(28, el.scrollHeight)}px`;
+}
 
 const GRID = '#d0d0d0';
 const HEADER_BG = '#f3f3f3';
@@ -31,6 +91,9 @@ const SELECT = '#107c41';
 const WARN = '#fff4ce';
 const BAND = '#f7f7f7';
 const BAND_GUTTER = '#efefef';
+const FAIL_BG = '#fff1f0';
+const FAIL_GUTTER = '#ffccc7';
+const FAIL_TEXT = '#a8071a';
 
 function textOf(word: SheetWord, meaning: SheetMeaning, col: TextCol) {
   if (col === 'lemma') return word.lemma;
@@ -50,6 +113,7 @@ export function ImportSheet({
   onText,
   onSkip,
   onVerify,
+  onVerified,
   onKbbi,
   onRemove,
   query = '',
@@ -59,6 +123,7 @@ export function ImportSheet({
   onText: (wordId: string, rowNumber: number, col: TextCol, value: string) => void;
   onSkip: (wordId: string, rowNumber: number, skipped: boolean) => void;
   onVerify: (wordId: string, verify: boolean) => void;
+  onVerified: (wordId: string, verified: boolean) => void;
   onKbbi: (wordId: string, rowNumber: number, translation: string) => void;
   onRemove: (wordId: string, rowNumber: number) => void;
   query?: string;
@@ -66,7 +131,7 @@ export function ImportSheet({
   const cols: ColId[] = [
     ...TEXT_COLS,
     'skip',
-    ...(canVerify ? (['verify'] as const) : []),
+    ...(canVerify ? (['verify', 'verified'] as const) : []),
     'remove',
   ];
   const needle = query.trim().toLowerCase();
@@ -79,14 +144,17 @@ export function ImportSheet({
   );
   const [active, setActive] = useState<{ row: number; col: number }>({ row: 0, col: 0 });
   const [edit, setEdit] = useState<{ row: number; col: number; draft: string } | null>(null);
+  const [textWidths, setTextWidths] = useState(loadTextWidths);
   const editRef = useRef(edit);
+  const widthsRef = useRef(textWidths);
   const scroller = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
   const hadEdit = useRef(false);
 
   useEffect(() => {
     if (edit) {
       hadEdit.current = true;
+      fitTextarea(inputRef.current);
       inputRef.current?.focus();
       inputRef.current?.setSelectionRange(inputRef.current.value.length, inputRef.current.value.length);
       return;
@@ -167,6 +235,7 @@ export function ImportSheet({
     const id = cols[active.col];
     if (id === 'skip') onSkip(current.word.id, current.meaning.rowNumber, !current.meaning.skipped);
     if (id === 'verify') onVerify(current.word.id, !current.word.verify);
+    if (id === 'verified') onVerified(current.word.id, !current.word.verified);
     if (id === 'remove') removeActiveRow();
   };
 
@@ -228,7 +297,7 @@ export function ImportSheet({
     } else if (event.key === ' ') {
       event.preventDefault();
       const id = cols[col];
-      if (id === 'skip' || id === 'verify' || id === 'remove') toggleActive();
+      if (id === 'skip' || id === 'verify' || id === 'verified' || id === 'remove') toggleActive();
       else beginEdit(row, col, '');
     } else if (event.key.length === 1 && !event.metaKey && !event.ctrlKey && !event.altKey) {
       event.preventDefault();
@@ -237,7 +306,62 @@ export function ImportSheet({
   };
 
   const stickyGutter: CSSProperties = { position: 'sticky', left: 0, zIndex: 1 };
-  const stickyLemma: CSSProperties = { position: 'sticky', left: 44, zIndex: 1 };
+  const stickyLemma: CSSProperties = { position: 'sticky', left: GUTTER_WIDTH, zIndex: 1 };
+  const tableWidth = GUTTER_WIDTH + cols.reduce((sum, col) => sum + colWidth(col, textWidths), 0);
+
+  const startResize = (col: TextCol, event: ReactPointerEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    const handle = event.currentTarget;
+    handle.setPointerCapture(event.pointerId);
+    const startX = event.clientX;
+    const startWidth = textWidths[col];
+    const onMove = (moveEvent: PointerEvent) => {
+      if (moveEvent.pointerId !== event.pointerId) return;
+      const latest = Math.max(MIN_TEXT_WIDTH, Math.round(startWidth + moveEvent.clientX - startX));
+      setTextWidths((prev) => {
+        const next = { ...prev, [col]: latest };
+        widthsRef.current = next;
+        return next;
+      });
+    };
+    const onUp = (upEvent: PointerEvent) => {
+      if (upEvent.pointerId !== event.pointerId) return;
+      handle.removeEventListener('pointermove', onMove);
+      handle.removeEventListener('pointerup', onUp);
+      try {
+        localStorage.setItem(COL_WIDTH_STORAGE_KEY, JSON.stringify(widthsRef.current));
+      } catch {
+        // Kuota atau mode privat: lebar tetap untuk sesi ini.
+      }
+    };
+    handle.addEventListener('pointermove', onMove);
+    handle.addEventListener('pointerup', onUp);
+  };
+
+  const headerCells: { key: string; label: ReactNode; tip?: string }[] = [
+    { key: '#', label: '#' },
+    { key: 'lemma', label: 'Kata' },
+    { key: 'translation', label: 'Terjemahan' },
+    { key: 'definition', label: 'Penjelasan arti' },
+    { key: 'example', label: 'Contoh' },
+    { key: 'skip', label: 'Lewati' },
+    ...(canVerify
+      ? [
+          {
+            key: 'verify',
+            label: 'Tayang',
+            tip: 'Tayangkan: kata langsung published. Tanpa centang, tersimpan sebagai draf.',
+          },
+          {
+            key: 'verified',
+            label: 'Verif',
+            tip: 'Terverifikasi: kata yang tayang ditandai sudah diverifikasi. Tanpa centang, masih bisa dikoreksi.',
+          },
+        ]
+      : []),
+    { key: 'remove', label: '' },
+  ];
 
   return (
     <div
@@ -254,40 +378,79 @@ export function ImportSheet({
         outline: 'none',
       }}
     >
-      <table style={{ borderCollapse: 'separate', borderSpacing: 0, minWidth: 980, width: '100%' }}>
+      <table
+        style={{
+          borderCollapse: 'separate',
+          borderSpacing: 0,
+          tableLayout: 'fixed',
+          width: '100%',
+          minWidth: tableWidth,
+        }}
+      >
+        <colgroup>
+          <col style={{ width: GUTTER_WIDTH }} />
+          {cols.map((col) => (
+            <col
+              key={col}
+              style={col === 'definition' ? undefined : { width: colWidth(col, textWidths) }}
+            />
+          ))}
+        </colgroup>
         <thead>
           <tr>
-            {[
-              '#',
-              'Kata',
-              'Terjemahan',
-              'Penjelasan arti',
-              'Contoh',
-              'Lewati',
-              ...(canVerify ? ['Tayangkan'] : []),
-              '',
-            ].map((title, index) => (
+            {headerCells.map((cell, index) => {
+              const col = index === 0 ? null : cols[index - 1];
+              const resizable = col !== null && isTextCol(col);
+              const title = typeof cell.label === 'string' ? cell.label : cell.key;
+              return (
                 <th
-                  key={`${title}-${index}`}
+                  key={cell.key}
                   style={{
                     position: 'sticky',
                     top: 0,
                     zIndex: index <= 1 ? 3 : 2,
-                    left: index === 0 ? 0 : index === 1 ? 44 : undefined,
+                    left: index === 0 ? 0 : index === 1 ? GUTTER_WIDTH : undefined,
                     height: 28,
-                    padding: '0 8px',
+                    padding: index >= 5 ? '0 2px' : '0 8px',
                     background: HEADER_BG,
                     borderRight: `1px solid ${GRID}`,
                     borderBottom: `1px solid ${GRID}`,
                     fontWeight: 600,
                     textAlign: index >= 5 ? 'center' : 'left',
                     whiteSpace: 'nowrap',
-                    width: index === 0 ? 44 : index === cols.length ? 40 : undefined,
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    width:
+                      index === 0
+                        ? GUTTER_WIDTH
+                        : col && col !== 'definition'
+                          ? colWidth(col, textWidths)
+                          : undefined,
+                    fontSize: index >= 5 ? 11 : undefined,
                   }}
                 >
-                  {title}
+                  {cell.tip ? <Tooltip title={cell.tip}>{cell.label}</Tooltip> : cell.label}
+                  {resizable ? (
+                    <div
+                      role="separator"
+                      aria-orientation="vertical"
+                      aria-label={`Lebar kolom ${title}`}
+                      onPointerDown={(event) => startResize(col, event)}
+                      onMouseDown={(event) => event.stopPropagation()}
+                      style={{
+                        position: 'absolute',
+                        top: 0,
+                        right: -3,
+                        width: 6,
+                        height: '100%',
+                        cursor: 'col-resize',
+                        zIndex: 4,
+                      }}
+                    />
+                  ) : null}
                 </th>
-              ))}
+              );
+            })}
           </tr>
         </thead>
         <tbody>
@@ -307,20 +470,35 @@ export function ImportSheet({
               row.meaning.translation.trim() === '' &&
               row.meaning.definition.trim() === '';
             const banded = rowIndex % 2 === 1;
+            const failed = row.word.importStatus === 'failed';
+            const rowHint = failed
+              ? row.word.importError || 'Gagal disimpan — coba Simpan lagi'
+              : unused
+                ? 'Tidak ikut disimpan: terjemahan dan penjelasan arti kosong'
+                : row.word.message;
+            const gutterBg = failed
+              ? FAIL_GUTTER
+              : unused
+                ? WARN
+                : banded
+                  ? BAND_GUTTER
+                  : GUTTER_BG;
             return (
               <tr key={`${row.word.id}-${row.meaning.rowNumber}`}>
                 <td
                   style={{
                     ...stickyGutter,
-                    width: 44,
+                    width: GUTTER_WIDTH,
                     textAlign: 'center',
-                    color: '#666',
-                    background: unused ? WARN : banded ? BAND_GUTTER : GUTTER_BG,
+                    color: failed ? FAIL_TEXT : '#666',
+                    background: gutterBg,
                     borderRight: `1px solid ${GRID}`,
                     borderBottom: `1px solid ${GRID}`,
-                    height: 28,
+                    minHeight: 28,
+                    verticalAlign: 'top',
+                    fontWeight: failed ? 700 : undefined,
                   }}
-                  title={unused ? 'Tidak ikut disimpan: terjemahan dan penjelasan arti kosong' : undefined}
+                  title={rowHint}
                 >
                   {row.meaning.rowNumber}
                 </td>
@@ -331,11 +509,20 @@ export function ImportSheet({
                   const value = TEXT_COLS.includes(col as TextCol)
                     ? textOf(row.word, row.meaning, col as TextCol)
                     : '';
+                  const cellBg = failed
+                    ? FAIL_BG
+                    : skipped
+                      ? '#f5f5f5'
+                      : banded
+                        ? BAND
+                        : col === 'lemma'
+                          ? GUTTER_BG
+                          : '#fff';
                   return (
                     <td
                       key={col}
                       data-cell={`${rowIndex}-${colIndex}`}
-                      title={col === 'lemma' ? row.word.message : undefined}
+                      title={col === 'lemma' ? rowHint : undefined}
                       onMouseDown={(event) => {
                         event.preventDefault();
                         scroller.current?.focus();
@@ -346,27 +533,35 @@ export function ImportSheet({
                       onDoubleClick={() => beginEdit(rowIndex, colIndex)}
                       style={{
                         ...(col === 'lemma' ? stickyLemma : undefined),
-                        height: 28,
-                        maxWidth: 280,
-                        padding: editing ? 0 : '0 8px',
-                        background: skipped ? '#f5f5f5' : banded ? BAND : col === 'lemma' ? GUTTER_BG : '#fff',
+                        minHeight: 28,
+                        padding: editing
+                          ? 0
+                          : col === 'skip' || col === 'verify' || col === 'verified' || col === 'remove'
+                            ? '4px 2px'
+                            : '4px 8px',
+                        background: cellBg,
                         borderRight: `1px solid ${GRID}`,
                         borderBottom: `1px solid ${GRID}`,
                         boxShadow: selected ? `inset 0 0 0 2px ${SELECT}` : undefined,
                         textDecoration: skipped && TEXT_COLS.includes(col as TextCol) ? 'line-through' : undefined,
                         fontWeight: col === 'lemma' ? 700 : undefined,
                         fontStyle: col === 'example' ? 'italic' : undefined,
-                        color: skipped ? '#999' : undefined,
-                        whiteSpace: 'nowrap',
-                        overflow: 'hidden',
-                        textAlign: col === 'skip' || col === 'verify' || col === 'remove' ? 'center' : 'left',
+                        color: failed ? FAIL_TEXT : skipped ? '#999' : undefined,
+                        whiteSpace: 'normal',
+                        overflowWrap: 'anywhere',
+                        verticalAlign: 'top',
+                        textAlign: col === 'skip' || col === 'verify' || col === 'verified' || col === 'remove' ? 'center' : 'left',
                       }}
                     >
                       {editing ? (
-                        <input
+                        <textarea
                           ref={inputRef}
+                          rows={1}
                           value={edit.draft}
-                          onChange={(e) => setEdit({ ...edit, draft: e.target.value })}
+                          onChange={(e) => {
+                            setEdit({ ...edit, draft: e.target.value });
+                            fitTextarea(e.target);
+                          }}
                           onBlur={() => commitEdit()}
                           onKeyDown={(event) => {
                             if (event.key === 'Escape') {
@@ -394,12 +589,20 @@ export function ImportSheet({
                           }}
                           style={{
                             width: '100%',
-                            height: 28,
+                            minHeight: 28,
                             border: 'none',
                             outline: 'none',
-                            padding: '0 8px',
+                            padding: '4px 8px',
                             font: 'inherit',
+                            fontStyle: 'inherit',
+                            fontWeight: 'inherit',
                             background: '#fff',
+                            resize: 'none',
+                            overflow: 'hidden',
+                            whiteSpace: 'pre-wrap',
+                            overflowWrap: 'anywhere',
+                            boxSizing: 'border-box',
+                            display: 'block',
                           }}
                         />
                       ) : col === 'skip' ? (
@@ -413,6 +616,12 @@ export function ImportSheet({
                           tabIndex={-1}
                           checked={row.word.verify}
                           onChange={(e) => onVerify(row.word.id, e.target.checked)}
+                        />
+                      ) : col === 'verified' ? (
+                        <Checkbox
+                          tabIndex={-1}
+                          checked={row.word.verified}
+                          onChange={(e) => onVerified(row.word.id, e.target.checked)}
                         />
                       ) : col === 'remove' ? (
                         <button
@@ -434,29 +643,36 @@ export function ImportSheet({
                           <DeleteOutlined />
                         </button>
                       ) : (
-                        <span style={{ display: 'flex', alignItems: 'center', gap: 4, minWidth: 0 }}>
-                          <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                            {value.trim() ? value : '-'}
+                        <span style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
+                          <span style={{ display: 'flex', alignItems: 'flex-start', gap: 4, minWidth: 0 }}>
+                            <span style={{ flex: 1, whiteSpace: 'normal', overflowWrap: 'anywhere' }}>
+                              {value.trim() ? value : '-'}
+                            </span>
+                            {col === 'translation' ? (
+                              <button
+                                type="button"
+                                tabIndex={-1}
+                                aria-label="Ambil dari KBBI"
+                                title="Ambil dari KBBI"
+                                onMouseDown={(event) => event.stopPropagation()}
+                                onClick={() => onKbbi(row.word.id, row.meaning.rowNumber, value)}
+                                style={{
+                                  border: 'none',
+                                  background: 'transparent',
+                                  padding: 0,
+                                  cursor: 'pointer',
+                                  color: '#595959',
+                                  flex: 'none',
+                                }}
+                              >
+                                <BookOutlined />
+                              </button>
+                            ) : null}
                           </span>
-                          {col === 'translation' ? (
-                            <button
-                              type="button"
-                              tabIndex={-1}
-                              aria-label="Ambil dari KBBI"
-                              title="Ambil dari KBBI"
-                              onMouseDown={(event) => event.stopPropagation()}
-                              onClick={() => onKbbi(row.word.id, row.meaning.rowNumber, value)}
-                              style={{
-                                border: 'none',
-                                background: 'transparent',
-                                padding: 0,
-                                cursor: 'pointer',
-                                color: '#595959',
-                                flex: 'none',
-                              }}
-                            >
-                              <BookOutlined />
-                            </button>
+                          {col === 'lemma' && failed && row.word.importError ? (
+                            <span style={{ fontSize: 11, fontWeight: 500, color: FAIL_TEXT }}>
+                              {row.word.importError}
+                            </span>
                           ) : null}
                         </span>
                       )}

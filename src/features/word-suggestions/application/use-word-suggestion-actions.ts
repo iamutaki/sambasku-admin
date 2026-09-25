@@ -16,8 +16,17 @@ export function useWordSuggestionDetail(id: string) {
 export function useApproveWordSuggestion() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, comment }: { id: string; comment?: string }) =>
-      approveWordSuggestionRequest(id, comment),
+    mutationFn: ({
+      id,
+      comment,
+      imageDecisions,
+      censoredByKey,
+    }: {
+      id: string;
+      comment?: string;
+      imageDecisions?: { key: string; decision: 'approve' | 'reject' }[];
+      censoredByKey?: Record<string, Blob>;
+    }) => approveWordSuggestionRequest(id, comment, imageDecisions, censoredByKey),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ['word-suggestions'] });
     },

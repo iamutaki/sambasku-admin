@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState } from 'react';
 import { createColumnHelper, getCoreRowModel, useReactTable } from '@tanstack/react-table';
-import { ReloadOutlined, SaveOutlined, UserOutlined } from '@ant-design/icons';
+import { PlusOutlined, ReloadOutlined, SaveOutlined, UserOutlined } from '@ant-design/icons';
 import {
   Alert,
   App as AntdApp,
@@ -13,6 +13,7 @@ import {
   Row,
   Select,
   Space,
+  Switch,
   Tabs,
   Tag,
   Tooltip,
@@ -25,7 +26,8 @@ import { normalizeError } from '@/shared/api/error';
 import { useAuth } from '@/shared/auth/use-auth';
 import { useDebouncedValue } from '@/shared/hooks/use-debounced-value';
 import { useUserAdminList, type UseUserAdminListArgs } from '../application/use-user-admin-list';
-import { useSetCanContribute, useUpdateUserRole } from '../application/use-update-user-role';
+import { useSetCanContribute, useSetUserActive, useUpdateUserRole } from '../application/use-update-user-role';
+import { CreateUserDrawer } from './create-user-drawer';
 import {
   CHANGEABLE_ROLES,
   ROLE_LABELS,
@@ -51,10 +53,12 @@ export function UsersPage() {
   const [searchInput, setSearchInput] = useState('');
   const [filterRole, setFilterRole] = useState<AdminUserRole | undefined>();
   const [userTab, setUserTab] = useState<'all' | 'blocked'>('all');
+  const [createOpen, setCreateOpen] = useState(false);
   const [pendingRoles, setPendingRoles] = useState<PendingRoleMap>({});
   const q = useDebouncedValue(searchInput, 300);
   const updateRole = useUpdateUserRole();
   const setContribute = useSetCanContribute();
+  const setActive = useSetUserActive();
   const listArgs: UseUserAdminListArgs = {
     q,
     role: filterRole,
@@ -123,20 +127,23 @@ export function UsersPage() {
       columnHelper.display({
         id: 'contribute',
         header: 'Kontribusi',
-        size: 180,
+        size: 120,
         cell: (info) => {
           const row = info.row.original;
-          if (row.canContribute) return <Tag>Boleh mengirim</Tag>;
+          const pending = setContribute.isPending && setContribute.variables?.id === row.id;
           return (
-            <Button
+            <Switch
+              checked={row.canContribute}
               size="small"
-              loading={setContribute.isPending}
-              onClick={() =>
-                setContribute.mutate({ id: row.id, canContribute: true, username: row.username })
+              loading={pending}
+              onChange={(next) =>
+                setContribute.mutate({
+                  id: row.id,
+                  canContribute: next,
+                  username: row.username,
+                })
               }
-            >
-              Izinkan lagi
-            </Button>
+            />
           );
         },
       }),
@@ -149,13 +156,30 @@ export function UsersPage() {
       }),
       columnHelper.accessor('isActive', {
         header: 'Status',
-        size: 120,
-        cell: (info) =>
-          info.getValue() ? (
-            <Tag color="green">Aktif</Tag>
-          ) : (
-            <Tag color="red">Nonaktif</Tag>
-          ),
+        size: 140,
+        cell: (info) => {
+          const row = info.row.original;
+          const isSelf = row.id === user?.id;
+          const locked = row.role === 'root' || isSelf;
+          const reason = row.role === 'root'
+            ? 'Status root hanya dapat diatur via SQL seed'
+            : isSelf
+              ? 'Tidak bisa mengubah status akun sendiri'
+              : undefined;
+          const control = (
+            <Switch
+              checked={row.isActive}
+              size="small"
+              disabled={locked}
+              loading={setActive.isPending && setActive.variables?.id === row.id}
+              onChange={(next) => {
+                if (locked) return;
+                setActive.mutate({ id: row.id, isActive: next, username: row.username });
+              }}
+            />
+          );
+          return reason ? <Tooltip title={reason}>{control}</Tooltip> : control;
+        },
       }),
       columnHelper.accessor('createdAt', {
         header: 'Bergabung',
@@ -227,7 +251,7 @@ export function UsersPage() {
         },
       }),
     ],
-    [pendingRoles, updateRole.variables, updateRole.isPending, onSaveRole, setContribute],
+    [pendingRoles, updateRole.variables, updateRole.isPending, onSaveRole, setContribute, setActive, user?.id],
   );
 
   const table = useReactTable({
@@ -258,6 +282,11 @@ export function UsersPage() {
       <PageHeader
         title={<Space size={8}><UserOutlined /> <span>Pengguna</span></Space>}
         subtitle="Kelola akun dan peran pengguna. Hanya admin dan root yang dapat membuka halaman ini. Peran Verifikator memeriksa antrean. Admin, Editor, dan Root juga boleh memeriksa, dengan wewenang tambahan, dan jabatan mereka tetap Admin, Editor, atau Root."
+        extra={
+          <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateOpen(true)}>
+            Tambah pengguna
+          </Button>
+        }
       />
       <Tabs
         activeKey={userTab}
@@ -319,6 +348,8 @@ export function UsersPage() {
           loading={isLoading || (isFetching && !items.length)}
         />
       )}
+
+      <CreateUserDrawer open={createOpen} onClose={() => setCreateOpen(false)} />
 
       <Flex justify="center" align="center" gap={16} style={{ marginTop: 16 }}>
         {hasMore ? (

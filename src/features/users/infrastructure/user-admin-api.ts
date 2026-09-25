@@ -53,3 +53,22 @@ export async function updateUserRoleRequest(
 export async function setCanContributeRequest(id: string, canContribute: boolean): Promise<void> {
   await client.patch(`/admin/contribution-access/${id}`, { can_contribute: canContribute });
 }
+
+export interface CreateAdminUserInput {
+  username: string;
+  email: string;
+  phone?: string;
+  password: string;
+  confirm_password: string;
+  role: Exclude<AdminUserRole, 'root'>;
+  is_active: boolean;
+}
+
+export async function createAdminUserRequest(input: CreateAdminUserInput): Promise<AdminUserWire> {
+  const res = await client.post<{ success: true; data: AdminUserWire }>('/admin/users', input);
+  return res.data.data;
+}
+
+export async function setUserActiveRequest(id: string, isActive: boolean): Promise<void> {
+  await client.patch(`/admin/users/${id}/active`, { is_active: isActive });
+}

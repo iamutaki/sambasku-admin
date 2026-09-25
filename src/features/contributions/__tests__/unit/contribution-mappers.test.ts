@@ -67,6 +67,7 @@ describe('normalizeContributionDetail - word (layout impl camelCase)', () => {
         variants: [
           { id: 'v1', form: 'memakan', variantType: 'derivation', affixType: 'prefix', affixValue: 'me-', notes: null },
         ],
+        usageLabels: ['kasar', 'seksual', 'bukan_label'],
       },
     };
 
@@ -80,6 +81,7 @@ describe('normalizeContributionDetail - word (layout impl camelCase)', () => {
     expect(word.wordType).toBe('word');
     expect(word.status).toBe('published');
     expect(word.isVerified).toBe(false);
+    expect(word.usageLabels).toEqual(['kasar', 'seksual']);
 
     expect(word.meanings).toHaveLength(1);
     expect(word.meanings[0]).toMatchObject({
@@ -121,6 +123,7 @@ describe('normalizeContributionDetail - word (layout docs snake_case)', () => {
         status: 'published',
         is_verified: true,
         is_corrected: true,
+        usage_labels: ['tabu', 'diskriminatif'],
         meanings: [
           {
             id: 'm1',
@@ -138,6 +141,7 @@ describe('normalizeContributionDetail - word (layout docs snake_case)', () => {
     const word = wordOf(normalizeContributionDetail(payload))!;
     expect(word.wordType).toBe('idiom');
     expect(word.isVerified).toBe(true);
+    expect(word.usageLabels).toEqual(['tabu', 'diskriminatif']);
     expect(word.meanings[0]).toMatchObject({
       wordClassId: WC_ID,
       wordClassName: 'Frasa',

@@ -23,6 +23,7 @@ import { useCategoryOptions, useDialectOptions, useLanguageOptions, useWordClass
 import {
   MeaningFields,
   RelatedWordItem,
+  UsageLabelsFields,
   affixTypeOptions,
   buildRelationOptions,
   buildWordClassOptions,
@@ -31,7 +32,7 @@ import {
   wordTypeOptions,
 } from '@/features/words/presentation/word-form-blocks';
 import { ApiError } from '@/shared/api/error';
-import type { ContributionDetailView } from '../domain/contribution';
+import type { ContributionDetailView, ReviewDecisionResult } from '../domain/contribution';
 import type { CorrectFormValues } from '../application/correct-contribution';
 import { buildCorrectContribution, wordEntityToFormValues } from '../application/correct-contribution';
 import { useCorrectContribution } from '../application/use-correct-contribution';
@@ -43,6 +44,8 @@ export interface CorrectContributionDrawerProps {
   open: boolean;
   zIndex: number;
   onCancel: () => void;
+  /** Dipanggil setelah koreksi berhasil tersimpan (publish true/false). */
+  onApplied?: (result: ReviewDecisionResult) => void;
 }
 
 /**
@@ -51,7 +54,13 @@ export interface CorrectContributionDrawerProps {
  * dari isi lama (replace semantics di server). `publish=false` = koreksi
  * disimpan tapi entitas tetap menunggu review.
  */
-export function CorrectContributionDrawer({ detail, open, zIndex, onCancel }: CorrectContributionDrawerProps) {
+export function CorrectContributionDrawer({
+  detail,
+  open,
+  zIndex,
+  onCancel,
+  onApplied,
+}: CorrectContributionDrawerProps) {
   const { message } = AntdApp.useApp();
   const [form] = Form.useForm<CorrectFormValues>();
   const mutation = useCorrectContribution(detail.contribution.id);
@@ -77,11 +86,16 @@ export function CorrectContributionDrawer({ detail, open, zIndex, onCancel }: Co
     setSubmitError(null);
     try {
       const values = await form.validateFields();
-      await mutation.mutateAsync(
+      const result = await mutation.mutateAsync(
         buildCorrectContribution(entityType, values, { comment: undefined, publish }),
-        { onSuccess: () => message.success('Koreksi diterapkan.') },
+      );
+      message.success(
+        result.status === 'pending'
+          ? 'Koreksi disimpan. Usulan tetap menunggu.'
+          : 'Koreksi diterapkan.',
       );
       onCancel();
+      onApplied?.(result);
     } catch (err) {
       if (err instanceof ApiError) {
         const fieldErrors = err.fieldErrors();
@@ -309,6 +323,13 @@ function CorrectWordForm({ form }: { form: FormInstance<CorrectFormValues> }) {
               placeholder="mis. Kekerabatan, Makanan, Alam"
             />
           </Form.Item>
+        </Card>
+
+        <Card size="small" title="3b. Register & Peringatan">
+          <Text type="secondary" style={{ display: 'block', marginBottom: 8 }}>
+            Penanda gaya bahasa dan peringatan konten (bukan kategori topik).
+          </Text>
+          <UsageLabelsFields />
         </Card>
 
         <Collapse

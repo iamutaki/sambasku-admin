@@ -1,5 +1,5 @@
 import { useMemo, type ReactNode } from 'react';
-import { Descriptions, Flex, Image, Space, Tag, Typography } from 'antd';
+import { Button, Descriptions, Flex, Image, Radio, Space, Tag, Typography } from 'antd';
 import { pickDefaultLanguageIds } from '@/features/words/application/create-word-utils';
 import { useDialectOptions, useLanguageOptions } from '@/features/words/application/use-reference-data';
 import {
@@ -8,7 +8,9 @@ import {
   TRANSLATION_TYPE_LABELS,
   VARIANT_TYPE_LABELS,
 } from '@/features/words/domain/create-word';
-import { WORD_STATUS_LABELS, WORD_TYPE_LABELS } from '@/features/words/domain/word';
+import { WORD_STATUS_LABELS, WORD_TYPE_LABELS, USAGE_LABEL_LABELS, type UsageLabel } from '@/features/words/domain/word';
+import { SafeAudioPlayer } from '@/shared/components/safe-audio-player';
+import { resolvePublicAudioUrl } from '@/shared/utils/public-audio-url';
 import type {
   ContributionDetailView,
   ExampleChildData,
@@ -16,6 +18,7 @@ import type {
   WordEntityView,
   WordAudioChildData,
   WordImageChildData,
+  WordImageView,
 } from '../domain/contribution';
 
 const { Text } = Typography;
@@ -82,8 +85,9 @@ function useDialectLabel(languageId: string | null | undefined): DialectLabel {
 }
 
 function AudioPranala({ href }: { href: string }) {
+  const resolved = resolvePublicAudioUrl(href) || href;
   return (
-    <a href={href} target="_blank" rel="noreferrer">
+    <a href={resolved} target="_blank" rel="noreferrer">
       Pranala
     </a>
   );
@@ -93,11 +97,36 @@ function AudioPranala({ href }: { href: string }) {
  * Tampilan READ-ONLY isi kontribusi - dipakai di dalam drawer review.
  * Word → seluruh detail kata (semua status); anak → row entity + parent.
  */
-export function ContributionEntityView({ detail }: { detail: ContributionDetailView }) {
+export function ContributionEntityView({
+  detail,
+  imageDecisions,
+  onImageDecision,
+  censoredByImageId,
+  onRequestCensor,
+  onClearCensor,
+}: {
+  detail: ContributionDetailView;
+  /** Hanya usulan kata yang masih pending. */
+  imageDecisions?: Record<string, 'approve' | 'reject'>;
+  onImageDecision?: (imageId: string, decision: 'approve' | 'reject') => void;
+  censoredByImageId?: Record<string, Blob>;
+  onRequestCensor?: (image: WordImageView) => void;
+  onClearCensor?: (imageId: string) => void;
+}) {
   const dialectLabel = useDialectLabel(detail.entityType === 'word' ? detail.word.languageId : null);
 
   if (detail.entityType === 'word') {
-    return <WordEntityDetail word={detail.word} dialectLabel={dialectLabel} />;
+    return (
+      <WordEntityDetail
+        word={detail.word}
+        dialectLabel={dialectLabel}
+        imageDecisions={imageDecisions}
+        onImageDecision={onImageDecision}
+        censoredByImageId={censoredByImageId}
+        onRequestCensor={onRequestCensor}
+        onClearCensor={onClearCensor}
+      />
+    );
   }
 
   const child = detail.child;
@@ -107,7 +136,24 @@ export function ContributionEntityView({ detail }: { detail: ContributionDetailV
       <PronunciationDetail fields={child.fields as PronunciationChildData} dialectLabel={dialectLabel} />
     );
   } else if (detail.entityType === 'word_image') {
-    content = <WordImageDetail fields={child.fields as WordImageChildData} />;
+    const fields = child.fields as WordImageChildData;
+    const asView: WordImageView = {
+      id: child.id,
+      url: fields.url,
+      altText: fields.alt_text,
+      isPrimary: fields.is_primary,
+      provider: fields.provider,
+      isVerified: child.isVerified,
+    };
+    content = (
+      <WordImageDetail
+        fields={fields}
+        image={asView}
+        hasCensor={Boolean(censoredByImageId?.[child.id])}
+        onRequestCensor={onRequestCensor}
+        onClearCensor={onClearCensor}
+      />
+    );
   } else if (detail.entityType === 'word_audio') {
     content = (
       <WordAudioDetail
@@ -133,7 +179,23 @@ export function ContributionEntityView({ detail }: { detail: ContributionDetailV
   );
 }
 
-function WordEntityDetail({ word, dialectLabel }: { word: WordEntityView; dialectLabel: DialectLabel }) {
+function WordEntityDetail({
+  word,
+  dialectLabel,
+  imageDecisions,
+  onImageDecision,
+  censoredByImageId,
+  onRequestCensor,
+  onClearCensor,
+}: {
+  word: WordEntityView;
+  dialectLabel: DialectLabel;
+  imageDecisions?: Record<string, 'approve' | 'reject'>;
+  onImageDecision?: (imageId: string, decision: 'approve' | 'reject') => void;
+  censoredByImageId?: Record<string, Blob>;
+  onRequestCensor?: (image: WordImageView) => void;
+  onClearCensor?: (imageId: string) => void;
+}) {
   const basics = [
     { key: 'lemma', label: 'Lemma', children: <Text strong>{word.lemma}</Text> },
     {
@@ -160,6 +222,27 @@ function WordEntityDetail({ word, dialectLabel }: { word: WordEntityView; dialec
     <>
       <Section title="Data Kata Dasar">
         <Descriptions size="small" column={2} items={basics} />
+      </Section>
+
+      <Section title="Register & peringatan">
+        {word.usageLabels.length ? (
+          <Space size={4} wrap>
+            {word.usageLabels.map((code) => (
+              <Tag
+                key={code}
+                color={
+                  code === 'kasar' || code === 'tabu' || code === 'seksual' || code === 'diskriminatif'
+                    ? 'volcano'
+                    : 'default'
+                }
+              >
+                {USAGE_LABEL_LABELS[code as UsageLabel] ?? code}
+              </Tag>
+            ))}
+          </Space>
+        ) : (
+          <Text type="secondary">Tidak ada</Text>
+        )}
       </Section>
 
       {word.meanings.length ? (
@@ -230,23 +313,62 @@ function WordEntityDetail({ word, dialectLabel }: { word: WordEntityView; dialec
         <Section title="Gambar">
           <Image.PreviewGroup>
             <Space direction="vertical" size={8}>
-              {word.images.map((img) => (
-                <Flex key={img.id} align="center" gap={8} wrap>
-                  <Image
-                    src={img.url}
-                    alt={img.altText ?? img.id}
-                    height={48}
-                    style={{ borderRadius: 6, objectFit: 'cover' }}
-                  />
-                  <Space size={4} wrap>
-                    {img.isPrimary ? <Tag color="geekblue">Utama</Tag> : null}
-                    {img.status ? <StatusTag status={img.status} /> : null}
-                    {img.altText ? <Text type="secondary">{img.altText}</Text> : null}
-                  </Space>
-                </Flex>
-              ))}
+              {word.images.map((img) => {
+                const decision = imageDecisions?.[img.id] ?? 'approve';
+                const canCensor =
+                  decision === 'approve' &&
+                  img.provider === 'imagekit' &&
+                  !!onRequestCensor;
+                const hasCensor = Boolean(censoredByImageId?.[img.id]);
+                return (
+                  <Flex key={img.id} align="center" gap={8} wrap>
+                    <Image
+                      src={img.url}
+                      alt={img.altText ?? img.id}
+                      height={48}
+                      style={{ borderRadius: 6, objectFit: 'cover' }}
+                    />
+                    <Space size={4} wrap>
+                      {img.isPrimary ? <Tag color="geekblue">Utama</Tag> : null}
+                      {img.status ? <StatusTag status={img.status} /> : null}
+                      {img.provider ? <Tag>{img.provider}</Tag> : null}
+                      {hasCensor ? <Tag color="orange">Tersensor</Tag> : null}
+                      {img.altText ? <Text type="secondary">{img.altText}</Text> : null}
+                    </Space>
+                    {onImageDecision ? (
+                      <Radio.Group
+                        size="small"
+                        optionType="button"
+                        value={decision}
+                        onChange={(event) => onImageDecision(img.id, event.target.value)}
+                        options={[
+                          { label: 'Tayangkan', value: 'approve' },
+                          { label: 'Jangan tayangkan', value: 'reject' },
+                        ]}
+                      />
+                    ) : null}
+                    {canCensor ? (
+                      <Space size={4}>
+                        <Button size="small" onClick={() => onRequestCensor(img)}>
+                          {hasCensor ? 'Edit sensor' : 'Sensor'}
+                        </Button>
+                        {hasCensor && onClearCensor ? (
+                          <Button size="small" type="link" onClick={() => onClearCensor(img.id)}>
+                            Batalkan sensor
+                          </Button>
+                        ) : null}
+                      </Space>
+                    ) : null}
+                  </Flex>
+                );
+              })}
             </Space>
           </Image.PreviewGroup>
+          {onImageDecision ? (
+            <Text type="secondary" style={{ display: 'block', marginTop: 8 }}>
+              Foto yang tidak ditayangkan dihapus dari kata. Sensor opsional sebelum Setujui (ImageKit).
+            </Text>
+          ) : null}
         </Section>
       ) : null}
 
@@ -313,7 +435,11 @@ function PronunciationDetail({
       { key: 'notation', label: 'Notasi', children: fields.notation },
       { key: 'dialect', label: 'Dialek', children: dialectLabel(fields.dialect_id) },
       { key: 'speaker', label: 'Penutur', children: fields.speaker_name ?? '-' },
-      { key: 'audio', label: 'Audio', children: fields.audio_url ? <AudioPranala href={fields.audio_url} /> : '-' },
+      {
+        key: 'audio',
+        label: 'Audio',
+        children: fields.audio_url ? <SafeAudioPlayer url={fields.audio_url} maxWidth={360} /> : '-',
+      },
       { key: 'notes', label: 'Catatan', children: fields.notes ?? '-' },
     ]} />
   );
@@ -349,7 +475,7 @@ function WordAudioDetail({
 
   return (
     <Space direction="vertical" size={8} style={{ width: '100%' }}>
-      <audio controls src={fields.url} preload="metadata" style={{ width: '100%', maxWidth: 420 }} />
+      <SafeAudioPlayer url={fields.url} />
       <Descriptions
         size="small"
         column={1}
@@ -369,7 +495,20 @@ function WordAudioDetail({
   );
 }
 
-function WordImageDetail({ fields }: { fields: WordImageChildData }) {
+function WordImageDetail({
+  fields,
+  image,
+  hasCensor,
+  onRequestCensor,
+  onClearCensor,
+}: {
+  fields: WordImageChildData;
+  image?: WordImageView;
+  hasCensor?: boolean;
+  onRequestCensor?: (image: WordImageView) => void;
+  onClearCensor?: (imageId: string) => void;
+}) {
+  const canCensor = fields.provider === 'imagekit' && image && onRequestCensor;
   return (
     <Space direction="vertical" size={8} style={{ width: '100%' }}>
       <Image
@@ -384,6 +523,19 @@ function WordImageDetail({ fields }: { fields: WordImageChildData }) {
         { key: 'alt', label: 'Alt Text', children: fields.alt_text ?? '-' },
         { key: 'primary', label: 'Gambar Utama', children: fields.is_primary ? 'Ya' : 'Tidak' },
       ]} />
+      {canCensor ? (
+        <Space size={4}>
+          {hasCensor ? <Tag color="orange">Tersensor</Tag> : null}
+          <Button size="small" onClick={() => onRequestCensor(image)}>
+            {hasCensor ? 'Edit sensor' : 'Sensor'}
+          </Button>
+          {hasCensor && onClearCensor ? (
+            <Button size="small" type="link" onClick={() => onClearCensor(image.id)}>
+              Batalkan sensor
+            </Button>
+          ) : null}
+        </Space>
+      ) : null}
     </Space>
   );
 }

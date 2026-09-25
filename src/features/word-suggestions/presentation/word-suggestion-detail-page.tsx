@@ -1,8 +1,22 @@
-import { useState } from 'react';
-import { App, Button, Card, Descriptions, Flex, Image, Input, Space, Tag, Typography } from 'antd';
+import { useMemo, useState } from 'react';
+import {
+  App,
+  Button,
+  Card,
+  Descriptions,
+  Flex,
+  Image,
+  Input,
+  Modal,
+  Radio,
+  Space,
+  Tag,
+  Typography,
+} from 'antd';
 import { useNavigate, useParams } from '@tanstack/react-router';
 import { PageHeader } from '@/shared/components/page-header';
 import { PageLoading } from '@/shared/components/page-loading';
+import { ImageCensorEditor } from '@/features/translation-helps/presentation/image-censor-editor';
 import {
   useApproveWordSuggestion,
   useRejectWordSuggestion,
@@ -10,14 +24,35 @@ import {
 } from '../application/use-word-suggestion-actions';
 import { REASON_CODE_LABELS, SUGGESTION_STATUS_LABELS } from '../domain/word-suggestion';
 
+type AddedImage = {
+  url: string;
+  is_primary: boolean;
+  provider?: string | null;
+  provider_file_id?: string | null;
+};
+
+function decisionKey(img: AddedImage, index: number): string {
+  return img.provider_file_id?.trim() || String(index);
+}
+
 export function WordSuggestionDetailPage() {
   const { id } = useParams({ from: '/console-layout/word-suggestions/$id' });
+  return <WordSuggestionDetail id={id} key={id} />;
+}
+
+function WordSuggestionDetail({ id }: { id: string }) {
   const navigate = useNavigate();
   const { message, modal } = App.useApp();
   const { data, isLoading, isError, error } = useWordSuggestionDetail(id);
   const approve = useApproveWordSuggestion();
   const reject = useRejectWordSuggestion();
   const [comment, setComment] = useState('');
+  const [imageDecisions, setImageDecisions] = useState<Record<string, 'approve' | 'reject'>>({});
+  const [censoredByKey, setCensoredByKey] = useState<Record<string, Blob>>({});
+  const [censorTarget, setCensorTarget] = useState<{ key: string; url: string } | null>(null);
+
+  const addedImages = useMemo(() => data?.diff.images?.added ?? [], [data]);
+  const pending = data?.suggestion.status === 'pending';
 
   if (isLoading) return <PageLoading tip="Memuat usulan…" />;
   if (isError || !data) {
@@ -29,7 +64,6 @@ export function WordSuggestionDetailPage() {
   }
 
   const { suggestion, current_word, diff } = data;
-  const pending = suggestion.status === 'pending';
   const hasMainDiff =
     diff.lemma.changed ||
     diff.notes.changed ||
@@ -47,7 +81,19 @@ export function WordSuggestionDetailPage() {
       title: 'Setujui usulan?',
       content: 'Perubahan akan langsung diterapkan ke kata tayang.',
       onOk: async () => {
-        await approve.mutateAsync({ id, comment: comment || undefined });
+        const decisions =
+          addedImages.length > 0
+            ? addedImages.map((img, index) => {
+                const key = decisionKey(img, index);
+                return { key, decision: imageDecisions[key] ?? 'approve' };
+              })
+            : undefined;
+        await approve.mutateAsync({
+          id,
+          comment: comment || undefined,
+          imageDecisions: decisions,
+          censoredByKey: Object.keys(censoredByKey).length > 0 ? censoredByKey : undefined,
+        });
         message.success('Usulan disetujui');
         void navigate({ to: '/word-suggestions' });
       },
@@ -159,13 +205,85 @@ export function WordSuggestionDetailPage() {
           <>
             {diff.images.added.length > 0 && (
               <Image.PreviewGroup>
-                <Flex gap={8} wrap="wrap" style={{ marginBottom: 8 }}>
-                  {diff.images.added.map((img, i) => (
-                    <Image key={i} src={img.url} width={72} height={72} style={{ objectFit: 'cover' }} />
-                  ))}
-                </Flex>
+                <Space direction="vertical" size={8} style={{ marginBottom: 8 }}>
+                  {diff.images.added.map((img, i) => {
+                    const key = decisionKey(img, i);
+                    const decision = imageDecisions[key] ?? 'approve';
+                    const canCensor =
+                      pending && decision === 'approve' && img.provider === 'imagekit';
+                    const hasCensor = Boolean(censoredByKey[key]);
+                    return (
+                      <Flex key={key} align="center" gap={8} wrap>
+                        <Image
+                          src={img.url}
+                          width={72}
+                          height={72}
+                          style={{ objectFit: 'cover', borderRadius: 6 }}
+                        />
+                        <Space size={4} wrap>
+                          {img.is_primary ? <Tag color="geekblue">Utama</Tag> : null}
+                          {img.provider ? <Tag>{img.provider}</Tag> : null}
+                          {hasCensor ? <Tag color="orange">Tersensor</Tag> : null}
+                        </Space>
+                        {pending ? (
+                          <Radio.Group
+                            size="small"
+                            optionType="button"
+                            value={decision}
+                            onChange={(e) => {
+                              const next = e.target.value as 'approve' | 'reject';
+                              setImageDecisions((prev) => ({ ...prev, [key]: next }));
+                              if (next === 'reject') {
+                                setCensoredByKey((prev) => {
+                                  const copy = { ...prev };
+                                  delete copy[key];
+                                  return copy;
+                                });
+                              }
+                            }}
+                            options={[
+                              { label: 'Tayangkan', value: 'approve' },
+                              { label: 'Jangan tayangkan', value: 'reject' },
+                            ]}
+                          />
+                        ) : null}
+                        {canCensor ? (
+                          <Space size={4}>
+                            <Button
+                              size="small"
+                              onClick={() => setCensorTarget({ key, url: img.url })}
+                            >
+                              {hasCensor ? 'Edit sensor' : 'Sensor'}
+                            </Button>
+                            {hasCensor ? (
+                              <Button
+                                size="small"
+                                type="link"
+                                onClick={() =>
+                                  setCensoredByKey((prev) => {
+                                    const copy = { ...prev };
+                                    delete copy[key];
+                                    return copy;
+                                  })
+                                }
+                              >
+                                Batalkan sensor
+                              </Button>
+                            ) : null}
+                          </Space>
+                        ) : null}
+                      </Flex>
+                    );
+                  })}
+                </Space>
               </Image.PreviewGroup>
             )}
+            {pending && diff.images.added.some((i) => i.provider === 'imagekit') ? (
+              <Typography.Text type="secondary" style={{ display: 'block', marginBottom: 8 }}>
+                Foto ImageKit: Tayangkan (opsional sensor) → GitHub publik; Jangan tayangkan →
+                dihapus.
+              </Typography.Text>
+            ) : null}
             {diff.images.removed.length > 0 && (
               <Typography.Paragraph type="secondary">
                 Hapus gambar: {diff.images.removed.map((i) => i.image_id).join(', ')}
@@ -213,6 +331,29 @@ export function WordSuggestionDetailPage() {
           </Space>
         </Card>
       )}
+
+      {censorTarget ? (
+        <Modal
+          title="Sensor foto"
+          open
+          onCancel={() => setCensorTarget(null)}
+          footer={null}
+          width={720}
+          destroyOnHidden
+          zIndex={1200}
+        >
+          <ImageCensorEditor
+            imageUrl={censorTarget.url}
+            confirmLabel="Simpan sensor"
+            onCancel={() => setCensorTarget(null)}
+            onApply={(blob) => {
+              setCensoredByKey((prev) => ({ ...prev, [censorTarget.key]: blob }));
+              setCensorTarget(null);
+              message.success('Sensor disimpan. Akan dikirim saat Setujui.');
+            }}
+          />
+        </Modal>
+      ) : null}
     </Flex>
   );
 }

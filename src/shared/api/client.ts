@@ -14,10 +14,11 @@ import {
   activeTier,
   advanceTier,
   apiTiers,
+  getForcedTierIndex,
   hasFallbacks,
   isColdTier,
+  isFailoverReplayable,
   isInfraFailure,
-  isReplayableMethod,
   releaseColdSlot,
 } from './failover';
 import { AuthExpiredError, isAuthExpiredError, normalizeError } from './error';
@@ -60,7 +61,8 @@ function releaseCold(config: InternalAxiosRequestConfig | undefined): void {
 }
 
 async function applyActiveTier(config: InternalAxiosRequestConfig): Promise<InternalAxiosRequestConfig> {
-  if (!hasFallbacks()) return config;
+  // Tanpa fallback dan tanpa paksa admin: biarkan baseURL default env.
+  if (!hasFallbacks() && getForcedTierIndex() === null) return config;
   // Axios di browser hanya punya satu timeout untuk seluruh request, tidak bisa
   // memisahkan connect dan receive seperti Dio. Yang membatasi ledakan koneksi
   // 75 detik adalah antrean host dingin, bukan angka timeout-nya.
@@ -113,13 +115,13 @@ interface RetryableRequestConfig extends AxiosRequestConfig {
 }
 
 /**
- * Naikkan tier saat kegagalan infrastruktur, lalu ulangi SEKALI - hanya untuk
- * metode idempoten.
+ * Naikkan tier saat kegagalan infrastruktur, lalu ulangi SEKALI untuk
+ * GET/HEAD dan POST sesi auth (`/auth/refresh`, `/auth/login`).
  *
- * Mutasi tidak diulang otomatis walau tier sudah pindah: timeout terima respons
- * bisa berarti server SUDAH menyimpan, jadi mengulang berisiko data ganda. Pin
- * tetap berubah, sehingga percobaan ulang dari admin sendiri langsung mendarat
- * di tier baru.
+ * Mutasi data lain tidak diulang otomatis walau tier sudah pindah: timeout
+ * terima respons bisa berarti server SUDAH menyimpan, jadi mengulang berisiko
+ * data ganda. Pin tetap berubah, sehingga percobaan ulang dari admin sendiri
+ * langsung mendarat di tier baru.
  *
  * Mengembalikan respons kalau berhasil diulang, atau null kalau tidak.
  */
@@ -134,7 +136,7 @@ async function retryOnNextTier(
 
   const active = activeTier();
   const step = decideFailoverStep({
-    replayable: isReplayableMethod(config.method),
+    replayable: isFailoverReplayable(config.method, config.url),
     replayed: config._failoverRetried === true,
     failedOnActiveHost: sameHost(config.baseURL, active.baseUrl),
     hasNextTier: active.index + 1 < apiTiers.length,

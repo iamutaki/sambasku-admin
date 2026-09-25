@@ -72,6 +72,7 @@ export function wordEntityToFormValues(view: WordEntityView): CreateWordFormValu
       };
     }),
     category_ids: view.categories.map((c) => c.id),
+    usage_labels: view.usageLabels,
     related_words: view.relatedWords.map((rel) => ({
       relation_type: rel.relationType as RelationType,
       mode: 'link' as const,

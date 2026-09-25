@@ -112,6 +112,7 @@ body {
   display: flex;
   flex-direction: column;
   flex: 1;
+  gap: 16px;
 }
 
 .console-layout__card {
@@ -121,16 +122,24 @@ body {
   padding: 24px;
 }
 
+/* Alert banner AntD: jangan tarik margin negatif ke kartu di bawahnya. */
+.api-tier-banner .ant-alert {
+  margin-inline: 0;
+  margin-bottom: 0;
+}
+
 /* Layar kecil: kurangi padding kanan-kiri agar tabel punya ruang maksimal */
 @media (max-width: 768px) {
   .console-layout__content {
     padding: 16px 12px;
+    gap: 12px;
   }
 }
 
 @media (max-width: 480px) {
   .console-layout__content {
     padding: 12px 8px;
+    gap: 12px;
   }
 }
 

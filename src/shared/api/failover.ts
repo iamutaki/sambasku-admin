@@ -75,14 +75,21 @@ export function releaseColdSlot(): void {
   coldGate.release();
 }
 
+const FORCED_TIER_STORAGE_KEY = 'console.forcedApiTier';
+
 let pinnedIndex = 0;
 let pinnedUntil = 0;
 let warmedUpForPin = 0;
 let probeAbort: AbortController | null = null;
 let probeTimer: ReturnType<typeof setTimeout> | null = null;
+/** null = Auto (circuit breaker). Angka = paksa tier itu (admin switcher). */
+let forcedIndex: number | null = null;
 
 /** Murni - pin kedaluwarsa cukup berhenti dihitung, tanpa timer. */
 function effectiveIndex(): number {
+  if (forcedIndex !== null && forcedIndex >= 0 && forcedIndex < tiers.length) {
+    return forcedIndex;
+  }
   if (pinnedUntil === 0 || Date.now() >= pinnedUntil) return 0;
   return pinnedIndex;
 }
@@ -91,8 +98,54 @@ export function activeTier(): ApiTier {
   return tiers[effectiveIndex()]!;
 }
 
-/** Naik satu tier dan pin. null = sudah di tier terakhir. */
+export function getForcedTierIndex(): number | null {
+  return forcedIndex;
+}
+
+/**
+ * Paksa satu tier (admin) atau `null` untuk kembali ke Auto.
+ * Membatalkan probe warm-up; pin otomatis diabaikan selama forced aktif.
+ */
+export function setForcedTier(index: number | null): void {
+  const next =
+    index === null || index < 0 || index >= tiers.length ? null : index;
+  if (forcedIndex === next) return;
+  forcedIndex = next;
+  cancelProbe();
+  notify();
+  try {
+    if (typeof localStorage === 'undefined') return;
+    if (next === null) localStorage.removeItem(FORCED_TIER_STORAGE_KEY);
+    else localStorage.setItem(FORCED_TIER_STORAGE_KEY, String(next));
+  } catch {
+    // Gagal menyimpan tidak boleh membatalkan pilihan di sesi ini.
+  }
+}
+
+/** Baca override dari localStorage (dipanggil saat boot / tes). */
+export function loadForcedTier(): void {
+  try {
+    if (typeof localStorage === 'undefined') return;
+    const raw = localStorage.getItem(FORCED_TIER_STORAGE_KEY);
+    if (raw === null) return;
+    const parsed = Number.parseInt(raw, 10);
+    if (!Number.isFinite(parsed) || parsed < 0 || parsed >= tiers.length) return;
+    if (forcedIndex === parsed) return;
+    forcedIndex = parsed;
+    notify();
+  } catch {
+    // Preferensi tidak terbaca: tetap otomatis.
+  }
+}
+
+if (typeof window !== 'undefined') {
+  loadForcedTier();
+}
+
+/** Naik satu tier dan pin. null = sudah di tier terakhir / sedang dipaksa. */
 export function advanceTier(): ApiTier | null {
+  // Admin memaksa satu host: jangan cascade di belakang layar.
+  if (forcedIndex !== null) return null;
   const next = effectiveIndex() + 1;
   if (next >= tiers.length) return null;
   pinnedIndex = next;
@@ -153,6 +206,7 @@ export function __configureFailoverForTests(baseUrls: readonly string[]): void {
   pinnedIndex = 0;
   pinnedUntil = 0;
   warmedUpForPin = 0;
+  forcedIndex = null;
   cancelProbe();
   coldGate.reset();
   notify();
@@ -162,6 +216,28 @@ export function __configureFailoverForTests(baseUrls: readonly string[]): void {
 export function isReplayableMethod(method: string | undefined): boolean {
   const m = (method ?? 'GET').toUpperCase();
   return m === 'GET' || m === 'HEAD';
+}
+
+/**
+ * POST sesi auth yang aman diulang lintas host saat failover.
+ *
+ * Berbeda dari mutasi data (kata/kontribusi): timeout di sini hampir selalu
+ * berarti host belum menjawab, dan mengulang ke tier cadangan tidak membuat
+ * baris kamus ganda. Tanpa ini, `POST /auth/refresh` hanya menggeser pin lalu
+ * gagal — admin terlempar ke login meski cookie masih valid.
+ */
+const FAILOVER_REPLAYABLE_AUTH_PATHS = ['/auth/refresh', '/auth/login'] as const;
+
+export function isFailoverReplayable(
+  method: string | undefined,
+  url: string | undefined,
+): boolean {
+  if (isReplayableMethod(method)) return true;
+  if ((method ?? 'GET').toUpperCase() !== 'POST') return false;
+  const path = url ?? '';
+  return FAILOVER_REPLAYABLE_AUTH_PATHS.some(
+    (p) => path === p || path.endsWith(p),
+  );
 }
 
 /**

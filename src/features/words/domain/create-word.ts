@@ -97,6 +97,7 @@ export interface CreateWordRequestTranslation {
   language_id: string;
   translation_text: string;
   translation_type: TranslationType;
+  translation_allows_comma?: boolean;
 }
 
 export interface CreateWordRequestExample {
@@ -177,12 +178,14 @@ export interface WordImageInput {
   sha?: string;
   alt_text?: string;
   is_primary?: boolean;
+  content_warnings?: string[];
 }
 
 export interface CreateWordRequest {
   language_id: string;
   dialect_id?: string;
   lemma: string;
+  lemma_allows_comma?: boolean;
   notes?: string;
   word_type: WordType;
   usage_labels: UsageLabel[];
@@ -229,6 +232,7 @@ export interface CreateWordTranslationFormValue {
   language_id?: string;
   translation_text?: string;
   translation_type?: TranslationType;
+  translation_allows_comma?: boolean;
 }
 
 export interface CreateWordExampleFormValue {
@@ -312,6 +316,8 @@ export interface WordImageFormValue {
   sha?: string;
   alt_text?: string;
   is_primary?: boolean;
+  /** Peringatan visual per foto (API content_warnings). */
+  content_warnings?: string[];
   /** Blob URL preview file lokal - UI only (sebelum/Failed upload), tidak ikut submit. */
   localUrl?: string;
   /** Persen progres upload 0-100 - UI only, tidak ikut submit. */
@@ -322,6 +328,7 @@ export interface CreateWordFormValues {
   language_id?: string;
   dialect_id?: string;
   lemma?: string;
+  lemma_allows_comma?: boolean;
   notes?: string;
   word_type?: WordType;
   usage_labels?: UsageLabel[];

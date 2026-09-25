@@ -117,6 +117,7 @@ export async function unpublishWordRequest(id: string, signal?: AbortSignal): Pr
 export interface ImportWordPayload {
   lemma: string;
   verify: boolean;
+  verified: boolean;
   notes?: string;
   meanings: { translation?: string; definition?: string; example?: string }[];
 }
@@ -149,6 +150,33 @@ export async function takedownWordRequest(
 export async function restoreWordRequest(id: string): Promise<void> {
   await client.post(`/admin/words/${id}/restore`);
 }
+
+export type BulkWordsAction = 'delete' | 'publish' | 'unpublish';
+
+export type BulkWordsItemResult =
+  | { id: string; ok: true; merged_into_word_id: string | null }
+  | { id: string; ok: false; error_code: string; message: string };
+
+export type BulkWordsResult = {
+  action: BulkWordsAction;
+  succeeded: number;
+  failed: number;
+  results: BulkWordsItemResult[];
+};
+
+/**
+ * POST /api/v1/admin/words/bulk - mass-action dari checkbox panel Kata.
+ * Partial success: tiap id punya ok/error sendiri. Publish mengikuti merge
+ * lemma twin (sama seperti POST /:id/publish).
+ */
+export async function bulkWordsActionRequest(body: {
+  action: BulkWordsAction;
+  ids: string[];
+}): Promise<BulkWordsResult> {
+  const res = await client.post<ApiOkEnvelope<BulkWordsResult>>('/admin/words/bulk', body);
+  return res.data.data;
+}
+
 export interface DuplicateWordItemDto {
   id: string;
   lemma: string;
@@ -188,3 +216,173 @@ export async function mergeDuplicateWordsRequest(body: {
   >('/admin/words/duplicates/merge', body);
   return res.data.data;
 }
+
+export interface CommaSplitLemmaDto {
+  word_id: string;
+  lemma: string;
+  language_id: string;
+  language_code: string;
+  word_type: WordListItem['word_type'];
+  status: WordListItem['status'];
+  is_verified: boolean;
+  meanings_count: number;
+  suggested_parts: string[];
+  meaning_preview: string[];
+  copied_translation: string;
+  copied_definition: string;
+}
+
+export interface CommaSplitTranslationDto {
+  meaning_translation_id: string;
+  meaning_id: string;
+  word_id: string;
+  lemma: string;
+  translation_text: string;
+  language_id: string;
+  language_code: string;
+  suggested_parts: string[];
+  definition: string;
+  word_class_id: string | null;
+}
+
+export async function listCommaSplitsRequest(
+  signal?: AbortSignal,
+): Promise<{
+  total: number;
+  lemmas: CommaSplitLemmaDto[];
+  translations: CommaSplitTranslationDto[];
+}> {
+  const res = await client.get<
+    ApiOkEnvelope<{
+      total: number;
+      lemmas: CommaSplitLemmaDto[];
+      translations: CommaSplitTranslationDto[];
+    }>
+  >('/admin/words/comma-splits', { signal });
+  return res.data.data;
+}
+
+export type LemmaSplitMeaningOverride =
+  | { mode: 'copy' }
+  | {
+      mode: 'replace';
+      translation_text: string;
+      definition?: string;
+      word_class_id?: string | null;
+      meaning_source: 'manual' | 'kbbi';
+    };
+
+export async function applyCommaSplitRequest(
+  body:
+    | {
+        kind: 'lemma';
+        word_id: string;
+        parts: string[];
+        meaning_overrides?: LemmaSplitMeaningOverride[];
+      }
+    | { kind: 'translation'; meaning_translation_id: string; parts: string[] },
+): Promise<{
+  kind: 'lemma' | 'translation';
+  word_id: string;
+  created_word_ids?: string[];
+  meaning_ids?: string[];
+}> {
+  const res = await client.post<
+    ApiOkEnvelope<{
+      kind: 'lemma' | 'translation';
+      word_id: string;
+      created_word_ids?: string[];
+      meaning_ids?: string[];
+    }>
+  >('/admin/words/comma-splits/apply', body);
+  return res.data.data;
+}
+
+export async function markCommaLiteralRequest(
+  body:
+    | { kind: 'lemma'; word_id: string }
+    | { kind: 'translation'; meaning_translation_id: string },
+): Promise<{ kind: 'lemma' | 'translation'; id: string }> {
+  const res = await client.post<
+    ApiOkEnvelope<{ kind: 'lemma' | 'translation'; id: string }>
+  >('/admin/words/comma-splits/mark-literal', body);
+  return res.data.data;
+}
+
+export type WordImportSessionStatus = 'running' | 'completed' | 'cancelled' | 'failed';
+
+export type WordImportSessionItem = {
+  lemma: string;
+  outcome: ImportWordResultItem['outcome'];
+  meanings_added: number;
+  message?: string;
+};
+
+export type WordImportSession = {
+  id: string;
+  triggered_by: string;
+  triggered_by_username: string | null;
+  attributed_to: string;
+  attributed_to_username: string | null;
+  source_label: string | null;
+  status: WordImportSessionStatus;
+  total: number;
+  created_count: number;
+  duplicates_count: number;
+  meanings_added_count: number;
+  invalid_count: number;
+  items: WordImportSessionItem[];
+  created_at: string;
+  finished_at: string | null;
+};
+
+export type SaveWordImportSessionBody = {
+  id: string;
+  source_label?: string | null;
+  status: WordImportSessionStatus;
+  total: number;
+  created_count: number;
+  duplicates_count: number;
+  meanings_added_count: number;
+  invalid_count: number;
+  items: WordImportSessionItem[];
+};
+
+/** POST /api/v1/admin/words/import-sessions — simpan ringkasan sesi impor. */
+export async function saveWordImportSessionRequest(
+  body: SaveWordImportSessionBody,
+): Promise<WordImportSession> {
+  const res = await client.post<ApiOkEnvelope<WordImportSession>>(
+    '/admin/words/import-sessions',
+    body,
+  );
+  return res.data.data;
+}
+
+/** GET /api/v1/admin/words/import-sessions — daftar riwayat impor. */
+export async function listWordImportSessionsRequest(
+  params: { limit?: number; cursor?: string } = {},
+  signal?: AbortSignal,
+): Promise<CursorPage<WordImportSession>> {
+  const res = await client.get<ApiCursorPageEnvelope<WordImportSession>>(
+    '/admin/words/import-sessions',
+    {
+      params: { limit: params.limit ?? 20, cursor: params.cursor },
+      signal,
+    },
+  );
+  return { data: res.data.data, meta: res.data.meta };
+}
+
+/** GET /api/v1/admin/words/import-sessions/:id — detail sesi. */
+export async function getWordImportSessionRequest(
+  id: string,
+  signal?: AbortSignal,
+): Promise<WordImportSession> {
+  const res = await client.get<ApiOkEnvelope<WordImportSession>>(
+    `/admin/words/import-sessions/${id}`,
+    { signal },
+  );
+  return res.data.data;
+}
+

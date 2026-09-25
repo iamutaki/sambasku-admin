@@ -9,8 +9,9 @@ import { WordsPage } from '@/features/words/presentation/words-page';
 import { CreateWordPage } from '@/features/words/presentation/create-word-page';
 import { EditWordPage } from '@/features/words/presentation/edit-word-page';
 import { WordDetailPage } from '@/features/words/presentation/word-detail-page';
+import { ImportHistoryPage } from '@/features/words/presentation/import-history-page';
+import { ImportHistoryDetailPage } from '@/features/words/presentation/import-history-detail-page';
 import { ContributionsPage } from '@/features/contributions/presentation/contributions-page';
-import { ContributionDetailPage } from '@/features/contributions/presentation/contribution-detail-page';
 import { CommentsPage } from '@/features/comments/presentation/comments-page';
 import { CommentBlocklistPage } from '@/features/comment-blocklist/presentation/comment-blocklist-page';
 import { SearchMissesPage } from '@/features/search-miss/presentation/search-misses-page';
@@ -100,6 +101,18 @@ const wordsRoute = createRoute({
   component: WordsPage,
 });
 
+const importHistoryRoute = createRoute({
+  getParentRoute: () => consoleLayoutRoute,
+  path: '/words/import-history',
+  component: ImportHistoryPage,
+});
+
+const importHistoryDetailRoute = createRoute({
+  getParentRoute: () => consoleLayoutRoute,
+  path: '/words/import-history/$id',
+  component: ImportHistoryDetailPage,
+});
+
 const createWordRoute = createRoute({
   getParentRoute: () => consoleLayoutRoute,
   path: '/words/new',
@@ -129,13 +142,22 @@ const wordDetailRoute = createRoute({
 const contributionsRoute = createRoute({
   getParentRoute: () => consoleLayoutRoute,
   path: '/contributions',
+  validateSearch: (search: Record<string, unknown>) => ({
+    id: typeof search.id === 'string' && search.id.length > 0 ? search.id : undefined,
+  }),
   component: ContributionsPage,
 });
 
 const contributionDetailRoute = createRoute({
   getParentRoute: () => consoleLayoutRoute,
   path: '/contributions/$id',
-  component: ContributionDetailPage,
+  beforeLoad: ({ params }) => {
+    throw redirect({
+      to: '/contributions',
+      search: { id: params.id },
+      replace: true,
+    });
+  },
 });
 
 const commentsRoute = createRoute({
@@ -252,12 +274,37 @@ const profileRoute = createRoute({
   component: ProfilePage,
 });
 
+/**
+ * Alias path `/console-layout/...` → path nyata (tanpa prefix layout id).
+ *
+ * Layout terproteksi memakai pathless `id: 'console-layout'` - id itu muncul di
+ * fullRoutePath DevTools (`/console-layout/contributions`) tapi BUKAN URL.
+ * Salinan ke address bar → NotFound. Splat ini strip prefix + preserve
+ * search/hash. Route id otomatis `/console-layout/$` (tidak bentrok dengan
+ * layout id `/console-layout`).
+ */
+const consoleLayoutAliasRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/console-layout/$',
+  beforeLoad: ({ params, location }) => {
+    const rest = (params._splat ?? '').replace(/^\/+/, '');
+    const targetPath = rest ? `/${rest}` : '/dashboard';
+    throw redirect({
+      href: `${targetPath}${location.searchStr}${location.hash}`,
+      replace: true,
+    });
+  },
+});
+
 const routeTree = rootRoute.addChildren([
   indexRoute,
   baseLayoutRoute.addChildren([loginRoute]),
+  consoleLayoutAliasRoute,
   consoleLayoutRoute.addChildren([
     dashboardRoute,
     wordsRoute,
+    importHistoryRoute,
+    importHistoryDetailRoute,
     createWordRoute,
     wordDetailRoute,
     editWordRoute,

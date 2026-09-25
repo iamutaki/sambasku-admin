@@ -5,6 +5,7 @@ import {
   App as AntdApp,
   Button,
   Card,
+  Checkbox,
   Collapse,
   Col,
   Flex,
@@ -483,6 +484,9 @@ export function CreateWordPage() {
                   >
                     <Input placeholder="Isi kata, peribahasa, atau ungkapan" maxLength={255} allowClear />
                   </Form.Item>
+                  <Form.Item name="lemma_allows_comma" valuePropName="checked" style={{ marginTop: -12 }}>
+                    <Checkbox>Lemma memang mengandung koma (bukan multi-kata)</Checkbox>
+                  </Form.Item>
                 </Col>
                 <Col xs={24} md={12}>
                   <Form.Item
@@ -503,6 +507,13 @@ export function CreateWordPage() {
                         />
                       }
                     />
+                  </Form.Item>
+                  <Form.Item
+                    name={['meanings', 0, 'translations', 0, 'translation_allows_comma']}
+                    valuePropName="checked"
+                    style={{ marginTop: -12 }}
+                  >
+                    <Checkbox>Terjemahan memang mengandung koma (bukan multi-makna)</Checkbox>
                   </Form.Item>
                 </Col>
                 <Col xs={24}>
@@ -531,6 +542,9 @@ export function CreateWordPage() {
                   rules={[{ required: true, message: 'Kata wajib diisi' }, { whitespace: true, message: 'Kata tidak boleh hanya spasi' }]}
                 >
                   <Input placeholder="Isi kata, peribahasa, atau ungkapan" maxLength={255} allowClear />
+                </Form.Item>
+                <Form.Item name="lemma_allows_comma" valuePropName="checked" style={{ marginTop: -12 }}>
+                  <Checkbox>Lemma memang mengandung koma (bukan multi-kata)</Checkbox>
                 </Form.Item>
               </Col>
               <Col xs={24} md={6} lg={4}>

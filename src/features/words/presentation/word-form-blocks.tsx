@@ -54,6 +54,7 @@ import { validatePronunciationAudioFile } from '../infrastructure/pronunciation-
 import type { WordDetailAudio } from '../domain/word-detail';
 import { mergeAudiosForExamples } from '../application/example-audios';
 import { useAuth } from '@/shared/auth/use-auth';
+import { SafeAudioPlayer } from '@/shared/components/safe-audio-player';
 import { AudioTrimEditor } from './audio-trim-editor';
 import {
   AudioIdleCapture,
@@ -593,6 +594,13 @@ export function MeaningFields({
                                   ) : undefined
                                 }
                               />
+                            </Form.Item>
+                            <Form.Item
+                              name={[tf.name, 'translation_allows_comma']}
+                              valuePropName="checked"
+                              style={{ marginTop: -12 }}
+                            >
+                              <Checkbox>Terjemahan memang mengandung koma (bukan multi-makna)</Checkbox>
                             </Form.Item>
                           </Col>
                           <Col flex="140px">
@@ -1330,7 +1338,7 @@ export function WordAudioPlayerRow({
 }: WordAudioPlayerRowProps) {
   return (
     <Flex gap={12} wrap align="flex-start" style={{ width: '100%' }}>
-      <audio controls src={audio.url} preload="metadata" style={{ minWidth: 240, maxWidth: '100%' }} />
+      <SafeAudioPlayer url={audio.url} maxWidth={360} />
       <Space direction="vertical" size={2} style={{ flex: 1, minWidth: 200 }}>
         <Space size={4} wrap>
           {audio.is_primary ? <Tag color="geekblue">Utama</Tag> : null}

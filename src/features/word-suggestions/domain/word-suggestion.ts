@@ -76,7 +76,12 @@ export interface SuggestionDetail {
       removed: Array<{ form: string; variant_type: string }>;
     };
     images: {
-      added: Array<{ url: string; is_primary: boolean }>;
+      added: Array<{
+        url: string;
+        is_primary: boolean;
+        provider?: string | null;
+        provider_file_id?: string | null;
+      }>;
       removed: Array<{ image_id: string }>;
       set_primary: Array<{ image_id: string }>;
     };

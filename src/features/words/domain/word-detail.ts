@@ -20,6 +20,7 @@ export interface WordDetailMeaningTranslation {
   language_id: string;
   translation_text: string;
   translation_type: string;
+  translation_allows_comma?: boolean;
 }
 
 export interface WordDetailAudio {
@@ -81,6 +82,7 @@ export interface WordDetailVariant {
 export interface WordDetail {
   id: string;
   lemma: string;
+  lemma_allows_comma?: boolean;
   language_id: string;
   notes: string | null;
   word_type: WordType;
@@ -101,7 +103,16 @@ export interface WordDetail {
   categories: { id: string; name: string }[];
   pronunciations: { id: string; notation: string; value: string; dialect_id: string | null }[];
   audios: WordDetailAudio[];
-  images: { id: string; url: string; provider_file_id: string; sha?: string | null; alt_text: string | null; is_primary: boolean }[];
+  images: {
+    id: string;
+    url: string;
+    provider_file_id: string;
+    sha?: string | null;
+    alt_text: string | null;
+    is_primary: boolean;
+    content_warnings?: string[];
+    is_verified?: boolean;
+  }[];
   related_words: WordDetailRelation[];
   appears_in: WordDetailRelation[];
   variants: WordDetailVariant[];

@@ -1,4 +1,4 @@
-import type { WordType } from '@/features/words/domain/word';
+import type { UsageLabel, WordType } from '@/features/words/domain/word';
 
 export const CONTRIBUTION_STATUSES = ['pending', 'approved', 'rejected', 'corrected'] as const;
 export type ContributionStatus = (typeof CONTRIBUTION_STATUSES)[number];
@@ -118,6 +118,8 @@ export interface WordImageView {
   altText: string | null;
   isPrimary: boolean;
   status?: string;
+  provider?: string | null;
+  isVerified?: boolean;
 }
 
 export interface WordRelationView {
@@ -146,6 +148,8 @@ export interface WordEntityView {
   notes: string | null;
   isVerified: boolean;
   isCorrected: boolean;
+  /** Register & peringatan (`usage_labels` API). */
+  usageLabels: UsageLabel[];
   meanings: WordMeaningView[];
   categories: { id: string; name: string }[];
   pronunciations: WordPronunciationView[];

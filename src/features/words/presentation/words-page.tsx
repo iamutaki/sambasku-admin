@@ -1,14 +1,31 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { createColumnHelper, getCoreRowModel, useReactTable } from '@tanstack/react-table';
 import {
+  CheckOutlined,
   DeleteOutlined,
   EditOutlined,
   EyeOutlined,
+  HistoryOutlined,
   PlusOutlined,
   ReloadOutlined,
+  StopOutlined,
   UploadOutlined,
 } from '@ant-design/icons';
-import { Alert, App as AntdApp, Button, Flex, Input, Popconfirm, Select, Switch, Tabs, Tooltip, Typography } from 'antd';
+import {
+  Alert,
+  App as AntdApp,
+  Button,
+  Flex,
+  Input,
+  Popconfirm,
+  Select,
+  Space,
+  Switch,
+  Tabs,
+  Tooltip,
+  Typography,
+} from 'antd';
+import type { Key } from 'react';
 import { DataTable } from '@/shared/components/data-table';
 import { PageHeader } from '@/shared/components/page-header';
 import { useNavigate } from '@tanstack/react-router';
@@ -17,7 +34,9 @@ import { useAuth } from '@/shared/auth/use-auth';
 import { useDeleteWord } from '../application/use-delete-word';
 import { useVerifyWord, useUnverifyWord } from '../application/use-word-verify';
 import { usePublishWord, useUnpublishWord } from '../application/use-word-publish';
+import { useBulkWordsAction } from '../application/use-bulk-words-action';
 import { normalizeError } from '@/shared/api/error';
+import type { BulkWordsAction } from '../infrastructure/word-api';
 import {
   WORD_TYPES,
   WORD_TYPE_LABELS,
@@ -27,16 +46,18 @@ import {
 import { useDebouncedValue } from '@/shared/hooks/use-debounced-value';
 import { ImportWordsDrawer } from './import-words-drawer';
 import { WordDuplicatesPanel } from './word-duplicates-panel';
+import { WordCommaSplitsPanel } from './word-comma-splits-panel';
 import { useDuplicateWordGroups } from '../application/use-duplicate-words';
+import { useCommaSplits } from '../application/use-comma-splits';
 
 const columnHelper = createColumnHelper<WordListItem>();
 
 const wordTypeOptions = WORD_TYPES.map((type) => ({ value: type, label: WORD_TYPE_LABELS[type] }));
 
-/** Tabs tayang di menu Kata (default: Tayang). Duplikasi = panel terpisah. */
-type WordsTab = 'published' | 'unpublished' | 'all' | 'duplicates';
+/** Tabs tayang di menu Kata. Duplikasi & Pemisahan = panel terpisah. */
+type WordsTab = 'published' | 'unpublished' | 'all' | 'duplicates' | 'comma_splits';
 
-const LIST_TABS: { key: Exclude<WordsTab, 'duplicates'>; label: string; published?: boolean }[] = [
+const LIST_TABS: { key: Exclude<WordsTab, 'duplicates' | 'comma_splits'>; label: string; published?: boolean }[] = [
   { key: 'published', label: 'Tayang', published: true },
   { key: 'unpublished', label: 'Tidak tayang', published: false },
   { key: 'all', label: 'Semua' },
@@ -51,8 +72,11 @@ export function WordsPage() {
   const unverifyWord = useUnverifyWord();
   const publishWord = usePublishWord();
   const unpublishWord = useUnpublishWord();
+  const bulkWords = useBulkWordsAction();
   const canVerify = user?.role === 'root' || user?.role === 'admin' || user?.role === 'reviewer';
   const canImport = canVerify || user?.role === 'editor';
+  const canBulkSelect = user?.role !== 'contributor';
+  const canBulkDelete = canBulkSelect;
   const [importOpen, setImportOpen] = useState(false);
   const [searchInput, setSearchInput] = useState('');
   const [wordType, setWordType] = useState<WordType | undefined>();
@@ -61,13 +85,18 @@ export function WordsPage() {
   const [deletingId, setDeletingId] = useState<string | undefined>();
   const [publishingId, setPublishingId] = useState<string | undefined>();
   const [verifyingId, setVerifyingId] = useState<string | undefined>();
+  const [selectedRowKeys, setSelectedRowKeys] = useState<Key[]>([]);
   const q = useDebouncedValue(searchInput, 300);
   const isDuplicatesTab = activeTab === 'duplicates';
+  const isCommaSplitsTab = activeTab === 'comma_splits';
+  const isSpecialTab = isDuplicatesTab || isCommaSplitsTab;
   const published = LIST_TABS.find((t) => t.key === activeTab)?.published;
   const duplicatesQuery = useDuplicateWordGroups(true);
   const duplicateCount = duplicatesQuery.data?.total_groups;
+  const commaSplitsQuery = useCommaSplits(true);
+  const commaSplitCount = commaSplitsQuery.data?.total;
 
-  const listArgs: UseWordListArgs = { q, wordType, isVerified, published, enabled: !isDuplicatesTab };
+  const listArgs: UseWordListArgs = { q, wordType, isVerified, published, enabled: !isSpecialTab };
   const { items, hasMore, loadMore, isLoading, isFetching, isFetchingNextPage, isError, error, refetch } =
     useWordList(listArgs);
 
@@ -128,6 +157,36 @@ export function WordsPage() {
       // Handled.
     } finally {
       setPublishingId(undefined);
+    }
+  };
+
+  const clearSelection = useCallback(() => setSelectedRowKeys([]), []);
+
+  const onBulkAction = async (action: BulkWordsAction) => {
+    const ids = selectedRowKeys.map(String);
+    if (ids.length === 0) return;
+    try {
+      const data = await bulkWords.mutateAsync({ action, ids });
+      const merged = data.results.filter(
+        (r) => r.ok && r.merged_into_word_id,
+      ).length;
+      if (data.failed === 0) {
+        const mergeNote = merged > 0 ? ` (${merged} digabung ke lemma yang sudah tayang)` : '';
+        message.success(
+          action === 'delete'
+            ? `${data.succeeded} kata dihapus`
+            : action === 'publish'
+              ? `${data.succeeded} kata ditayangkan${mergeNote}`
+              : `${data.succeeded} kata ditarik dari tayang`,
+        );
+      } else {
+        message.warning(
+          `${data.succeeded} berhasil, ${data.failed} gagal. Periksa entri yang ditarik/hilang.`,
+        );
+      }
+      clearSelection();
+    } catch (err) {
+      message.error(normalizeError(err).message || 'Gagal menjalankan aksi massal');
     }
   };
 
@@ -272,6 +331,9 @@ export function WordsPage() {
     manualPagination: true,
   });
 
+  const selectedCount = selectedRowKeys.length;
+  const bulkBusy = bulkWords.isPending;
+
   return (
     <>
       <PageHeader
@@ -280,9 +342,17 @@ export function WordsPage() {
         extra={
           <Flex gap={8}>
             {canImport ? (
-              <Button icon={<UploadOutlined />} onClick={() => setImportOpen(true)}>
-                Impor massal
-              </Button>
+              <>
+                <Button
+                  icon={<HistoryOutlined />}
+                  onClick={() => navigate({ to: '/words/import-history' })}
+                >
+                  Riwayat impor
+                </Button>
+                <Button icon={<UploadOutlined />} onClick={() => setImportOpen(true)}>
+                  Impor massal
+                </Button>
+              </>
             ) : null}
             <Button
               type="primary"
@@ -301,7 +371,10 @@ export function WordsPage() {
       />
       <Tabs
         activeKey={activeTab}
-        onChange={(key) => setActiveTab(key as WordsTab)}
+        onChange={(key) => {
+          setActiveTab(key as WordsTab);
+          clearSelection();
+        }}
         items={[
           ...LIST_TABS.map((t) => ({ key: t.key, label: t.label })),
           {
@@ -311,12 +384,21 @@ export function WordsPage() {
                 ? `Duplikasi (${duplicateCount})`
                 : 'Duplikasi',
           },
+          {
+            key: 'comma_splits',
+            label:
+              commaSplitCount && commaSplitCount > 0
+                ? `Pemisahan (${commaSplitCount})`
+                : 'Pemisahan',
+          },
         ]}
         style={{ marginBottom: 8 }}
       />
 
       {isDuplicatesTab ? (
         <WordDuplicatesPanel canMerge={canVerify} />
+      ) : isCommaSplitsTab ? (
+        <WordCommaSplitsPanel canApply={canVerify} />
       ) : (
         <>
       <Flex wrap gap={12} style={{ marginBottom: 16 }}>
@@ -351,11 +433,87 @@ export function WordsPage() {
         </Button>
       </Flex>
 
+      {selectedCount > 0 ? (
+        <Flex
+          wrap
+          gap={12}
+          align="center"
+          style={{
+            marginBottom: 12,
+            padding: '8px 12px',
+            background: 'var(--ant-color-fill-alter, #fafafa)',
+            borderRadius: 8,
+          }}
+        >
+          <Typography.Text>
+            {selectedCount} dipilih
+          </Typography.Text>
+          <Space wrap>
+            {canVerify ? (
+              <Popconfirm
+                title={`Tayangkan ${selectedCount} kata?`}
+                description="Jika lemma sudah tayang, makna digabung ke entri yang ada (sama seperti aksi tunggal)."
+                okText="Tayang"
+                cancelText="Batal"
+                onConfirm={() => onBulkAction('publish')}
+              >
+                <Button icon={<CheckOutlined />} loading={bulkBusy} disabled={bulkBusy}>
+                  Tayang
+                </Button>
+              </Popconfirm>
+            ) : null}
+            {canVerify ? (
+              <Popconfirm
+                title={`Tarik tayang ${selectedCount} kata?`}
+                description="Status menjadi draft. Entri yang sedang ditarik (taken_down) akan gagal per-baris."
+                okText="Tidak tayang"
+                cancelText="Batal"
+                onConfirm={() => onBulkAction('unpublish')}
+              >
+                <Button icon={<StopOutlined />} loading={bulkBusy} disabled={bulkBusy}>
+                  Tidak tayang
+                </Button>
+              </Popconfirm>
+            ) : null}
+            {canBulkDelete ? (
+              <Popconfirm
+                title={`Hapus ${selectedCount} kata?`}
+                description="Soft-delete: hilang dari publik & daftar admin; data tetap untuk audit/recovery."
+                okText="Hapus"
+                okButtonProps={{ danger: true }}
+                cancelText="Batal"
+                onConfirm={() => onBulkAction('delete')}
+              >
+                <Button danger icon={<DeleteOutlined />} loading={bulkBusy} disabled={bulkBusy}>
+                  Hapus
+                </Button>
+              </Popconfirm>
+            ) : null}
+            <Button type="link" onClick={clearSelection} disabled={bulkBusy}>
+              Batal pilih
+            </Button>
+          </Space>
+        </Flex>
+      ) : null}
+
       {isError ? (
         <Alert type="error" showIcon style={{ marginBottom: 16 }} message="Gagal memuat data" description={error?.message} />
       ) : null}
 
-      <DataTable table={table} rowKey={(record) => String(record.id)} loading={isLoading || (isFetching && !items.length)} />
+      <DataTable
+        table={table}
+        rowKey={(record) => String(record.id)}
+        loading={isLoading || (isFetching && !items.length) || bulkBusy}
+        rowSelection={
+          canBulkSelect
+            ? {
+                selectedRowKeys,
+                onChange: (keys) => setSelectedRowKeys(keys),
+                preserveSelectedRowKeys: true,
+              }
+            : undefined
+        }
+      />
 
       <Flex justify="center" align="center" gap={16} style={{ marginTop: 16 }}>
         <Typography.Text type="secondary">{items.length} entri dimuat</Typography.Text>
@@ -367,7 +525,14 @@ export function WordsPage() {
       </Flex>
         </>
       )}
-      <ImportWordsDrawer open={importOpen} canVerify={canVerify} onClose={() => setImportOpen(false)} />
+      <ImportWordsDrawer
+        open={importOpen}
+        canVerify={canVerify}
+        onClose={() => setImportOpen(false)}
+        onImported={({ drafts }) => {
+          if (drafts > 0) setActiveTab('unpublished');
+        }}
+      />
     </>
   );
 }
