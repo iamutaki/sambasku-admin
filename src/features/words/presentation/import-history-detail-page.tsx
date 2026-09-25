@@ -76,7 +76,7 @@ export function ImportHistoryDetailPage() {
     <>
       <PageHeader
         title={session.source_label || 'Sesi impor'}
-        subtitle={`Atribusi: ${session.attributed_to_username ?? 'Importir Data CSV'}`}
+        subtitle={`Atribusi: ${session.attributed_to_username ?? 'Pengimpor Data CSV'}`}
         extra={
           <Flex gap={8}>
             <Button icon={<RollbackOutlined />} onClick={() => navigate({ to: '/words/import-history' })}>
@@ -101,8 +101,8 @@ export function ImportHistoryDetailPage() {
         <Descriptions.Item label="Waktu">
           {formatDateTime(session.finished_at ?? session.created_at)}
         </Descriptions.Item>
-        <Descriptions.Item label="Pemicu">
-          {session.triggered_by_username || '—'}
+        <Descriptions.Item label="Atribusi">
+          {session.attributed_to_username || 'Pengimpor Data CSV'}
         </Descriptions.Item>
         <Descriptions.Item label="Total">{session.total}</Descriptions.Item>
         <Descriptions.Item label="Kata baru">{session.created_count}</Descriptions.Item>

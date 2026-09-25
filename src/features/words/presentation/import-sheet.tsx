@@ -383,13 +383,17 @@ export function ImportSheet({
           borderCollapse: 'separate',
           borderSpacing: 0,
           tableLayout: 'fixed',
-          width: tableWidth,
+          width: '100%',
+          minWidth: tableWidth,
         }}
       >
         <colgroup>
           <col style={{ width: GUTTER_WIDTH }} />
           {cols.map((col) => (
-            <col key={col} style={{ width: colWidth(col, textWidths) }} />
+            <col
+              key={col}
+              style={col === 'definition' ? undefined : { width: colWidth(col, textWidths) }}
+            />
           ))}
         </colgroup>
         <thead>
@@ -416,7 +420,12 @@ export function ImportSheet({
                     whiteSpace: 'nowrap',
                     overflow: 'hidden',
                     textOverflow: 'ellipsis',
-                    width: index === 0 ? GUTTER_WIDTH : col ? colWidth(col, textWidths) : undefined,
+                    width:
+                      index === 0
+                        ? GUTTER_WIDTH
+                        : col && col !== 'definition'
+                          ? colWidth(col, textWidths)
+                          : undefined,
                     fontSize: index >= 5 ? 11 : undefined,
                   }}
                 >

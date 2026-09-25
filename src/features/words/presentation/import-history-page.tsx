@@ -52,10 +52,10 @@ export function ImportHistoryPage() {
           </Button>
         ),
       }),
-      columnHelper.accessor('triggered_by_username', {
-        header: 'Pemicu',
-        size: 140,
-        cell: (info) => info.getValue() || '—',
+      columnHelper.accessor('attributed_to_username', {
+        header: 'Atribusi',
+        size: 180,
+        cell: (info) => info.getValue() || 'Pengimpor Data CSV',
       }),
       columnHelper.accessor('status', {
         header: 'Status',
@@ -94,7 +94,7 @@ export function ImportHistoryPage() {
     <>
       <PageHeader
         title="Riwayat impor"
-        subtitle="Sesi impor massal (CSV / lembar) — atribusi data ke Importir Data CSV."
+        subtitle="Sesi impor massal (CSV / lembar) — atribusi data ke Pengimpor Data CSV."
         extra={
           <Flex gap={8}>
             <Button icon={<ReloadOutlined />} onClick={() => refetch()}>

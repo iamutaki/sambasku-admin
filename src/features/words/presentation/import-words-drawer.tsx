@@ -443,7 +443,7 @@ export function ImportWordsDrawer({
         if (!historyPersistFailed) {
           historyPersistFailed = true;
           message.warning(
-            'Kata tersimpan, tapi riwayat impor gagal disimpan. Cek seed Importir Data CSV dan migrate word_import_sessions.',
+            'Kata tersimpan, tapi riwayat impor gagal disimpan. Cek seed Pengimpor Data CSV dan migrate word_import_sessions.',
             6,
           );
         }
