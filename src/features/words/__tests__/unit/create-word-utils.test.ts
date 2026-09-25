@@ -185,6 +185,7 @@ describe('buildCreateWordBody', () => {
     expect(body).toEqual({
       language_id: SAMBAS_ID,
       lemma: 'makatn',
+      lemma_allows_comma: false,
       word_type: 'word',
       usage_labels: [],
       meanings: [

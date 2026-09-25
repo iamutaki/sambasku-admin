@@ -66,6 +66,7 @@ describe('wordDetailToFormValues', () => {
     expect(values).toEqual({
       language_id: SBS_ID,
       lemma: 'makatn',
+      lemma_allows_comma: false,
       word_type: 'word',
       usage_labels: [],
       meanings: [
@@ -76,7 +77,14 @@ describe('wordDetailToFormValues', () => {
           is_have_definition: true,
           is_have_translation: true,
           meaning_completeness: 'both',
-          translations: [{ language_id: IDN_ID, translation_text: 'makan', translation_type: 'direct' }],
+          translations: [
+            {
+              language_id: IDN_ID,
+              translation_text: 'makan',
+              translation_type: 'direct',
+              translation_allows_comma: false,
+            },
+          ],
           examples: [
             {
               source_language_id: SBS_ID,
@@ -164,6 +172,7 @@ describe('buildUpdateWordBody', () => {
     expect(body).toEqual({
       language_id: SBS_ID,
       lemma: 'makatn betul',
+      lemma_allows_comma: false,
       word_type: 'word',
       usage_labels: [],
       meanings: [
@@ -213,15 +222,15 @@ describe('wordDetailToFormValues - images (05-support-image)', () => {
       ],
     });
     expect(values.images).toEqual([
-      { uid: '01IMG1', url: 'https://cdn/1.jpg', provider_file_id: 'f1', alt_text: 'ilustrasi', is_primary: true, status: 'done' },
-      { uid: '01IMG2', url: 'https://cdn/2.jpg', provider_file_id: 'f2', alt_text: undefined, is_primary: false, status: 'done' },
+      { uid: '01IMG1', url: 'https://cdn/1.jpg', provider_file_id: 'f1', alt_text: 'ilustrasi', is_primary: true, status: 'done', content_warnings: [] },
+      { uid: '01IMG2', url: 'https://cdn/2.jpg', provider_file_id: 'f2', alt_text: undefined, is_primary: false, status: 'done', content_warnings: [] },
     ]);
 
     // round-trip: body PUT membawa ulang images → tidak ada penghapusan senyap
     const body = buildUpdateWordBody(values, 'published');
     expect(body.images).toEqual([
-      { url: 'https://cdn/1.jpg', provider_file_id: 'f1', alt_text: 'ilustrasi', is_primary: true },
-      { url: 'https://cdn/2.jpg', provider_file_id: 'f2', is_primary: false },
+      { url: 'https://cdn/1.jpg', provider_file_id: 'f1', alt_text: 'ilustrasi', is_primary: true, content_warnings: [] },
+      { url: 'https://cdn/2.jpg', provider_file_id: 'f2', is_primary: false, content_warnings: [] },
     ]);
   });
 });
