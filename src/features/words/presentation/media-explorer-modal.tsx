@@ -22,7 +22,7 @@ export interface MediaExplorerModalProps {
  * Memakai GET /api/v1/share/backgrounds (publik).
  */
 export function MediaExplorerModal({ open, onClose, onSelect }: MediaExplorerModalProps) {
-  const [provider, setProvider] = useState<StockPhotoProvider>('pexels');
+  const [provider, setProvider] = useState<StockPhotoProvider>('pixabay');
   const [query, setQuery] = useState('');
   const [activeQuery, setActiveQuery] = useState('');
   const [page, setPage] = useState(1);

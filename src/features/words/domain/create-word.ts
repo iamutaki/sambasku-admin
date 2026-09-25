@@ -173,7 +173,7 @@ export interface CreateWordRequestVariant {
 export interface WordImageInput {
   url: string;
   provider_file_id: string;
-  /** Stock: pexels|… ; upload: absen (API isi storage aktif). */
+  /** Stock: pixabay|… ; upload: absen (API isi storage aktif). */
   provider?: string;
   sha?: string;
   alt_text?: string;
