@@ -8,12 +8,14 @@ import { useImportSession } from '../application/use-import-sessions';
 import type { WordImportSessionStatus } from '../infrastructure/word-api';
 
 const STATUS_LABEL: Record<WordImportSessionStatus, string> = {
+  running: 'Berjalan',
   completed: 'Selesai',
   cancelled: 'Dibatalkan',
   failed: 'Gagal',
 };
 
 const STATUS_COLOR: Record<WordImportSessionStatus, string> = {
+  running: 'processing',
   completed: 'success',
   cancelled: 'warning',
   failed: 'error',

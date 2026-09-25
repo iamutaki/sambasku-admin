@@ -309,7 +309,7 @@ export async function markCommaLiteralRequest(
   return res.data.data;
 }
 
-export type WordImportSessionStatus = 'completed' | 'cancelled' | 'failed';
+export type WordImportSessionStatus = 'running' | 'completed' | 'cancelled' | 'failed';
 
 export type WordImportSessionItem = {
   lemma: string;

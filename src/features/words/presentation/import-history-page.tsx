@@ -12,12 +12,14 @@ import type { WordImportSession, WordImportSessionStatus } from '../infrastructu
 const columnHelper = createColumnHelper<WordImportSession>();
 
 const STATUS_LABEL: Record<WordImportSessionStatus, string> = {
+  running: 'Berjalan',
   completed: 'Selesai',
   cancelled: 'Dibatalkan',
   failed: 'Gagal',
 };
 
 const STATUS_COLOR: Record<WordImportSessionStatus, string> = {
+  running: 'processing',
   completed: 'success',
   cancelled: 'warning',
   failed: 'error',

@@ -417,6 +417,7 @@ export function ImportWordsDrawer({
     });
     const saved: ImportWordResultItem[] = [];
     let currentLemma = '';
+    let historyPersistFailed = false;
 
     const persistSession = async (status: WordImportSessionStatus) => {
       try {
@@ -438,9 +439,19 @@ export function ImportWordsDrawer({
         });
         void queryClient.invalidateQueries({ queryKey: ['word-import-sessions'] });
       } catch {
-        // Riwayat gagal tidak boleh menggagalkan impor yang sudah jalan.
+        // Jangan gagalkan impor kata; beri tahu sekali agar seed/migrate dicek.
+        if (!historyPersistFailed) {
+          historyPersistFailed = true;
+          message.warning(
+            'Kata tersimpan, tapi riwayat impor gagal disimpan. Cek seed Importir Data CSV dan migrate word_import_sessions.',
+            6,
+          );
+        }
       }
     };
+
+    // Jejak awal — cancel sebelum kata pertama tetap punya record.
+    await persistSession('running');
 
     try {
       for (let i = 0; i < payload.length; i += 1) {
@@ -486,6 +497,8 @@ export function ImportWordsDrawer({
           maxAttempts: MAX_ATTEMPTS,
           ...counters,
         });
+        // Progressive upsert — batal/gagal parsial tetap punya jejak di riwayat.
+        await persistSession('running');
         if (i + CHUNK < payload.length) {
           await sleep(WORD_GAP_MS, isCancelled);
         }
