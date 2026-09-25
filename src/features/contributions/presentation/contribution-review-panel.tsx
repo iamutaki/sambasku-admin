@@ -84,31 +84,6 @@ export function ContributionReviewPanel({ id, queueIds, onDecided }: Contributio
           (detail.child.fields as { provider?: string | null }).provider === 'imagekit')),
   );
 
-  useEffect(() => {
-    setApproveComment('');
-    setRejectOpen(false);
-    setRejectComment('');
-    setCorrectOpen(false);
-    setImageDecisions({});
-    setCensoredByImageId({});
-    setCensorTarget(null);
-  }, [id]);
-
-  useEffect(() => {
-    if (!moderateImages || detail?.entityType !== 'word') return;
-    setImageDecisions((prev) => {
-      const next = { ...prev };
-      let changed = false;
-      for (const img of detail.word.images) {
-        if (!next[img.id]) {
-          next[img.id] = 'approve';
-          changed = true;
-        }
-      }
-      return changed ? next : prev;
-    });
-  }, [detail, moderateImages]);
-
   const finishDecision = useCallback(() => {
     onDecided(nextPendingId(queueIds, id));
   }, [id, onDecided, queueIds]);

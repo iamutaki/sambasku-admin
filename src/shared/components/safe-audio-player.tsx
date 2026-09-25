@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Alert, Button, Space, Typography } from 'antd';
 import { publicAudioUrlCandidates } from '@/shared/utils/public-audio-url';
 
@@ -16,15 +16,14 @@ export interface SafeAudioPlayerProps {
  * Native control abu-abu/tidak bisa diklik biasanya karena src 404 — tanpa
  * onError user mengira tombolnya rusak.
  */
-export function SafeAudioPlayer({ url, maxWidth = 420, style }: SafeAudioPlayerProps) {
+export function SafeAudioPlayer(props: SafeAudioPlayerProps) {
+  return <SafeAudioPlayerSession key={props.url ?? ''} {...props} />;
+}
+
+function SafeAudioPlayerSession({ url, maxWidth = 420, style }: SafeAudioPlayerProps) {
   const candidates = useMemo(() => publicAudioUrlCandidates(url), [url]);
   const [index, setIndex] = useState(0);
   const [failed, setFailed] = useState(candidates.length === 0);
-
-  useEffect(() => {
-    setIndex(0);
-    setFailed(candidates.length === 0);
-  }, [candidates]);
 
   const src = candidates[index] ?? '';
 

@@ -231,7 +231,12 @@ export function ContributionsPage() {
             }}
           >
             {selectedId ? (
-              <ContributionReviewPanel id={selectedId} queueIds={queueIds} onDecided={handleDecided} />
+              <ContributionReviewPanel
+                key={selectedId}
+                id={selectedId}
+                queueIds={queueIds}
+                onDecided={handleDecided}
+              />
             ) : (
               <Flex align="center" justify="center" style={{ flex: 1 }}>
                 <Empty description={items.length ? 'Pilih usulan di kiri untuk meninjau' : 'Tidak ada yang menunggu'} />

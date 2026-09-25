@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   App,
   Button,
@@ -37,6 +37,10 @@ function decisionKey(img: AddedImage, index: number): string {
 
 export function WordSuggestionDetailPage() {
   const { id } = useParams({ from: '/console-layout/word-suggestions/$id' });
+  return <WordSuggestionDetail id={id} key={id} />;
+}
+
+function WordSuggestionDetail({ id }: { id: string }) {
   const navigate = useNavigate();
   const { message, modal } = App.useApp();
   const { data, isLoading, isError, error } = useWordSuggestionDetail(id);
@@ -49,29 +53,6 @@ export function WordSuggestionDetailPage() {
 
   const addedImages = useMemo(() => data?.diff.images?.added ?? [], [data]);
   const pending = data?.suggestion.status === 'pending';
-
-  useEffect(() => {
-    setComment('');
-    setImageDecisions({});
-    setCensoredByKey({});
-    setCensorTarget(null);
-  }, [id]);
-
-  useEffect(() => {
-    if (!pending || addedImages.length === 0) return;
-    setImageDecisions((prev) => {
-      const next = { ...prev };
-      let changed = false;
-      addedImages.forEach((img, index) => {
-        const key = decisionKey(img, index);
-        if (!next[key]) {
-          next[key] = 'approve';
-          changed = true;
-        }
-      });
-      return changed ? next : prev;
-    });
-  }, [addedImages, pending]);
 
   if (isLoading) return <PageLoading tip="Memuat usulan…" />;
   if (isError || !data) {
