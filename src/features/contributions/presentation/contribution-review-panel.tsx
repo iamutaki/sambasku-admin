@@ -10,6 +10,7 @@ import {
   Form,
   Input,
   Modal,
+  Radio,
   Space,
   Spin,
   Tag,
@@ -23,6 +24,12 @@ import {
   ENTITY_TYPE_LABELS,
   type WordImageView,
 } from '../domain/contribution';
+import {
+  DEFAULT_REJECT_REASON_PRESET,
+  REJECT_REASON_PRESETS,
+  resolveRejectComment,
+  type RejectReasonPresetId,
+} from '../domain/reject-reason-presets';
 import { nextPendingId } from '../application/next-pending-id';
 import { useContributionDetail } from '../application/use-contribution-detail';
 import { useReviewContribution } from '../application/use-review-contribution';
@@ -68,7 +75,10 @@ export function ContributionReviewPanel({ id, queueIds, onDecided }: Contributio
 
   const [approveComment, setApproveComment] = useState('');
   const [rejectOpen, setRejectOpen] = useState(false);
-  const [rejectComment, setRejectComment] = useState('');
+  const [rejectPresetId, setRejectPresetId] = useState<RejectReasonPresetId>(
+    DEFAULT_REJECT_REASON_PRESET,
+  );
+  const [rejectOtherComment, setRejectOtherComment] = useState('');
   const [correctOpen, setCorrectOpen] = useState(false);
   const [imageDecisions, setImageDecisions] = useState<Record<string, 'approve' | 'reject'>>({});
   const [censoredByImageId, setCensoredByImageId] = useState<Record<string, Blob>>({});
@@ -119,18 +129,25 @@ export function ContributionReviewPanel({ id, queueIds, onDecided }: Contributio
     }
   }, [approveComment, censoredByImageId, detail, finishDecision, imageDecisions, isPending, message, reviewMutation]);
 
+  const resetRejectForm = () => {
+    setRejectPresetId(DEFAULT_REJECT_REASON_PRESET);
+    setRejectOtherComment('');
+  };
+
+  const resolvedRejectComment = resolveRejectComment(rejectPresetId, rejectOtherComment);
+
   const submitReject = async () => {
-    if (!detail || !rejectComment.trim()) return;
+    if (!detail || !resolvedRejectComment) return;
     try {
       const result = await reviewMutation.mutateAsync({
         id: detail.contribution.id,
         decision: 'reject',
-        comment: rejectComment.trim(),
+        comment: resolvedRejectComment,
       });
       const label = CONTRIBUTION_STATUS_LABELS[result.status] ?? result.status;
       message.success(`Kontribusi ditolak (${label}).`);
       setRejectOpen(false);
-      setRejectComment('');
+      resetRejectForm();
       finishDecision();
     } catch (err) {
       message.error(normalizeError(err).message);
@@ -349,32 +366,49 @@ export function ContributionReviewPanel({ id, queueIds, onDecided }: Contributio
         open={rejectOpen}
         onCancel={() => {
           setRejectOpen(false);
-          setRejectComment('');
+          resetRejectForm();
         }}
         okText="Tolak"
         okButtonProps={{
           danger: true,
           loading: reviewMutation.isPending,
-          disabled: !rejectComment.trim(),
+          disabled: !resolvedRejectComment,
         }}
         onOk={() => void submitReject()}
       >
         <Form layout="vertical">
-          <Form.Item
-            label="Alasan penolakan"
-            required
-            validateStatus={!rejectComment.trim() ? 'error' : undefined}
-            help={!rejectComment.trim() ? 'Alasan penolakan wajib diisi.' : undefined}
-          >
-            <Input.TextArea
-              rows={3}
-              placeholder="Alasan penolakan (wajib)"
-              value={rejectComment}
-              maxLength={2000}
-              onChange={(e) => setRejectComment(e.target.value)}
-              autoFocus
-            />
+          <Form.Item label="Alasan penolakan" required style={{ marginBottom: 12 }}>
+            <Radio.Group
+              value={rejectPresetId}
+              onChange={(e) => setRejectPresetId(e.target.value as RejectReasonPresetId)}
+              style={{ display: 'flex', flexDirection: 'column', gap: 8 }}
+            >
+              {REJECT_REASON_PRESETS.map((preset) => (
+                <Radio key={preset.id} value={preset.id}>
+                  {preset.label}
+                </Radio>
+              ))}
+            </Radio.Group>
           </Form.Item>
+          {rejectPresetId === 'other' ? (
+            <Form.Item
+              label="Jelaskan alasan"
+              required
+              validateStatus={!rejectOtherComment.trim() ? 'error' : undefined}
+              help={
+                !rejectOtherComment.trim() ? 'Alasan penolakan wajib diisi.' : undefined
+              }
+            >
+              <Input.TextArea
+                rows={3}
+                placeholder="Alasan penolakan (wajib)"
+                value={rejectOtherComment}
+                maxLength={2000}
+                onChange={(e) => setRejectOtherComment(e.target.value)}
+                autoFocus
+              />
+            </Form.Item>
+          ) : null}
         </Form>
       </Modal>
 
