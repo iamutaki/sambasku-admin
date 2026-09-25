@@ -226,7 +226,7 @@ function LemmaCard({
       ) : null}
       <Typography.Text type="secondary" style={{ display: 'block', marginBottom: 8 }}>
         Entri asli menjadi bagian pertama. Bagian lain jadi kata baru dengan makna
-        yang sama — ubah terjemahannya bila artinya berbeda.
+        yang sama - ubah terjemahannya bila artinya berbeda.
       </Typography.Text>
       <Space direction="vertical" style={{ width: '100%' }} size={10}>
         {parts.map((part, index) => {

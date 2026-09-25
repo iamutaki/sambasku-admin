@@ -439,7 +439,7 @@ function WordDetailContent({
               <span>
                 {TAKEDOWN_REASON_LABELS[detail.takedown_reason_code as TakedownReasonCode] ??
                   detail.takedown_reason_code}
-                {detail.takedown_note ? ` — ${detail.takedown_note}` : ''}
+                {detail.takedown_note ? ` - ${detail.takedown_note}` : ''}
                 {detail.taken_down_at ? ` (${formatDateTime(detail.taken_down_at)})` : ''}
               </span>
             ),

@@ -348,7 +348,7 @@ export type SaveWordImportSessionBody = {
   items: WordImportSessionItem[];
 };
 
-/** POST /api/v1/admin/words/import-sessions — simpan ringkasan sesi impor. */
+/** POST /api/v1/admin/words/import-sessions - simpan ringkasan sesi impor. */
 export async function saveWordImportSessionRequest(
   body: SaveWordImportSessionBody,
 ): Promise<WordImportSession> {
@@ -359,7 +359,7 @@ export async function saveWordImportSessionRequest(
   return res.data.data;
 }
 
-/** GET /api/v1/admin/words/import-sessions — daftar riwayat impor. */
+/** GET /api/v1/admin/words/import-sessions - daftar riwayat impor. */
 export async function listWordImportSessionsRequest(
   params: { limit?: number; cursor?: string } = {},
   signal?: AbortSignal,
@@ -374,7 +374,7 @@ export async function listWordImportSessionsRequest(
   return { data: res.data.data, meta: res.data.meta };
 }
 
-/** GET /api/v1/admin/words/import-sessions/:id — detail sesi. */
+/** GET /api/v1/admin/words/import-sessions/:id - detail sesi. */
 export async function getWordImportSessionRequest(
   id: string,
   signal?: AbortSignal,

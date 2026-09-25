@@ -1,6 +1,6 @@
 /**
  * Potong audio di browser: decode → slice → encode WAV (MIME didukung API).
- * Memakai Web Audio API — tanpa ffmpeg.wasm.
+ * Memakai Web Audio API - tanpa ffmpeg.wasm.
  */
 
 export interface TrimAudioResult {

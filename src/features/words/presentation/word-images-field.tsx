@@ -108,7 +108,7 @@ export function WordImagesField({ value, onChange }: WordImagesFieldProps) {
     fileByUid.current.set(uid, file);
     const localUrl = URL.createObjectURL(file);
 
-    // Preview SEGERA — sebelum jaringan.
+    // Preview SEGERA - sebelum jaringan.
     setImages([
       ...imagesRef.current,
       { uid, fileName: file.name, status: 'uploading', localUrl, progress: 0 },
@@ -151,7 +151,7 @@ export function WordImagesField({ value, onChange }: WordImagesFieldProps) {
       return Upload.LIST_IGNORE;
     }
 
-    // Prefer Ant Design's RcFile.uid; fall back to pure File fields (no Date.now/Math.random —
+    // Prefer Ant Design's RcFile.uid; fall back to pure File fields (no Date.now/Math.random -
     // those trip react-hooks/purity even inside this event callback under eslint-plugin-react-hooks).
     const uid =
       typed.uid ?? `f-${typed.name}-${typed.size}-${typed.lastModified}-${imagesRef.current.length}`;
@@ -344,7 +344,7 @@ export function WordImagesField({ value, onChange }: WordImagesFieldProps) {
               <p className="ant-upload-drag-icon"><PlusOutlined /></p>
               <p className="ant-upload-text">Tambah gambar lagi</p>
               <p className="ant-upload-hint">
-                {images.length} sudah dipilih — sisa kuota {MAX_IMAGES - images.length}
+                {images.length} sudah dipilih - sisa kuota {MAX_IMAGES - images.length}
               </p>
             </>
           )}

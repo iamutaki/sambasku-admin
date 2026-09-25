@@ -126,7 +126,7 @@ export function ContributionsPage() {
     <>
       <PageHeader
         title="Antrean Review"
-        subtitle="Tinjau di tempat yang sama — setujui/tolak/koreksi lalu lanjut otomatis ke usulan berikutnya."
+        subtitle="Tinjau di tempat yang sama - setujui/tolak/koreksi lalu lanjut otomatis ke usulan berikutnya."
         extra={
           <Button icon={<ReloadOutlined />} onClick={() => refetch()}>
             Muat ulang

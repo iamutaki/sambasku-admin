@@ -51,7 +51,7 @@ export function normalizeContributionDetail(payload: ContributionDetailPayload):
   }
 
   // Anak: pronunciation | word_image | word_audio | example (dan tipe API
-  // lain yang belum ada di EntityType admin — tetap dinormalisasi aman).
+  // lain yang belum ada di EntityType admin - tetap dinormalisasi aman).
   const childType = contribution.entity_type;
   return {
     contribution,
@@ -335,7 +335,7 @@ function normalizeChildEntity(entityType: string, raw: unknown): ChildEntityLike
     return { ...base, fields };
   }
 
-  // example + fallback tipe tidak dikenal (mis. meaning) — jangan throw.
+  // example + fallback tipe tidak dikenal (mis. meaning) - jangan throw.
   const fields: ExampleChildData = {
     source_sentence: String(
       pickDefined(matrix, ['source_sentence', 'sourceSentence', 'definition']) ?? '',
@@ -347,7 +347,7 @@ function normalizeChildEntity(entityType: string, raw: unknown): ChildEntityLike
   return { ...base, fields };
 }
 
-/** Kunci field per entity_type — selalu array (kosong jika tipe tidak dikenal). */
+/** Kunci field per entity_type - selalu array (kosong jika tipe tidak dikenal). */
 function fieldKeysFor(entityType: string): readonly string[] {
   switch (entityType) {
     case 'pronunciation':

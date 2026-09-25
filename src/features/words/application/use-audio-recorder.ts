@@ -10,7 +10,7 @@ const MIME_CANDIDATES = [
   'audio/ogg',
 ] as const;
 
-/** Batas rekaman pelafalan di admin (detik) — cukup untuk lemma/contoh. */
+/** Batas rekaman pelafalan di admin (detik) - cukup untuk lemma/contoh. */
 export const MAX_RECORDING_SECONDS = 60;
 
 function pickSupportedMime(): string {
@@ -213,7 +213,7 @@ export function useAudioRecorder() {
       streamRef.current = null;
       if (previewUrl) URL.revokeObjectURL(previewUrl);
     };
-    // Hanya cleanup unmount — jangan ikut setiap ganti previewUrl
+    // Hanya cleanup unmount - jangan ikut setiap ganti previewUrl
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

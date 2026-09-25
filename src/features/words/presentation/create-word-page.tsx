@@ -91,7 +91,7 @@ export function CreateWordPage() {
   const [fillMode, setFillMode] = useState<FormFillMode>('simple');
   const [kbbiOpen, setKbbiOpen] = useState(false);
   const [pendingAudio, setPendingAudio] = useState<PendingPronunciationAudio | null>(null);
-  /** Draft audio per contoh — diunggah berurutan setelah create + GET detail. */
+  /** Draft audio per contoh - diunggah berurutan setelah create + GET detail. */
   const [pendingExampleAudios, setPendingExampleAudios] = useState<
     Record<string, PendingPronunciationAudio | null>
   >({});

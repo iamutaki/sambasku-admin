@@ -829,7 +829,7 @@ export function MeaningFields({
                 {enablePendingExampleAudio && meaningIndex >= 0 && onPendingExampleAudioChange ? (
                   <div style={{ marginTop: 8, marginBottom: 8 }}>
                     <Text type="secondary" style={{ display: 'block', marginBottom: 6 }}>
-                      Audio contoh (opsional) — diunggah otomatis setelah simpan
+                      Audio contoh (opsional) - diunggah otomatis setelah simpan
                     </Text>
                     <PendingPronunciationAudioField
                       dialectOptions={dialectOptionsForExampleAudio}
@@ -1282,7 +1282,7 @@ export function WordVariantsField() {
 }
 
 // ---------------------------------------------------------------------------
-// Audio pelafalan (word_audios) — upload multipart + daftar pemutar
+// Audio pelafalan (word_audios) - upload multipart + daftar pemutar
 // ---------------------------------------------------------------------------
 
 /**
@@ -1391,7 +1391,7 @@ export function PronunciationAudioUpload({
   const [dialectId, setDialectId] = useState<string | undefined>(
     defaultDialectId ?? undefined,
   );
-  /** File dipilih (bukan dari recorder) — masuk editor potong. */
+  /** File dipilih (bukan dari recorder) - masuk editor potong. */
   const [pickedDraft, setPickedDraft] = useState<{
     blob: Blob;
     previewUrl: string;
@@ -1517,7 +1517,7 @@ export function PronunciationAudioUpload({
   );
 }
 
-/** Draft audio di form create (belum ada wordId) — diunggah setelah kata tersimpan. */
+/** Draft audio di form create (belum ada wordId) - diunggah setelah kata tersimpan. */
 export interface PendingPronunciationAudio {
   file: File;
   durationMs: number;
@@ -1534,7 +1534,7 @@ export interface PendingPronunciationAudioFieldProps {
 }
 
 /**
- * Section rekam/pilih audio untuk create kata — potong dulu, simpan lokal sampai submit.
+ * Section rekam/pilih audio untuk create kata - potong dulu, simpan lokal sampai submit.
  */
 export function PendingPronunciationAudioField({
   dialectOptions,
@@ -1622,7 +1622,7 @@ export function PendingPronunciationAudioField({
 
   return (
     <AudioStudioShell
-      hint={`Rekam atau pilih file, potong diam di awal/akhir, lalu simpan kata — audio diunggah otomatis setelah kata tersimpan (maks. ${MAX_RECORDING_SECONDS} dtk / 5 MB).`}
+      hint={`Rekam atau pilih file, potong diam di awal/akhir, lalu simpan kata - audio diunggah otomatis setelah kata tersimpan (maks. ${MAX_RECORDING_SECONDS} dtk / 5 MB).`}
     >
       <Space direction="vertical" size={12} style={{ width: '100%' }}>
         <AudioMetaFields
@@ -1858,7 +1858,7 @@ export function WordExampleAudiosSection({
           </Text>
           <Text italic>“{e.source_sentence}”</Text>
           {e.target_sentence ? (
-            <Text type="secondary"> — {e.target_sentence}</Text>
+            <Text type="secondary"> - {e.target_sentence}</Text>
           ) : null}
           <ExampleAudiosInline
             wordId={wordId}

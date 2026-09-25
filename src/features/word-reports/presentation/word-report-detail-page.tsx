@@ -122,7 +122,7 @@ export function WordReportDetailPage() {
           {WORD_STATUS_LABELS[wordStatus] ?? report.word_status}
         </Descriptions.Item>
         <Descriptions.Item label="Pelapor">
-          {report.username ? <UserInfoLink username={report.username} /> : '—'}
+          {report.username ? <UserInfoLink username={report.username} /> : '-'}
         </Descriptions.Item>
         <Descriptions.Item label="Waktu">{formatDateTime(report.created_at)}</Descriptions.Item>
         <Descriptions.Item label="Status laporan" span={2}>

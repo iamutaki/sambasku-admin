@@ -1,4 +1,4 @@
-/** Alfabet Crockford Base32 (ULID) — 26 karakter, cocok `opaqueId` API. */
+/** Alfabet Crockford Base32 (ULID) - 26 karakter, cocok `opaqueId` API. */
 const CROCKFORD = '0123456789ABCDEFGHJKMNPQRSTVWXYZ';
 
 /**

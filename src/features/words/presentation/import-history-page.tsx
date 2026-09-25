@@ -94,7 +94,7 @@ export function ImportHistoryPage() {
     <>
       <PageHeader
         title="Riwayat impor"
-        subtitle="Sesi impor massal (CSV / lembar) — atribusi data ke Pengimpor Data CSV."
+        subtitle="Sesi impor massal (CSV / lembar) - atribusi data ke Pengimpor Data CSV."
         extra={
           <Flex gap={8}>
             <Button icon={<ReloadOutlined />} onClick={() => refetch()}>

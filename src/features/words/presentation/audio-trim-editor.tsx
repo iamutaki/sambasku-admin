@@ -55,7 +55,7 @@ export function AudioTrimEditor({
   const bufferRef = useRef<AudioBuffer | null>(null);
   const clipPreviewUrlRef = useRef<string | null>(null);
 
-  /** Object URL lokal dari source — fallback jika parent tidak kirim previewUrl. */
+  /** Object URL lokal dari source - fallback jika parent tidak kirim previewUrl. */
   const localSourceUrl = useMemo(() => {
     if (sourcePreviewUrl) return null;
     return URL.createObjectURL(source);
@@ -383,7 +383,7 @@ export function AudioTrimEditor({
             />
           ) : (
             <Text type="secondary" style={{ fontSize: 12 }}>
-              Player belum siap — pakai tombol Preview potongan.
+              Player belum siap - pakai tombol Preview potongan.
             </Text>
           )}
         </div>
