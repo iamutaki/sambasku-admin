@@ -47,7 +47,7 @@ function isTypingTarget(target: EventTarget | null): boolean {
  */
 export function ContributionsPage() {
   const { user } = useAuth();
-  const navigate = useNavigate({ from: '/console-layout/contributions' });
+  const navigate = useNavigate({ from: '/contributions' });
   const { id: selectedId } = contributionsRouteApi.useSearch();
   const { message } = AntdApp.useApp();
   const { token } = theme.useToken();

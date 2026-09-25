@@ -63,7 +63,7 @@ export function DashboardPage() {
       {stats ? (
         <StatCards
           stats={stats}
-          onNavigateContributions={() => navigate({ to: '/contributions' })}
+          onNavigateContributions={() => navigate({ to: '/contributions', search: { id: undefined } })}
         />
       ) : null}
     </div>
