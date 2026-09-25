@@ -171,11 +171,15 @@ export function ConsoleLayout() {
       segments[0] === 'words'
         ? segments[1] === 'new'
           ? 'Tambah Kata'
-          : segments[2] === 'edit'
-            ? 'Edit Kata'
-            : segments[1]
-              ? 'Detail Kata'
-              : undefined
+          : segments[1] === 'import-history'
+            ? segments[2]
+              ? 'Detail impor'
+              : 'Riwayat impor'
+            : segments[2] === 'edit'
+              ? 'Edit Kata'
+              : segments[1]
+                ? 'Detail Kata'
+                : undefined
         : segments[0] === 'contributions' && segments[1]
           ? 'Detail Kontribusi'
           : segments[0] === 'translation-helps' && segments[1]

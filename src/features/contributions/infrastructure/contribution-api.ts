@@ -1,5 +1,9 @@
 import { client } from '@/shared/api/client';
 import type { ApiCursorPageEnvelope, ApiOkEnvelope, CursorPage } from '@/shared/api/types';
+import {
+  buildCensoredApproveFormData,
+  postMultipartApprove,
+} from '@/shared/api/censored-approve-form';
 import type {
   ContributionDetailPayload,
   ContributionListItem,
@@ -44,15 +48,28 @@ export async function getContributionDetailRequest(
   return res.data.data;
 }
 
-/** POST /api/v1/admin/contributions/:id/approve - setujui (comment opsional). */
+/** POST /api/v1/admin/contributions/:id/approve - JSON atau multipart sensor. */
 export async function approveContributionRequest(
   id: string,
   comment?: string,
+  imageDecisions?: { image_id: string; decision: 'approve' | 'reject' }[],
+  censoredByImageId?: Record<string, Blob>,
 ): Promise<ReviewDecisionResult> {
-  const res = await client.post<ApiOkEnvelope<ReviewDecisionResult>>(`/admin/contributions/${id}/approve`, {
-    ...(comment ? { comment } : {}),
+  const hasCensored = Object.values(censoredByImageId ?? {}).some((b) => b && b.size > 0);
+  if (!hasCensored) {
+    const res = await client.post<ApiOkEnvelope<ReviewDecisionResult>>(`/admin/contributions/${id}/approve`, {
+      ...(comment ? { comment } : {}),
+      ...(imageDecisions?.length ? { image_decisions: imageDecisions } : {}),
+    });
+    return res.data.data;
+  }
+
+  const form = buildCensoredApproveFormData({
+    comment,
+    imageDecisions,
+    censoredByImageId,
   });
-  return res.data.data;
+  return postMultipartApprove<ReviewDecisionResult>(`/admin/contributions/${id}/approve`, form);
 }
 
 /** POST /api/v1/admin/contributions/:id/reject - tolak (comment WAJIB). */

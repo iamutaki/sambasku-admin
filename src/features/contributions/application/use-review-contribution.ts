@@ -9,6 +9,8 @@ export interface ReviewDecisionInput {
   id: string;
   decision: ReviewDecision;
   comment?: string;
+  imageDecisions?: { image_id: string; decision: 'approve' | 'reject' }[];
+  censoredByImageId?: Record<string, Blob>;
 }
 
 /**
@@ -21,8 +23,10 @@ export function useReviewContribution(): ReturnType<
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ id, decision, comment }: ReviewDecisionInput) =>
-      decision === 'approve' ? approveContributionRequest(id, comment) : rejectContributionRequest(id, comment ?? ''),
+    mutationFn: ({ id, decision, comment, imageDecisions, censoredByImageId }: ReviewDecisionInput) =>
+      decision === 'approve'
+        ? approveContributionRequest(id, comment, imageDecisions, censoredByImageId)
+        : rejectContributionRequest(id, comment ?? ''),
     onSuccess: (_result, variables) => {
       dropContributionFromListCaches(queryClient, variables.id);
       queryClient.invalidateQueries({ queryKey: ['contributions'] });

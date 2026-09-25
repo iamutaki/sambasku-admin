@@ -118,6 +118,8 @@ export interface WordImageView {
   altText: string | null;
   isPrimary: boolean;
   status?: string;
+  provider?: string | null;
+  isVerified?: boolean;
 }
 
 export interface WordRelationView {

@@ -145,6 +145,8 @@ function normalizeWordEntity(raw: unknown): WordEntityView {
           altText: asString(pickDefined(ir, ['alt_text', 'altText'])),
           isPrimary: Boolean(pickDefined(ir, ['is_primary', 'isPrimary']) ?? false),
           status: asString(pickDefined(ir, ['status'])) ?? undefined,
+          provider: asString(pickDefined(ir, ['provider'])),
+          isVerified: Boolean(pickDefined(ir, ['is_verified', 'isVerified']) ?? false),
         };
       })
     : [];

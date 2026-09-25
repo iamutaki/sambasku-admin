@@ -1,5 +1,9 @@
 import { client } from '@/shared/api/client';
 import type { ApiCursorPageEnvelope, ApiOkEnvelope, CursorPage } from '@/shared/api/types';
+import {
+  buildCensoredApproveFormData,
+  postMultipartApprove,
+} from '@/shared/api/censored-approve-form';
 import type { SuggestionDetail, SuggestionListItem, SuggestionStatus } from '../domain/word-suggestion';
 
 export async function listWordSuggestionsRequest(
@@ -27,12 +31,31 @@ export async function getWordSuggestionDetailRequest(
   return res.data.data;
 }
 
-export async function approveWordSuggestionRequest(id: string, comment?: string) {
-  const res = await client.post<ApiOkEnvelope<{ suggestion_id: string; word_lemma: string }>>(
+export async function approveWordSuggestionRequest(
+  id: string,
+  comment?: string,
+  imageDecisions?: { key: string; decision: 'approve' | 'reject' }[],
+  censoredByKey?: Record<string, Blob>,
+) {
+  const hasFiles = Object.values(censoredByKey ?? {}).some((b) => b && b.size > 0);
+  const hasDecisions = (imageDecisions?.length ?? 0) > 0;
+  if (!hasFiles && !hasDecisions) {
+    const res = await client.post<ApiOkEnvelope<{ suggestion_id: string; word_lemma: string }>>(
+      `/admin/word-suggestions/${id}/approve`,
+      comment ? { comment } : {},
+    );
+    return res.data.data;
+  }
+
+  const form = buildCensoredApproveFormData({
+    comment,
+    imageDecisions,
+    censoredByImageId: censoredByKey,
+  });
+  return postMultipartApprove<{ suggestion_id: string; word_lemma: string }>(
     `/admin/word-suggestions/${id}/approve`,
-    comment ? { comment } : {},
+    form,
   );
-  return res.data.data;
 }
 
 export async function rejectWordSuggestionRequest(id: string, comment: string) {

@@ -6,9 +6,10 @@ import {
   type CSSProperties,
   type KeyboardEvent,
   type PointerEvent as ReactPointerEvent,
+  type ReactNode,
 } from 'react';
 import { BookOutlined, DeleteOutlined } from '@ant-design/icons';
-import { Checkbox } from 'antd';
+import { Checkbox, Tooltip } from 'antd';
 
 export interface SheetMeaning {
   rowNumber: number;
@@ -26,6 +27,8 @@ export interface SheetWord {
   verified: boolean;
   meanings: SheetMeaning[];
   message?: string;
+  importStatus?: 'pending' | 'saved' | 'failed';
+  importError?: string;
 }
 
 type TextCol = 'lemma' | 'translation' | 'definition' | 'example';
@@ -34,18 +37,18 @@ type ColId = TextCol | 'skip' | 'verify' | 'verified' | 'remove';
 const TEXT_COLS: TextCol[] = ['lemma', 'translation', 'definition', 'example'];
 
 const GUTTER_WIDTH = 44;
-const MIN_TEXT_WIDTH = 96;
-const COL_WIDTH_STORAGE_KEY = 'sambasku.import-sheet.col-widths';
+const MIN_TEXT_WIDTH = 88;
+const COL_WIDTH_STORAGE_KEY = 'sambasku.import-sheet.col-widths.v2';
 const DEFAULT_TEXT_WIDTH: Record<TextCol, number> = {
-  lemma: 180,
-  translation: 200,
-  definition: 280,
-  example: 220,
+  lemma: 140,
+  translation: 155,
+  definition: 220,
+  example: 165,
 };
 const ACTION_WIDTH: Record<Exclude<ColId, TextCol>, number> = {
-  skip: 72,
-  verify: 96,
-  verified: 110,
+  skip: 56,
+  verify: 44,
+  verified: 44,
   remove: 40,
 };
 
@@ -88,6 +91,9 @@ const SELECT = '#107c41';
 const WARN = '#fff4ce';
 const BAND = '#f7f7f7';
 const BAND_GUTTER = '#efefef';
+const FAIL_BG = '#fff1f0';
+const FAIL_GUTTER = '#ffccc7';
+const FAIL_TEXT = '#a8071a';
 
 function textOf(word: SheetWord, meaning: SheetMeaning, col: TextCol) {
   if (col === 'lemma') return word.lemma;
@@ -333,15 +339,28 @@ export function ImportSheet({
     handle.addEventListener('pointerup', onUp);
   };
 
-  const headerTitles = [
-    '#',
-    'Kata',
-    'Terjemahan',
-    'Penjelasan arti',
-    'Contoh',
-    'Lewati',
-    ...(canVerify ? ['Tayangkan', 'Terverifikasi'] : []),
-    '',
+  const headerCells: { key: string; label: ReactNode; tip?: string }[] = [
+    { key: '#', label: '#' },
+    { key: 'lemma', label: 'Kata' },
+    { key: 'translation', label: 'Terjemahan' },
+    { key: 'definition', label: 'Penjelasan arti' },
+    { key: 'example', label: 'Contoh' },
+    { key: 'skip', label: 'Lewati' },
+    ...(canVerify
+      ? [
+          {
+            key: 'verify',
+            label: 'Tayang',
+            tip: 'Tayangkan: kata langsung published. Tanpa centang, tersimpan sebagai draf.',
+          },
+          {
+            key: 'verified',
+            label: 'Verif',
+            tip: 'Terverifikasi: kata yang tayang ditandai sudah diverifikasi. Tanpa centang, masih bisa dikoreksi.',
+          },
+        ]
+      : []),
+    { key: 'remove', label: '' },
   ];
 
   return (
@@ -375,19 +394,20 @@ export function ImportSheet({
         </colgroup>
         <thead>
           <tr>
-            {headerTitles.map((title, index) => {
+            {headerCells.map((cell, index) => {
               const col = index === 0 ? null : cols[index - 1];
               const resizable = col !== null && isTextCol(col);
+              const title = typeof cell.label === 'string' ? cell.label : cell.key;
               return (
                 <th
-                  key={`${title}-${index}`}
+                  key={cell.key}
                   style={{
                     position: 'sticky',
                     top: 0,
                     zIndex: index <= 1 ? 3 : 2,
                     left: index === 0 ? 0 : index === 1 ? GUTTER_WIDTH : undefined,
                     height: 28,
-                    padding: '0 8px',
+                    padding: index >= 5 ? '0 2px' : '0 8px',
                     background: HEADER_BG,
                     borderRight: `1px solid ${GRID}`,
                     borderBottom: `1px solid ${GRID}`,
@@ -397,9 +417,10 @@ export function ImportSheet({
                     overflow: 'hidden',
                     textOverflow: 'ellipsis',
                     width: index === 0 ? GUTTER_WIDTH : col ? colWidth(col, textWidths) : undefined,
+                    fontSize: index >= 5 ? 11 : undefined,
                   }}
                 >
-                  {title}
+                  {cell.tip ? <Tooltip title={cell.tip}>{cell.label}</Tooltip> : cell.label}
                   {resizable ? (
                     <div
                       role="separator"
@@ -440,6 +461,19 @@ export function ImportSheet({
               row.meaning.translation.trim() === '' &&
               row.meaning.definition.trim() === '';
             const banded = rowIndex % 2 === 1;
+            const failed = row.word.importStatus === 'failed';
+            const rowHint = failed
+              ? row.word.importError || 'Gagal disimpan — coba Simpan lagi'
+              : unused
+                ? 'Tidak ikut disimpan: terjemahan dan penjelasan arti kosong'
+                : row.word.message;
+            const gutterBg = failed
+              ? FAIL_GUTTER
+              : unused
+                ? WARN
+                : banded
+                  ? BAND_GUTTER
+                  : GUTTER_BG;
             return (
               <tr key={`${row.word.id}-${row.meaning.rowNumber}`}>
                 <td
@@ -447,14 +481,15 @@ export function ImportSheet({
                     ...stickyGutter,
                     width: GUTTER_WIDTH,
                     textAlign: 'center',
-                    color: '#666',
-                    background: unused ? WARN : banded ? BAND_GUTTER : GUTTER_BG,
+                    color: failed ? FAIL_TEXT : '#666',
+                    background: gutterBg,
                     borderRight: `1px solid ${GRID}`,
                     borderBottom: `1px solid ${GRID}`,
                     minHeight: 28,
                     verticalAlign: 'top',
+                    fontWeight: failed ? 700 : undefined,
                   }}
-                  title={unused ? 'Tidak ikut disimpan: terjemahan dan penjelasan arti kosong' : undefined}
+                  title={rowHint}
                 >
                   {row.meaning.rowNumber}
                 </td>
@@ -465,11 +500,20 @@ export function ImportSheet({
                   const value = TEXT_COLS.includes(col as TextCol)
                     ? textOf(row.word, row.meaning, col as TextCol)
                     : '';
+                  const cellBg = failed
+                    ? FAIL_BG
+                    : skipped
+                      ? '#f5f5f5'
+                      : banded
+                        ? BAND
+                        : col === 'lemma'
+                          ? GUTTER_BG
+                          : '#fff';
                   return (
                     <td
                       key={col}
                       data-cell={`${rowIndex}-${colIndex}`}
-                      title={col === 'lemma' ? row.word.message : undefined}
+                      title={col === 'lemma' ? rowHint : undefined}
                       onMouseDown={(event) => {
                         event.preventDefault();
                         scroller.current?.focus();
@@ -481,15 +525,19 @@ export function ImportSheet({
                       style={{
                         ...(col === 'lemma' ? stickyLemma : undefined),
                         minHeight: 28,
-                        padding: editing ? 0 : '4px 8px',
-                        background: skipped ? '#f5f5f5' : banded ? BAND : col === 'lemma' ? GUTTER_BG : '#fff',
+                        padding: editing
+                          ? 0
+                          : col === 'skip' || col === 'verify' || col === 'verified' || col === 'remove'
+                            ? '4px 2px'
+                            : '4px 8px',
+                        background: cellBg,
                         borderRight: `1px solid ${GRID}`,
                         borderBottom: `1px solid ${GRID}`,
                         boxShadow: selected ? `inset 0 0 0 2px ${SELECT}` : undefined,
                         textDecoration: skipped && TEXT_COLS.includes(col as TextCol) ? 'line-through' : undefined,
                         fontWeight: col === 'lemma' ? 700 : undefined,
                         fontStyle: col === 'example' ? 'italic' : undefined,
-                        color: skipped ? '#999' : undefined,
+                        color: failed ? FAIL_TEXT : skipped ? '#999' : undefined,
                         whiteSpace: 'normal',
                         overflowWrap: 'anywhere',
                         verticalAlign: 'top',
@@ -586,29 +634,36 @@ export function ImportSheet({
                           <DeleteOutlined />
                         </button>
                       ) : (
-                        <span style={{ display: 'flex', alignItems: 'flex-start', gap: 4, minWidth: 0 }}>
-                          <span style={{ flex: 1, whiteSpace: 'normal', overflowWrap: 'anywhere' }}>
-                            {value.trim() ? value : '-'}
+                        <span style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
+                          <span style={{ display: 'flex', alignItems: 'flex-start', gap: 4, minWidth: 0 }}>
+                            <span style={{ flex: 1, whiteSpace: 'normal', overflowWrap: 'anywhere' }}>
+                              {value.trim() ? value : '-'}
+                            </span>
+                            {col === 'translation' ? (
+                              <button
+                                type="button"
+                                tabIndex={-1}
+                                aria-label="Ambil dari KBBI"
+                                title="Ambil dari KBBI"
+                                onMouseDown={(event) => event.stopPropagation()}
+                                onClick={() => onKbbi(row.word.id, row.meaning.rowNumber, value)}
+                                style={{
+                                  border: 'none',
+                                  background: 'transparent',
+                                  padding: 0,
+                                  cursor: 'pointer',
+                                  color: '#595959',
+                                  flex: 'none',
+                                }}
+                              >
+                                <BookOutlined />
+                              </button>
+                            ) : null}
                           </span>
-                          {col === 'translation' ? (
-                            <button
-                              type="button"
-                              tabIndex={-1}
-                              aria-label="Ambil dari KBBI"
-                              title="Ambil dari KBBI"
-                              onMouseDown={(event) => event.stopPropagation()}
-                              onClick={() => onKbbi(row.word.id, row.meaning.rowNumber, value)}
-                              style={{
-                                border: 'none',
-                                background: 'transparent',
-                                padding: 0,
-                                cursor: 'pointer',
-                                color: '#595959',
-                                flex: 'none',
-                              }}
-                            >
-                              <BookOutlined />
-                            </button>
+                          {col === 'lemma' && failed && row.word.importError ? (
+                            <span style={{ fontSize: 11, fontWeight: 500, color: FAIL_TEXT }}>
+                              {row.word.importError}
+                            </span>
                           ) : null}
                         </span>
                       )}

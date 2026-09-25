@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { Table } from 'antd';
-import type { Breakpoint } from 'antd';
+import type { Breakpoint, TableProps } from 'antd';
 import type { Row, RowData, Table as TanstackTable } from '@tanstack/react-table';
 
 /**
@@ -25,6 +25,8 @@ export interface DataTableProps<TData> {
   loading?: boolean;
   size?: 'small' | 'middle' | 'large';
   footer?: () => React.ReactNode;
+  /** Checkbox multi-select (mass-action). Diteruskan ke antd Table. */
+  rowSelection?: TableProps<TData>['rowSelection'];
 }
 
 function renderDefaultCell(value: unknown): React.ReactNode {
@@ -53,7 +55,14 @@ function renderDefaultCell(value: unknown): React.ReactNode {
  * Konvensi: `rowKey` (dan `getRowId` di tabel) = `String(record.id)` - ULID
  * item (docs/api Section 19).
  */
-export function DataTable<TData>({ table, rowKey, loading, size = 'middle', footer }: DataTableProps<TData>) {
+export function DataTable<TData>({
+  table,
+  rowKey,
+  loading,
+  size = 'middle',
+  footer,
+  rowSelection,
+}: DataTableProps<TData>) {
   const rowsById = table.getRowModel().rowsById;
 
   const columns = useMemo(() => {
@@ -98,6 +107,7 @@ export function DataTable<TData>({ table, rowKey, loading, size = 'middle', foot
       footer={footer}
       scroll={{ x: 'max-content' }}
       tableLayout="fixed"
+      rowSelection={rowSelection}
     />
   );
 }

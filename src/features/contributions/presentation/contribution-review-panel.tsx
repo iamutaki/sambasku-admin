@@ -16,9 +16,12 @@ import {
   Typography,
 } from 'antd';
 import { formatDateTime } from '@/shared/utils/format-datetime';
+import { normalizeError } from '@/shared/api/error';
+import { ImageCensorEditor } from '@/features/translation-helps/presentation/image-censor-editor';
 import {
   CONTRIBUTION_STATUS_LABELS,
   ENTITY_TYPE_LABELS,
+  type WordImageView,
 } from '../domain/contribution';
 import { nextPendingId } from '../application/next-pending-id';
 import { useContributionDetail } from '../application/use-contribution-detail';
@@ -67,16 +70,44 @@ export function ContributionReviewPanel({ id, queueIds, onDecided }: Contributio
   const [rejectOpen, setRejectOpen] = useState(false);
   const [rejectComment, setRejectComment] = useState('');
   const [correctOpen, setCorrectOpen] = useState(false);
+  const [imageDecisions, setImageDecisions] = useState<Record<string, 'approve' | 'reject'>>({});
+  const [censoredByImageId, setCensoredByImageId] = useState<Record<string, Blob>>({});
+  const [censorTarget, setCensorTarget] = useState<WordImageView | null>(null);
 
   const detail = detailQuery.data;
   const isPending = detail?.contribution.status === 'pending';
+  const moderateImages = Boolean(isPending && detail?.entityType === 'word' && detail.word.images.length > 0);
+  const allowCensor = Boolean(
+    isPending &&
+      (detail?.entityType === 'word' ||
+        (detail?.entityType === 'word_image' &&
+          (detail.child.fields as { provider?: string | null }).provider === 'imagekit')),
+  );
 
   useEffect(() => {
     setApproveComment('');
     setRejectOpen(false);
     setRejectComment('');
     setCorrectOpen(false);
+    setImageDecisions({});
+    setCensoredByImageId({});
+    setCensorTarget(null);
   }, [id]);
+
+  useEffect(() => {
+    if (!moderateImages || detail?.entityType !== 'word') return;
+    setImageDecisions((prev) => {
+      const next = { ...prev };
+      let changed = false;
+      for (const img of detail.word.images) {
+        if (!next[img.id]) {
+          next[img.id] = 'approve';
+          changed = true;
+        }
+      }
+      return changed ? next : prev;
+    });
+  }, [detail, moderateImages]);
 
   const finishDecision = useCallback(() => {
     onDecided(nextPendingId(queueIds, id));
@@ -89,6 +120,15 @@ export function ContributionReviewPanel({ id, queueIds, onDecided }: Contributio
         id: detail.contribution.id,
         decision: 'approve',
         comment: approveComment.trim() || undefined,
+        imageDecisions:
+          detail.entityType === 'word' && detail.word.images.length > 0
+            ? detail.word.images.map((img) => ({
+                image_id: img.id,
+                decision: imageDecisions[img.id] ?? 'approve',
+              }))
+            : undefined,
+        censoredByImageId:
+          Object.keys(censoredByImageId).length > 0 ? censoredByImageId : undefined,
       });
       const label = CONTRIBUTION_STATUS_LABELS[result.status] ?? result.status;
       if (result.merged_into_word_id) {
@@ -99,10 +139,10 @@ export function ContributionReviewPanel({ id, queueIds, onDecided }: Contributio
         message.success(`Kontribusi disetujui (${label}).`);
       }
       finishDecision();
-    } catch {
-      // error ditampilkan hook/status
+    } catch (err) {
+      message.error(normalizeError(err).message);
     }
-  }, [approveComment, detail, finishDecision, isPending, message, reviewMutation]);
+  }, [approveComment, censoredByImageId, detail, finishDecision, imageDecisions, isPending, message, reviewMutation]);
 
   const submitReject = async () => {
     if (!detail || !rejectComment.trim()) return;
@@ -117,8 +157,8 @@ export function ContributionReviewPanel({ id, queueIds, onDecided }: Contributio
       setRejectOpen(false);
       setRejectComment('');
       finishDecision();
-    } catch {
-      // modal tetap terbuka
+    } catch (err) {
+      message.error(normalizeError(err).message);
     }
   };
 
@@ -241,7 +281,38 @@ export function ContributionReviewPanel({ id, queueIds, onDecided }: Contributio
             ]}
           />
 
-          <ContributionEntityView detail={detail} />
+          <ContributionEntityView
+            detail={detail}
+            imageDecisions={moderateImages ? imageDecisions : undefined}
+            onImageDecision={
+              moderateImages
+                ? (imageId, decision) => {
+                    setImageDecisions((prev) => ({ ...prev, [imageId]: decision }));
+                    if (decision === 'reject') {
+                      setCensoredByImageId((prev) => {
+                        if (!prev[imageId]) return prev;
+                        const next = { ...prev };
+                        delete next[imageId];
+                        return next;
+                      });
+                    }
+                  }
+                : undefined
+            }
+            censoredByImageId={allowCensor ? censoredByImageId : undefined}
+            onRequestCensor={allowCensor ? (img) => setCensorTarget(img) : undefined}
+            onClearCensor={
+              allowCensor
+                ? (imageId) =>
+                    setCensoredByImageId((prev) => {
+                      if (!prev[imageId]) return prev;
+                      const next = { ...prev };
+                      delete next[imageId];
+                      return next;
+                    })
+                : undefined
+            }
+          />
 
           {detail.review ? (
             <Card size="small" title="Keputusan Verifikator">
@@ -330,6 +401,29 @@ export function ContributionReviewPanel({ id, queueIds, onDecided }: Contributio
             />
           </Form.Item>
         </Form>
+      </Modal>
+
+      <Modal
+        title="Sensor foto"
+        open={!!censorTarget}
+        onCancel={() => setCensorTarget(null)}
+        footer={null}
+        width={720}
+        destroyOnHidden
+        zIndex={1200}
+      >
+        {censorTarget ? (
+          <ImageCensorEditor
+            imageUrl={censorTarget.url}
+            confirmLabel="Simpan sensor"
+            onCancel={() => setCensorTarget(null)}
+            onApply={(blob) => {
+              setCensoredByImageId((prev) => ({ ...prev, [censorTarget.id]: blob }));
+              setCensorTarget(null);
+              message.success('Sensor disimpan. Akan dikirim saat Setujui.');
+            }}
+          />
+        ) : null}
       </Modal>
 
       <CorrectContributionDrawer

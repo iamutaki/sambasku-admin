@@ -513,7 +513,7 @@ export function CreateWordPage() {
                     valuePropName="checked"
                     style={{ marginTop: -12 }}
                   >
-                    <Checkbox>Padanan memang mengandung koma (bukan multi-makna)</Checkbox>
+                    <Checkbox>Terjemahan memang mengandung koma (bukan multi-makna)</Checkbox>
                   </Form.Item>
                 </Col>
                 <Col xs={24}>
