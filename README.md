@@ -100,7 +100,7 @@ production) supaya cookie terkirim saat auto-refresh sesi. Domain
 Hosting: **Cloudflare Pages** - project `sambasku-admin`, custom domain
 `https://console.sambasku.com`. API: `https://api.sambasku.com/api/v1`.
 
-Deploy: `.github/workflows/deploy-production.yml` — push ke branch
+Deploy: `.github/workflows/deploy-production.yml` - push ke branch
 `main` (atau Run workflow manual) → lint + test + build → Pages deploy.
 
 Setup sekali: attach `console.sambasku.com` ke project `sambasku-admin`,

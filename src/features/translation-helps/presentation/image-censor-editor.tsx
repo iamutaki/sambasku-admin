@@ -417,7 +417,7 @@ export function ImageCensorEditor({
     return () => stage.removeEventListener('wheel', onWheel);
   }, [fullscreen, applyZoomAtPoint]);
 
-  // Portal/fullscreen me-remount canvas — pulihkan bitmap dari history.
+  // Portal/fullscreen me-remount canvas - pulihkan bitmap dari history.
   useLayoutEffect(() => {
     if (loading) return;
     const snap = historyRef.current[historyIndexRef.current];
@@ -780,8 +780,8 @@ export function ImageCensorEditor({
               </Text>
               <Text type="secondary" style={{ fontSize: 12 }}>
                 {fullscreen
-                  ? 'Scroll zoom · 0 reset zoom · Esc keluar · ⌘Z undo · [ ] kuas · 1–3 mode'
-                  : 'Undo/Redo · F layar penuh · [ ] kuas · 1–3 mode · ⌘↵ terapkan'}
+                  ? 'Scroll zoom · 0 reset zoom · Esc keluar · ⌘Z undo · [ ] kuas · 1-3 mode'
+                  : 'Undo/Redo · F layar penuh · [ ] kuas · 1-3 mode · ⌘↵ terapkan'}
               </Text>
             </div>
             <Space size={4} wrap>

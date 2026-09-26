@@ -39,7 +39,7 @@ export function CommentsPage() {
   const confirmTakedown = (item: AdminCommentItem) => {
     modal.confirm({
       title: 'Takedown komentar ini?',
-      content: `"${item.body}" — ${item.username ?? 'pengguna terhapus'}`,
+      content: `"${item.body}" - ${item.username ?? 'pengguna terhapus'}`,
       okText: 'Takedown',
       okButtonProps: { danger: true },
       onOk: async () => {
@@ -145,7 +145,7 @@ export function CommentsPage() {
           row.original.reviewed_at ? (
             formatDateTime(row.original.reviewed_at)
           ) : (
-            <Typography.Text type="secondary">—</Typography.Text>
+            <Typography.Text type="secondary">-</Typography.Text>
           ),
       }),
       columnHelper.display({
@@ -181,7 +181,7 @@ export function CommentsPage() {
                 </Tooltip>
               ) : null}
               {!item.is_censored && item.status !== 'published' ? (
-                <Typography.Text type="secondary">—</Typography.Text>
+                <Typography.Text type="secondary">-</Typography.Text>
               ) : null}
             </Flex>
           );

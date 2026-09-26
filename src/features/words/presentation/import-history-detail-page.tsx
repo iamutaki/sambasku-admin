@@ -135,7 +135,7 @@ export function ImportHistoryDetailPage() {
           {
             title: 'Pesan',
             dataIndex: 'message',
-            render: (value?: string) => value || '—',
+            render: (value?: string) => value || '-',
           },
         ]}
       />

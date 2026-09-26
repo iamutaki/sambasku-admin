@@ -28,7 +28,7 @@ export interface UploadPronunciationAudioFields {
 const ACCEPTED_AUDIO = ['audio/mpeg', 'audio/mp4', 'audio/wav', 'audio/x-wav', 'audio/ogg', 'audio/webm'];
 const MAX_AUDIO_BYTES = 5 * 1024 * 1024;
 
-/** Strip `;codecs=…` dll. — MediaRecorder sering mengirim `audio/webm;codecs=opus`. */
+/** Strip `;codecs=…` dll. - MediaRecorder sering mengirim `audio/webm;codecs=opus`. */
 export function normalizeClientAudioMime(mime: string): string {
   return mime.toLowerCase().split(';')[0].trim();
 }
@@ -44,7 +44,7 @@ export function validatePronunciationAudioFile(file: File): string | null {
 }
 
 /**
- * Upload file audio pelafalan — multipart ke API sambasku (bukan CDN terpisah).
+ * Upload file audio pelafalan - multipart ke API sambasku (bukan CDN terpisah).
  * Auth via interceptor `client` (Bearer access token).
  */
 export async function uploadPronunciationAudioRequest(

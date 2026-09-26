@@ -13,7 +13,7 @@ import { useWordComments } from '../application/use-word-comments';
 
 const { Text, Paragraph } = Typography;
 
-/** Section komentar di detail kata — marking status + takedown/uncensor. */
+/** Section komentar di detail kata - marking status + takedown/uncensor. */
 export function WordComments({ wordId }: { wordId: string }) {
   const { message, modal } = AntdApp.useApp();
   const { items, hasMore, loadMore, isLoading, isFetchingNextPage, isError, refetch } =

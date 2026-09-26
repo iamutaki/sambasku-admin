@@ -31,6 +31,7 @@ import { NotificationCampaignsPage } from '@/features/notification-campaigns/pre
 import { NotificationCampaignDetailPage } from '@/features/notification-campaigns/presentation/notification-campaign-detail-page';
 import { NotificationTemplatesPage } from '@/features/notification-campaigns/presentation/notification-templates-page';
 import { ProfilePage } from '@/features/profile/presentation/pages/profile-page';
+import { LegalPage } from '@/features/legal/presentation/legal-page';
 import { NotFoundPage } from '@/shared/layouts/not-found-page';
 
 /**
@@ -274,6 +275,12 @@ const profileRoute = createRoute({
   component: ProfilePage,
 });
 
+const legalRoute = createRoute({
+  getParentRoute: () => consoleLayoutRoute,
+  path: '/legal',
+  component: LegalPage,
+});
+
 /**
  * Alias path `/console-layout/...` → path nyata (tanpa prefix layout id).
  *
@@ -329,6 +336,7 @@ const routeTree = rootRoute.addChildren([
     notificationCampaignDetailRoute,
     notificationTemplatesRoute,
     profileRoute,
+    legalRoute,
   ]),
 ]);
 

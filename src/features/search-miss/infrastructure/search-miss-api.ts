@@ -1,5 +1,5 @@
 import { client } from '@/shared/api/client';
-import type { ApiCursorPageEnvelope, CursorPage } from '@/shared/api/types';
+import type { ApiCursorPageEnvelope, ApiOkEnvelope, CursorPage } from '@/shared/api/types';
 import type { SearchMissDirection } from '../domain/search-miss';
 
 export interface SearchMissWire {
@@ -78,6 +78,44 @@ export async function dismissSearchMissRequest(id: string, signal?: AbortSignal)
   const res = await client.post<ApiCursorPageEnvelope<unknown>>(`/admin/search-misses/${id}/dismiss`, undefined, {
     signal,
   });
+  return res.data.data;
+}
+
+export type BulkDismissSearchMissItemSuccess = {
+  id: string;
+  ok: true;
+};
+
+export type BulkDismissSearchMissItemFailure = {
+  id: string;
+  ok: false;
+  error_code: string;
+  message: string;
+};
+
+export type BulkDismissSearchMissItemResult =
+  | BulkDismissSearchMissItemSuccess
+  | BulkDismissSearchMissItemFailure;
+
+export type BulkDismissSearchMissResult = {
+  succeeded: number;
+  failed: number;
+  results: BulkDismissSearchMissItemResult[];
+};
+
+/**
+ * POST /api/v1/admin/search-misses/bulk-dismiss - soft-delete massal dari
+ * checkbox panel Pencarian. Partial success per-id.
+ */
+export async function bulkDismissSearchMissesRequest(
+  ids: string[],
+  signal?: AbortSignal,
+): Promise<BulkDismissSearchMissResult> {
+  const res = await client.post<ApiOkEnvelope<BulkDismissSearchMissResult>>(
+    '/admin/search-misses/bulk-dismiss',
+    { ids },
+    { signal },
+  );
   return res.data.data;
 }
 

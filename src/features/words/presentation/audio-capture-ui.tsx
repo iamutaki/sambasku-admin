@@ -22,7 +22,7 @@ export interface AudioMetaFieldsProps {
   disabled?: boolean;
 }
 
-/** Nama penutur + dialek — baris meta di atas aksi rekam. */
+/** Nama penutur + dialek - baris meta di atas aksi rekam. */
 export function AudioMetaFields({
   speakerName,
   onSpeakerNameChange,
@@ -38,7 +38,7 @@ export function AudioMetaFields({
           Nama penutur
         </Text>
         <Input
-          placeholder="Opsional — siapa yang berbicara"
+          placeholder="Opsional - siapa yang berbicara"
           value={speakerName}
           onChange={(e) => onSpeakerNameChange(e.target.value)}
           maxLength={255}
@@ -69,7 +69,7 @@ export interface AudioStudioShellProps {
   children: ReactNode;
 }
 
-/** Kerangka panel studio audio — satu permukaan visual untuk semua tahap. */
+/** Kerangka panel studio audio - satu permukaan visual untuk semua tahap. */
 export function AudioStudioShell({ hint, children }: AudioStudioShellProps) {
   const { token } = theme.useToken();
 
@@ -244,7 +244,7 @@ export interface AudioRecordingPanelProps {
   onStop: () => void;
 }
 
-/** Banner rekaman aktif — timer besar + indikator denyut. */
+/** Banner rekaman aktif - timer besar + indikator denyut. */
 export function AudioRecordingPanel({ elapsedMs, onStop }: AudioRecordingPanelProps) {
   const { token } = theme.useToken();
   const progress = Math.min(100, (elapsedMs / (MAX_RECORDING_SECONDS * 1000)) * 100);
@@ -282,7 +282,7 @@ export function AudioRecordingPanel({ elapsedMs, onStop }: AudioRecordingPanelPr
             {formatRecordingClock(elapsedMs)}
           </Title>
           <Text type="secondary" style={{ fontSize: 13 }}>
-            Sedang merekam — tekan stop saat selesai
+            Sedang merekam - tekan stop saat selesai
           </Text>
         </div>
         <Progress

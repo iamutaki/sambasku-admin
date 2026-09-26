@@ -75,13 +75,13 @@ function applyResultCounters(
   return counters;
 }
 
-/** Satu kata per request — aman untuk budget subrequest Workers (~50/invocation). */
+/** Satu kata per request - aman untuk budget subrequest Workers (~50/invocation). */
 const CHUNK = 1;
 /** Percobaan maksimal per kata; gagal 5× → hentikan impor (partial tetap disimpan). */
 const MAX_ATTEMPTS = 5;
 /** Backoff antar percobaan gagal (ms). */
 const RETRY_BACKOFF_MS = [2000, 5000, 10000, 15000, 20000] as const;
-/** Jeda singkat antar kata sukses — jaga rate limit 30/menit. */
+/** Jeda singkat antar kata sukses - jaga rate limit 30/menit. */
 const WORD_GAP_MS = 2000;
 /** Jedah singkat agar step Selesai/Gagal sempat terbaca. */
 const PHASE_HOLD_MS = 900;
@@ -240,7 +240,7 @@ function summarize(items: ImportWordResultItem[]) {
   return { published, drafts, added, skipped, invalid };
 }
 
-/** Pratinjau lokal — tanpa hit API validate (hemat beban Workers). */
+/** Pratinjau lokal - tanpa hit API validate (hemat beban Workers). */
 function previewLocal(items: ImportWordPayload[]) {
   const publish = items.filter((item) => item.verify).length;
   const draft = items.length - publish;
@@ -450,7 +450,7 @@ export function ImportWordsDrawer({
       }
     };
 
-    // Jejak awal — cancel sebelum kata pertama tetap punya record.
+    // Jejak awal - cancel sebelum kata pertama tetap punya record.
     await persistSession('running');
 
     try {
@@ -497,7 +497,7 @@ export function ImportWordsDrawer({
           maxAttempts: MAX_ATTEMPTS,
           ...counters,
         });
-        // Progressive upsert — batal/gagal parsial tetap punya jejak di riwayat.
+        // Progressive upsert - batal/gagal parsial tetap punya jejak di riwayat.
         await persistSession('running');
         if (i + CHUNK < payload.length) {
           await sleep(WORD_GAP_MS, isCancelled);
@@ -653,7 +653,7 @@ export function ImportWordsDrawer({
       ),
       okText: 'Simpan',
       cancelText: 'Batal',
-      // Jangan await impor di onOk — modal harus tutup dulu.
+      // Jangan await impor di onOk - modal harus tutup dulu.
       // Kalau di-await, klik Batal menutup dialog tapi overlay busy tetap nyangkut.
       onOk: () => {
         void runCommitImport();
@@ -987,7 +987,7 @@ export function ImportWordsDrawer({
                   Isi manual di lembar
                 </Typography.Title>
                 <Typography.Text type="secondary">
-                  Buka grid kosong — styling dan navigasi sama seperti setelah impor CSV.
+                  Buka grid kosong - styling dan navigasi sama seperti setelah impor CSV.
                 </Typography.Text>
               </div>
               <Button type="primary" icon={<EditOutlined />} onClick={startManual}>
@@ -1034,8 +1034,8 @@ export function ImportWordsDrawer({
               style={{ marginBottom: 8 }}
               message={
                 failedCount > 0
-                  ? `${resume.saved} kata tersimpan. ${resume.remaining} tersisa — baris merah gagal; perbaiki bila perlu, lalu Simpan sisa.`
-                  : `${resume.saved} kata tersimpan. ${resume.remaining} tersisa di lembar — klik Simpan sisa untuk melanjutkan.`
+                  ? `${resume.saved} kata tersimpan. ${resume.remaining} tersisa - baris merah gagal; perbaiki bila perlu, lalu Simpan sisa.`
+                  : `${resume.saved} kata tersimpan. ${resume.remaining} tersisa di lembar - klik Simpan sisa untuk melanjutkan.`
               }
               description={`Kata baru ${resume.created} · Duplikat ${resume.duplicates} · Makna ditambah ${resume.meaningsAdded}${resume.invalid > 0 ? ` · Tidak valid ${resume.invalid}` : ''}`}
               closable

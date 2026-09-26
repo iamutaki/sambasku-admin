@@ -18,11 +18,11 @@ export interface MediaExplorerModalProps {
 }
 
 /**
- * Browser foto stock (Media Explorer) untuk gambar kata — foto saja.
+ * Browser foto stock (Media Explorer) untuk gambar kata - foto saja.
  * Memakai GET /api/v1/share/backgrounds (publik).
  */
 export function MediaExplorerModal({ open, onClose, onSelect }: MediaExplorerModalProps) {
-  const [provider, setProvider] = useState<StockPhotoProvider>('pexels');
+  const [provider, setProvider] = useState<StockPhotoProvider>('pixabay');
   const [query, setQuery] = useState('');
   const [activeQuery, setActiveQuery] = useState('');
   const [page, setPage] = useState(1);
@@ -113,7 +113,7 @@ export function MediaExplorerModal({ open, onClose, onSelect }: MediaExplorerMod
       ignore = true;
       ac.abort();
     };
-    // Hanya saat modal dibuka — ganti provider lewat onClick chip.
+    // Hanya saat modal dibuka - ganti provider lewat onClick chip.
     // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional open gate
   }, [open]);
 
@@ -170,7 +170,7 @@ export function MediaExplorerModal({ open, onClose, onSelect }: MediaExplorerMod
           ))}
         </Space>
         {degraded ? (
-          <Text type="warning">Penyedia sedang terbatas — hasil mungkin kosong.</Text>
+          <Text type="warning">Penyedia sedang terbatas - hasil mungkin kosong.</Text>
         ) : null}
         {loading ? (
           <div style={{ textAlign: 'center', padding: 40 }}>

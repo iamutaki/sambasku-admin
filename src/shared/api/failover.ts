@@ -224,7 +224,7 @@ export function isReplayableMethod(method: string | undefined): boolean {
  * Berbeda dari mutasi data (kata/kontribusi): timeout di sini hampir selalu
  * berarti host belum menjawab, dan mengulang ke tier cadangan tidak membuat
  * baris kamus ganda. Tanpa ini, `POST /auth/refresh` hanya menggeser pin lalu
- * gagal — admin terlempar ke login meski cookie masih valid.
+ * gagal - admin terlempar ke login meski cookie masih valid.
  */
 const FAILOVER_REPLAYABLE_AUTH_PATHS = ['/auth/refresh', '/auth/login'] as const;
 

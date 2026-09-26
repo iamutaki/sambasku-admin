@@ -472,7 +472,7 @@ export function ImportSheet({
             const banded = rowIndex % 2 === 1;
             const failed = row.word.importStatus === 'failed';
             const rowHint = failed
-              ? row.word.importError || 'Gagal disimpan — coba Simpan lagi'
+              ? row.word.importError || 'Gagal disimpan - coba Simpan lagi'
               : unused
                 ? 'Tidak ikut disimpan: terjemahan dan penjelasan arti kosong'
                 : row.word.message;

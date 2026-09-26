@@ -8,7 +8,7 @@ import type {
 } from '../domain/translation-help';
 
 /**
- * GET /api/v1/admin/translation-helps — antrean moderasi (filter status, cursor).
+ * GET /api/v1/admin/translation-helps - antrean moderasi (filter status, cursor).
  */
 export async function listTranslationHelpsRequest(
   params: ListTranslationHelpsParams,
@@ -29,7 +29,7 @@ export async function listTranslationHelpsRequest(
 }
 
 /**
- * GET /api/v1/admin/translation-helps/:id — detail + replies (URL ImageKit saat pending).
+ * GET /api/v1/admin/translation-helps/:id - detail + replies (URL ImageKit saat pending).
  */
 export async function getTranslationHelpDetailRequest(
   id: string,
@@ -88,7 +88,7 @@ export async function approveTranslationHelpRequest(
   return res.data.data;
 }
 
-/** POST /api/v1/admin/translation-helps/:id/reject — note wajib. */
+/** POST /api/v1/admin/translation-helps/:id/reject - note wajib. */
 export async function rejectTranslationHelpRequest(
   id: string,
   note: string,
@@ -100,7 +100,7 @@ export async function rejectTranslationHelpRequest(
   return res.data.data;
 }
 
-/** POST /api/v1/admin/translation-helps/:id/takedown — tarik dari feed. */
+/** POST /api/v1/admin/translation-helps/:id/takedown - tarik dari feed. */
 export async function takedownTranslationHelpRequest(id: string): Promise<TranslationHelpListItem> {
   const res = await client.post<ApiOkEnvelope<TranslationHelpListItem>>(
     `/admin/translation-helps/${id}/takedown`,

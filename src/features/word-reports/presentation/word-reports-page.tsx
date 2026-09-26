@@ -44,7 +44,7 @@ export function WordReportsPage() {
             style={{ padding: 0, height: 'auto' }}
             onClick={() => navigate({ to: '/word-reports/$id', params: { id: info.row.original.id } })}
           >
-            {info.getValue() || '—'}
+            {info.getValue() || '-'}
           </Button>
         ),
       }),
@@ -67,7 +67,7 @@ export function WordReportsPage() {
         size: 140,
         cell: (info) => {
           const name = info.getValue();
-          return name ? <UserInfoLink username={name} /> : <Typography.Text type="secondary">—</Typography.Text>;
+          return name ? <UserInfoLink username={name} /> : <Typography.Text type="secondary">-</Typography.Text>;
         },
       }),
       columnHelper.accessor('created_at', {

@@ -13,7 +13,7 @@ export interface SafeAudioPlayerProps {
 
 /**
  * `<audio controls>` dengan fallback URL + pesan jelas saat gagal load.
- * Native control abu-abu/tidak bisa diklik biasanya karena src 404 — tanpa
+ * Native control abu-abu/tidak bisa diklik biasanya karena src 404 - tanpa
  * onError user mengira tombolnya rusak.
  */
 export function SafeAudioPlayer(props: SafeAudioPlayerProps) {

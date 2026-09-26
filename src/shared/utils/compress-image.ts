@@ -30,7 +30,7 @@ export async function compressImageForUpload(
     const height = Math.max(1, Math.round(bitmap.height * scale));
 
     if (scale >= 1 && file.type === 'image/jpeg' && file.size < 200_000) {
-      // Sudah kecil & dalam batas — skip re-encode
+      // Sudah kecil & dalam batas - skip re-encode
       return file;
     }
 

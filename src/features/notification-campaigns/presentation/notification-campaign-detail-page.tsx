@@ -135,7 +135,7 @@ export function NotificationCampaignDetailPage() {
           {data.deepLinkValue ? ` · ${data.deepLinkValue}` : ''}
         </Descriptions.Item>
         <Descriptions.Item label="Jadwal">
-          {data.sendAt ? formatDateTime(data.sendAt) : '—'}
+          {data.sendAt ? formatDateTime(data.sendAt) : '-'}
         </Descriptions.Item>
         <Descriptions.Item label="Target user">{data.targetedUsers}</Descriptions.Item>
         <Descriptions.Item label="Push sukses / gagal">

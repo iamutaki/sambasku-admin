@@ -47,7 +47,7 @@ import { ImageCensorEditor } from './image-censor-editor';
 const { Paragraph, Text } = Typography;
 
 /**
- * Detail moderasi tanya terjemahan — /translation-helps/:id.
+ * Detail moderasi tanya terjemahan - /translation-helps/:id.
  * Pending + gambar: editor sensor opsional sebelum Setujui (multipart file_0..).
  */
 export function TranslationHelpDetailPage() {
@@ -245,7 +245,7 @@ export function TranslationHelpDetailPage() {
             {
               key: 'user',
               label: 'Pengirim',
-              children: detail.username ? <UserInfoLink username={detail.username} /> : '—',
+              children: detail.username ? <UserInfoLink username={detail.username} /> : '-',
             },
             {
               key: 'submitted',
@@ -255,7 +255,7 @@ export function TranslationHelpDetailPage() {
             {
               key: 'reviewed',
               label: 'Direview',
-              children: detail.reviewed_at ? formatDateTime(detail.reviewed_at) : '—',
+              children: detail.reviewed_at ? formatDateTime(detail.reviewed_at) : '-',
             },
             ...(detail.rejection_note
               ? [
@@ -276,7 +276,7 @@ export function TranslationHelpDetailPage() {
               {detail.body}
             </Paragraph>
           ) : (
-            <Text type="secondary">Tanpa teks — hanya lampiran gambar.</Text>
+            <Text type="secondary">Tanpa teks - hanya lampiran gambar.</Text>
           )}
 
           {hasImages ? (
@@ -474,7 +474,7 @@ export function TranslationHelpDetailPage() {
                           opacity: takenDown ? 0.55 : 1,
                         }}
                       >
-                        {reply.body || <Text type="secondary">—</Text>}
+                        {reply.body || <Text type="secondary">-</Text>}
                       </Paragraph>
                     </List.Item>
                   );

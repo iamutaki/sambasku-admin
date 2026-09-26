@@ -1,4 +1,5 @@
 import { useCallback, useMemo, useState } from 'react';
+import type { Key } from 'react';
 import { createColumnHelper, getCoreRowModel, useReactTable } from '@tanstack/react-table';
 import {
   LinkOutlined,
@@ -33,6 +34,7 @@ import { normalizeError } from '@/shared/api/error';
 import { useDebouncedValue } from '@/shared/hooks/use-debounced-value';
 import { useSearchMissList } from '../application/use-search-miss-list';
 import { useDismissSearchMiss } from '../application/use-dismiss-search-miss';
+import { useBulkDismissSearchMiss } from '../application/use-bulk-dismiss-search-miss';
 import { useUpdateSearchMiss } from '../application/use-update-search-miss';
 import {
   DIRECTION_LABELS,
@@ -81,6 +83,7 @@ export function SearchMissesPage() {
   const [visible, setVisible] = useState<boolean | undefined>();
   const [fulfilledTab, setFulfilledTab] = useState<FulfilledTab>('pending');
   const [resolveMiss, setResolveMiss] = useState<SearchMissListItem | null>(null);
+  const [selectedRowKeys, setSelectedRowKeys] = useState<Key[]>([]);
   const q = useDebouncedValue(searchInput, 300);
   const fulfilled = FULFILLED_TABS.find((t) => t.key === fulfilledTab)?.fulfilled;
 
@@ -88,16 +91,44 @@ export function SearchMissesPage() {
     useSearchMissList({ q, direction, fulfilled, visible });
 
   const dismissSearchMiss = useDismissSearchMiss();
+  const bulkDismissSearchMiss = useBulkDismissSearchMiss();
   const updateSearchMiss = useUpdateSearchMiss();
 
-  const onDismiss = async (id: string, term: string) => {
+  const clearSelection = useCallback(() => setSelectedRowKeys([]), []);
+
+  const onDismiss = useCallback(
+    async (id: string, term: string) => {
+      try {
+        await dismissSearchMiss.mutateAsync(id, {
+          onSuccess: () => {
+            message.success(`"${term}" dihapus dari antrian`);
+            setSelectedRowKeys((keys) => keys.filter((k) => String(k) !== id));
+          },
+          onError: (err) =>
+            message.warning(normalizeError(err).message || 'Gagal menghapus dari antrian'),
+        });
+      } catch {
+        // Handled di atas.
+      }
+    },
+    [dismissSearchMiss, message],
+  );
+
+  const onBulkDismiss = async () => {
+    const ids = selectedRowKeys.map(String);
+    if (ids.length === 0) return;
     try {
-      await dismissSearchMiss.mutateAsync(id, {
-        onSuccess: () => message.success(`"${term}" dihapus dari antrian`),
-        onError: (err) => message.warning(normalizeError(err).message || 'Gagal menghapus dari antrian'),
-      });
-    } catch {
-      // Handled di atas.
+      const data = await bulkDismissSearchMiss.mutateAsync(ids);
+      if (data.failed === 0) {
+        message.success(`${data.succeeded} pencarian dihapus dari antrian`);
+      } else {
+        message.warning(
+          `${data.succeeded} berhasil, ${data.failed} gagal. Periksa entri yang sudah hilang.`,
+        );
+      }
+      clearSelection();
+    } catch (err) {
+      message.error(normalizeError(err).message || 'Gagal dismiss massal');
     }
   };
 
@@ -161,6 +192,9 @@ export function SearchMissesPage() {
     updateSearchMiss.isPending && updateSearchMiss.variables
       ? updateSearchMiss.variables.id
       : null;
+
+  const bulkBusy = bulkDismissSearchMiss.isPending;
+  const selectedCount = selectedRowKeys.length;
 
   const columns = useMemo(
     () => [
@@ -282,6 +316,7 @@ export function SearchMissesPage() {
                       loading={
                         dismissSearchMiss.isPending && dismissSearchMiss.variables === row.id
                       }
+                      disabled={bulkBusy}
                     />
                   </Tooltip>
                 </Popconfirm>
@@ -301,6 +336,7 @@ export function SearchMissesPage() {
       dismissSearchMiss.isPending,
       dismissSearchMiss.variables,
       updatingId,
+      bulkBusy,
     ],
   );
 
@@ -363,6 +399,39 @@ export function SearchMissesPage() {
         </Col>
       </Row>
 
+      {canDismiss && selectedCount > 0 ? (
+        <Flex
+          wrap
+          gap={12}
+          align="center"
+          style={{
+            marginBottom: 12,
+            padding: '8px 12px',
+            background: 'var(--ant-color-fill-alter, #fafafa)',
+            borderRadius: 8,
+          }}
+        >
+          <Typography.Text>{selectedCount} dipilih</Typography.Text>
+          <Space wrap>
+            <Popconfirm
+              title={`Dismiss ${selectedCount} pencarian?`}
+              description="Soft-delete: hilang dari antrian & beranda; jejak tetap untuk audit."
+              okText="Dismiss"
+              okButtonProps={{ danger: true }}
+              cancelText="Batal"
+              onConfirm={() => void onBulkDismiss()}
+            >
+              <Button danger icon={<ToolOutlined />} loading={bulkBusy} disabled={bulkBusy}>
+                Dismiss
+              </Button>
+            </Popconfirm>
+            <Button type="link" onClick={clearSelection} disabled={bulkBusy}>
+              Batal pilih
+            </Button>
+          </Space>
+        </Flex>
+      ) : null}
+
       {isError ? (
         <Alert
           type="error"
@@ -376,7 +445,16 @@ export function SearchMissesPage() {
       <DataTable
         table={table}
         rowKey={(record) => String(record.id)}
-        loading={isLoading || (isFetching && !items.length)}
+        loading={isLoading || (isFetching && !items.length) || bulkBusy}
+        rowSelection={
+          canDismiss
+            ? {
+                selectedRowKeys,
+                onChange: (keys) => setSelectedRowKeys(keys),
+                preserveSelectedRowKeys: true,
+              }
+            : undefined
+        }
       />
 
       <Flex justify="center" align="center" gap={16} style={{ marginTop: 16 }}>

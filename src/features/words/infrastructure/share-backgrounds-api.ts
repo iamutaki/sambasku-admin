@@ -2,20 +2,16 @@ import { client } from '@/shared/api/client';
 import type { ApiOkEnvelope } from '@/shared/api/types';
 
 export const STOCK_PHOTO_PROVIDERS = [
-  'pexels',
   'pixabay',
   'openverse',
-  'wikimedia',
   'unsplash',
 ] as const;
 
 export type StockPhotoProvider = (typeof STOCK_PHOTO_PROVIDERS)[number];
 
 export const STOCK_PROVIDER_LABELS: Record<StockPhotoProvider, string> = {
-  pexels: 'Pexels',
   pixabay: 'Pixabay',
   openverse: 'Openverse',
-  wikimedia: 'Wikimedia',
   unsplash: 'Unsplash',
 };
 
@@ -61,7 +57,7 @@ export async function listShareBackgrounds(params: {
       ...(params.q?.trim() ? { q: params.q.trim() } : {}),
       page: params.page ?? 1,
       sort,
-      provider: params.provider ?? 'pexels',
+      provider: params.provider ?? 'pixabay',
       limit: params.limit ?? 12,
       media: 'photo',
     },
